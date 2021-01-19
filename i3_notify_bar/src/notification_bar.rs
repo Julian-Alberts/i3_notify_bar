@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use notify_server::{Event, Observer, notification::Notification};
 use std::sync::Arc;
+use crate::rule::rule::Action;
 
 use crate::rule::rule::{Definition as RuleDefinition, Style};
 
@@ -24,14 +25,16 @@ impl NotificationManager {
     fn notify(&mut self, n: &Notification) {
 
         let mut styles = Vec::new();
+        let mut n = n.clone();
 
         for rule in &self.rules {
-            if rule.matches(n) {
+            if rule.matches(&n) {
                 for action in &rule.actions {
                     match action {
-                        crate::rule::rule::Action::Ignore => {
+                        Action::Ignore => {
                             return;
-                        }
+                        },
+                        Action::Set(set_property) => set_property.set(&mut n)
                     }
                 }
                 
@@ -41,7 +44,7 @@ impl NotificationManager {
         }
 
         let n_id = n.id;
-        let n = Arc::new((n.to_owned(), styles));
+        let n = Arc::new((n, styles));
         self.changed.push(Arc::clone(&n));
         self.notifications.insert(n_id, n);
     }

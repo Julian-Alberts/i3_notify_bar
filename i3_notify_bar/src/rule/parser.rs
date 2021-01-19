@@ -91,10 +91,10 @@ pub fn parse_config(config: &mut dyn BufRead) -> std::io::Result<Vec<Definition>
                 }
             },
             (action_line, Some(_), None, Some(actions), None) => {
-                let r = action_name_to_action(action_line);
+                let r = Action::try_from(action_line);
                 match r {
-                    Some(r) => actions.push(r),
-                    None => return error!("Could not parse line {}", line_num)
+                    Ok(r) => actions.push(r),
+                    Err(_) => return error!("Could not parse line {}", line_num)
                 }
             },
             (style_line, Some(_), None, None, Some(styles)) => {
@@ -120,13 +120,6 @@ fn rule_name_to_rule(rule_name: &str, value: &str) -> Option<Rule> {
         "body" => Some(Rule::Body(value.trim().to_owned())),
         "urgency" => Some(Rule::Urgency(value.trim().to_owned())),
         "expire_timeout" => Some(Rule::ExpireTimeout(value.trim().parse().ok()?)),
-        _ => None
-    }
-}
-
-fn action_name_to_action(name: &str) -> Option<Action> {
-    match name.trim() {
-        "ignore" => Some(Action::Ignore),
         _ => None
     }
 }

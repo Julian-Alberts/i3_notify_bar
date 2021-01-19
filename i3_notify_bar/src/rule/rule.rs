@@ -19,7 +19,67 @@ impl Definition {
 }
 
 pub enum Action {
-    Ignore
+    Ignore,
+    Set(SetProperty)
+}
+
+impl TryFrom<&str> for Action {
+    
+    type Error = ();
+    fn try_from(line: &str) -> Result<Self, Self::Error> {
+        let action = line.split_whitespace().next();
+        let ok = match action {
+            Some("ignore") => Self::Ignore,
+            Some("set") => Self::Set(SetProperty::try_from(line)?),
+            _ => return Err(())
+        };
+        Ok(ok)
+    }
+
+}
+
+pub enum SetProperty {
+    AppName(String),
+    AppIcon(String),
+    Summary(String),
+    Body(String),
+    Urgency(String),
+    ExpireTimeout(i32)
+}
+
+impl SetProperty {
+
+    pub fn set(&self, n: &mut Notification) {
+        match self {
+            Self::AppName(i) => n.app_name = i.to_owned(),
+            Self::AppIcon(i) => n.app_icon = i.to_owned(),
+            Self::Summary(i) => n.summary = i.to_owned(),
+            Self::Body(i) => n.body = i.to_owned(),
+            Self::Urgency(_) => unimplemented!(),
+            Self::ExpireTimeout(i) => n.expire_timeout = *i,
+        }
+    }
+
+}
+
+impl TryFrom<&str> for SetProperty {
+    
+    type Error = ();
+    fn try_from(line: &str) -> Result<Self, Self::Error> {
+        let parts = line.split_whitespace().collect::<Vec<&str>>();
+        let value = parts[2..].join(" ");
+        let ok = match parts.get(1) {
+            Some(&"app_name") => Self::AppName(value),
+            Some(&"app_icon") => Self::AppIcon(value),
+            Some(&"summary") => Self::Summary(value),
+            Some(&"body") => Self::Body(value),
+            Some(&"urgency") => Self::Urgency(value),
+            Some(&"expire_timeout") => Self::ExpireTimeout(value.parse().or(Err(()))?),
+            _ => return Err(())
+        };
+        Ok(ok)
+    }
+
 }
 
 pub enum Rule {
