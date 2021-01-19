@@ -1,0 +1,11 @@
+[package]
+name = "i3_notify_bar"
+version = "0.1.0"
+authors = ["Julian Alberts <julian.alberts@ewe.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+i3_bar_components = { path = "../i3_bar_components"}
+notify_server = { path = "../notify_server", feature = ["rules"] }
