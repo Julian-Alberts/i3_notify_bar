@@ -103,7 +103,8 @@ pub fn parse_config(config: &mut dyn BufRead) -> std::io::Result<Vec<Definition>
                     Err(_) => return error!("Could not parse line {} \"{}\"", line_num, style_line)
                 };
                 styles.push(style)
-            }
+            },
+            ("", _, _, _, _) => {},
             _ => return error!("Unknown error: Can not parse line {}", line_num)
         }
 
