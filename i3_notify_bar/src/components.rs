@@ -35,7 +35,7 @@ impl NotificationComponent {
             }
         };
 
-        let mut label = Label::new(format!(" {} ", e.summary.clone()));
+        let mut label = Label::new(format!(" {}{} ", e.app_icon, e.summary.clone()));
         label.set_seperator(false);
         label.set_separator_block_width(0);
 
@@ -57,7 +57,7 @@ impl NotificationComponent {
     }
 
     pub fn update_notification(&mut self, n: &Notification, styles: &Vec<Style>) {
-        self.label.set_text(n.summary.clone());
+        self.label.set_text(format!(" {}{} ", n.app_icon, n.summary));
         let close_type = match n.expire_timeout {
             -1 => {
                 let mut b = Button::new(String::from(" X "));

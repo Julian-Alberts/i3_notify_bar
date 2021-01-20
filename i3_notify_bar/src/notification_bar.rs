@@ -27,6 +27,8 @@ impl NotificationManager {
         let mut styles = Vec::new();
         let mut n = n.clone();
 
+        n.app_icon = String::new();
+
         for rule in &self.rules {
             if rule.matches(&n) {
                 for action in &rule.actions {
