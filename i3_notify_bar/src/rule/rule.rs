@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use i3_bar_components::protocol::Block;
-use notify_server::notification::Notification;
+use notify_server::notification::{Notification, Urgency};
 
 #[derive(Default)]
 pub struct Definition {
@@ -55,7 +55,12 @@ impl SetProperty {
             Self::AppIcon(i) => n.app_icon = i.to_owned(),
             Self::Summary(i) => n.summary = i.to_owned(),
             Self::Body(i) => n.body = i.to_owned(),
-            Self::Urgency(_) => unimplemented!(),
+            Self::Urgency(i) => match &i[..] {
+                "low" => n.urgency = Urgency::Low,
+                "normal" => n.urgency = Urgency::Normal,
+                "critical" => n.urgency = Urgency::Critical,
+                _ => {}
+            },
             Self::ExpireTimeout(i) => n.expire_timeout = *i,
         }
     }
