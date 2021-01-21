@@ -1,6 +1,7 @@
 mod components;
 mod notification_bar;
 mod rule;
+mod icons;
 
 use std::{io::BufReader, sync::{Arc, Mutex}, time::Duration};
 use components::NotificationComponent;
