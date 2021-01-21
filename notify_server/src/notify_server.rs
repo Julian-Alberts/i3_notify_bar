@@ -1,19 +1,19 @@
 use zbus::fdo;
-use observer::EventSystem;
+use observer::SingleEventSystem;
 use std::convert::TryInto;
 use std::sync::{Arc, Mutex};
 
 use crate::{Event, routes};
 
 pub struct NotifyServer {
-    event_system: Arc<Mutex<EventSystem<Event>>>
+    event_system: Arc<Mutex<SingleEventSystem<Event>>>
 }
 
 impl NotifyServer {
 
     pub fn start() -> Self {
 
-        let event_system = Arc::new(Mutex::new(EventSystem::new()));
+        let event_system = Arc::new(Mutex::new(SingleEventSystem::new()));
         let event_system_cp = Arc::clone(&event_system);
 
         std::thread::spawn(move || {
@@ -40,9 +40,9 @@ impl NotifyServer {
         }
     }
 
-    pub fn add_observer(&mut self, observer: Arc<Mutex<dyn observer::Observer<Event> + Send + Sync + 'static>>) {
+    pub fn add_observer(&mut self, observer: Arc<Mutex<dyn observer::SingleObserver<Event> + Send + Sync + 'static>>) {
         let mut event_system = self.event_system.lock().unwrap();
-        event_system.add_observer(observer);
+        event_system.set_observer(observer);
     }
 
 }

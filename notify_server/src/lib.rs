@@ -5,7 +5,7 @@ mod notify_server;
 
 pub use events::Event;
 pub use notify_server::NotifyServer;
-pub use observer::Observer;
+pub use observer::SingleObserver as Observer;
 pub struct Options {
     notify: &'static dyn Fn(&mut notification::Notification)
 }

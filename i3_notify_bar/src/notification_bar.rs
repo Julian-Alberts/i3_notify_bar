@@ -22,10 +22,9 @@ impl NotificationManager {
         }
     }
 
-    fn notify(&mut self, n: &Notification) {
+    fn notify(&mut self, mut n: Notification) {
 
         let mut styles = Vec::new();
-        let mut n = n.clone();
 
         n.app_icon = String::new();
 
@@ -61,7 +60,7 @@ impl NotificationManager {
 
 impl Observer<Event> for NotificationManager {
 
-    fn on_notify(&mut self, event: &Event) {
+    fn on_notify(&mut self, event: Event) {
         match event {
             Event::Notify(n) => self.notify(n)
         }

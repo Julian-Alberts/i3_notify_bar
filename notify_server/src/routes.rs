@@ -1,5 +1,5 @@
 use std::{collections::HashMap, sync::{Arc, Mutex}};
-use observer::EventSystem;
+use observer::SingleEventSystem;
 use zbus::dbus_interface;
 use zvariant::Value;
 
@@ -9,12 +9,12 @@ pub const DBUS_INTERFACE_NAME: &str = "org.freedesktop.Notifications";
 pub const DBUS_INTERFACE_PATH: &str = "/org/freedesktop/Notifications";
 
 pub struct Routes {
-    event_system: Arc<Mutex<EventSystem<Event>>>,
+    event_system: Arc<Mutex<SingleEventSystem<Event>>>,
     last_id: u32
 }
 
 impl Routes {
-    pub fn new(event_system: Arc<Mutex<EventSystem<Event>>>) -> Self {
+    pub fn new(event_system: Arc<Mutex<SingleEventSystem<Event>>>) -> Self {
         Self {
             event_system,
             last_id: 0
@@ -53,7 +53,7 @@ impl Routes {
         let notification = self.create_new_notification(app_name, replaces_id, app_icon, summary, body, actions, hints, expire_timeout);
         let id = notification.id;
 
-        self.event_system.lock().unwrap().notify(&Event::Notify(notification));
+        self.event_system.lock().unwrap().notify(Event::Notify(notification));
         id
     }
 

@@ -1,8 +1,8 @@
 mod event_system;
 mod observer;
 
-pub use event_system::{EventSystem};
-pub use observer::ObserverTrait as Observer;
+pub use event_system::{EventSystem, SingleEventSystem};
+pub use observer::{ObserverTrait as Observer, SingleObserver};
 
 #[cfg(test)]
 mod tests {
