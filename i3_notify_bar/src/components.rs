@@ -1,7 +1,6 @@
 use i3_bar_components::{ComponentManagerMessenger, components::{Button, Label, ProgressBar, prelude::*}, protocol::{Block, ClickEvent}};
-use notify_server::notification::Notification;
 
-use crate::rule::rule::Style;
+use crate::notification_bar::NotificationData;
 
 pub struct NotificationComponent {
     close_type: CloseType,
@@ -13,35 +12,35 @@ pub struct NotificationComponent {
 
 impl NotificationComponent {
 
-    pub fn new(e: &Notification, styles: &Vec<Style>) -> NotificationComponent {
-        let close_type = match e.expire_timeout {
+    pub fn new(nd: &NotificationData) -> NotificationComponent {
+        let close_type = match nd.expire_timeout {
             -1 => {
                 let mut b = Button::new(String::from("X"));
                 b.set_seperator(false);
                 b.set_separator_block_width(0);
-                styles.iter().for_each(|s| {
+                nd.style.iter().for_each(|s| {
                     s.apply(b.get_block_mut());
                 });
                 CloseType::Button(b)
             },
             _ => {
-                let mut t = ProgressBar::new(e.expire_timeout as u64);
+                let mut t = ProgressBar::new(nd.expire_timeout as u64);
                 t.set_seperator(false);
                 t.set_separator_block_width(0);
-                styles.iter().for_each(|s| {
+                nd.style.iter().for_each(|s| {
                     s.apply(t.get_block_mut());
                 });
                 CloseType::Timer(t)
             }
         };
 
-        let mut label = Label::new(format!(" {}{} ", e.app_icon, e.summary.clone()));
+        let mut label = Label::new(format!(" {}{} ", nd.icon, nd.text));
         label.set_seperator(false);
         label.set_separator_block_width(0);
 
         let mut padding_r = Label::new(String::from(" "));
 
-        styles.iter().for_each(|s| {
+        nd.style.iter().for_each(|s| {
             s.apply(label.get_block_mut());
             s.apply(padding_r.get_block_mut());
         });
@@ -50,29 +49,29 @@ impl NotificationComponent {
         Self {
             close_type,
             label,
-            id: format!("{}", e.id),
+            id: format!("{}", nd.id),
             component_manager: None,
             padding_r
         }
     }
 
-    pub fn update_notification(&mut self, n: &Notification, styles: &Vec<Style>) {
-        self.label.set_text(format!(" {}{} ", n.app_icon, n.summary));
-        let close_type = match n.expire_timeout {
+    pub fn update_notification(&mut self, nd: &NotificationData) {
+        self.label.set_text(format!(" {}{} ", nd.icon, nd.text));
+        let close_type = match nd.expire_timeout {
             -1 => {
                 let mut b = Button::new(String::from(" X "));
                 b.set_seperator(false);
                 b.set_separator_block_width(0);
-                styles.iter().for_each(|s| {
+                nd.style.iter().for_each(|s| {
                     s.apply(b.get_block_mut());
                 });
                 CloseType::Button(b)
             },
             _ => {
-                let mut t = ProgressBar::new(n.expire_timeout as u64);
+                let mut t = ProgressBar::new(nd.expire_timeout as u64);
                 t.set_seperator(false);
                 t.set_separator_block_width(0);
-                styles.iter().for_each(|s| {
+                nd.style.iter().for_each(|s| {
                     s.apply(t.get_block_mut());
                 });
                 CloseType::Timer(t)

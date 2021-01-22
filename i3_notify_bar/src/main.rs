@@ -37,10 +37,10 @@ fn main() {
         let changed = nm.get_changed();
         
         changed.iter().for_each(|n| {
-            match manager.get_component_mut::<NotificationComponent>(&format!("{}", n.0.id)) {
-                Some(c) => c.update_notification(&n.0, &n.1),
+            match manager.get_component_mut::<NotificationComponent>(&format!("{}", n.id)) {
+                Some(c) => c.update_notification(&n),
                 None => {
-                    manager.add_component(Box::new(NotificationComponent::new(&n.0, &n.1)))
+                    manager.add_component(Box::new(NotificationComponent::new(&n)))
                 },
             }
         });

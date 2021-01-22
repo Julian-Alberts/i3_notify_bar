@@ -7,8 +7,8 @@ use crate::rule::rule::Action;
 use crate::rule::rule::{Definition as RuleDefinition, Style};
 
 pub struct NotificationManager {
-    changed: Vec<Arc<(Notification, Vec<Style>)>>,
-    notifications: BTreeMap<u32, Arc<(Notification, Vec<Style>)>>,
+    changed: Vec<Arc<NotificationData>>,
+    notifications: BTreeMap<u32, Arc<NotificationData>>,
     rules: Vec<RuleDefinition>
 }
 
@@ -22,35 +22,38 @@ impl NotificationManager {
         }
     }
 
-    fn notify(&mut self, mut n: Notification) {
+    fn notify(&mut self, n: Notification) {
 
-        let mut styles = Vec::new();
+        let rule = self.rules.iter().find(|r| r.matches(&n));
 
-        n.app_icon = String::new();
+        let mut notification_data = NotificationData {
+            expire_timeout: n.expire_timeout,
+            icon: n.app_icon,
+            id: n.id,
+            style: Vec::new(),
+            text: n.summary
+        };
 
-        for rule in &self.rules {
-            if rule.matches(&n) {
-                for action in &rule.actions {
-                    match action {
-                        Action::Ignore => {
-                            return;
-                        },
-                        Action::Set(set_property) => set_property.set(&mut n)
-                    }
+        if let Some(rule) = rule {
+            for action in &rule.actions {
+                match action {
+                    Action::Ignore => {
+                        return;
+                    },
+                    Action::Set(set_property) => set_property.set(&mut notification_data)
                 }
-                
-                styles = rule.style.clone();
-
             }
+            
+            notification_data.style = rule.style.clone();
         }
 
-        let n_id = n.id;
-        let n = Arc::new((n, styles));
-        self.changed.push(Arc::clone(&n));
-        self.notifications.insert(n_id, n);
+        let notification = Arc::new(notification_data);
+        self.changed.push(Arc::clone(&notification));
+        self.notifications.insert(notification.id, notification);
+        
     }
 
-    pub fn get_changed(&mut self) -> Vec<Arc<(Notification, Vec<Style>)>> {
+    pub fn get_changed(&mut self) -> Vec<Arc<NotificationData>> {
         let mut changed = Vec::new();
         std::mem::swap(&mut changed, &mut self.changed);
         changed
@@ -66,4 +69,12 @@ impl Observer<Event> for NotificationManager {
         }
     }
 
+}
+
+pub struct NotificationData {
+    pub id: u32,
+    pub expire_timeout: i32,
+    pub icon: String,
+    pub text: String,
+    pub style: Vec<Style>
 }

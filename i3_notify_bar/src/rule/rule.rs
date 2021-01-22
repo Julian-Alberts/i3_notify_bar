@@ -1,7 +1,9 @@
 use std::convert::TryFrom;
 
 use i3_bar_components::protocol::Block;
-use notify_server::notification::{Notification, Urgency};
+use notify_server::notification::Notification;
+
+use crate::notification_bar::NotificationData;
 
 #[derive(Default)]
 pub struct Definition {
@@ -39,28 +41,17 @@ impl TryFrom<&str> for Action {
 }
 
 pub enum SetProperty {
-    AppName(String),
-    AppIcon(String),
-    Summary(String),
-    Body(String),
-    Urgency(String),
+    Icon(String),
+    Text(String),
     ExpireTimeout(i32)
 }
 
 impl SetProperty {
 
-    pub fn set(&self, n: &mut Notification) {
+    pub fn set(&self, n: &mut NotificationData) {
         match self {
-            Self::AppName(i) => n.app_name = i.to_owned(),
-            Self::AppIcon(i) => n.app_icon = i.to_owned(),
-            Self::Summary(i) => n.summary = i.to_owned(),
-            Self::Body(i) => n.body = i.to_owned(),
-            Self::Urgency(i) => match &i[..] {
-                "low" => n.urgency = Urgency::Low,
-                "normal" => n.urgency = Urgency::Normal,
-                "critical" => n.urgency = Urgency::Critical,
-                _ => {}
-            },
+            Self::Icon(i) => n.icon = i.to_owned(),
+            Self::Text(i) => n.text = i.to_owned(),
             Self::ExpireTimeout(i) => n.expire_timeout = *i,
         }
     }
@@ -74,11 +65,8 @@ impl TryFrom<&str> for SetProperty {
         let parts = line.split_whitespace().collect::<Vec<&str>>();
         let value = parts[2..].join(" ");
         let ok = match parts.get(1) {
-            Some(&"app_name") => Self::AppName(value),
-            Some(&"app_icon") => Self::AppIcon(value),
-            Some(&"summary") => Self::Summary(value),
-            Some(&"body") => Self::Body(value),
-            Some(&"urgency") => Self::Urgency(value),
+            Some(&"icon") => Self::Icon(value),
+            Some(&"text") => Self::Text(value),
             Some(&"expire_timeout") => Self::ExpireTimeout(value.parse().or(Err(()))?),
             _ => return Err(())
         };
