@@ -74,7 +74,7 @@ allowed properties
 | --- | --- |
 |app_name| application name |
 icon| application icon |
-text | short notification |
+text | Display text |
 expire_timeout | timeout in secs. -1 this notification will not be hidden
 
 #### style

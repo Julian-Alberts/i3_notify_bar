@@ -104,6 +104,7 @@ name = "notify_server"
 version = "0.1.0"
 dependencies = [
  "observer",
+ "serde",
  "zbus",
  "zvariant",
 ]

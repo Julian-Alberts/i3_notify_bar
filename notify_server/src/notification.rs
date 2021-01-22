@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use zvariant::Value;
+use serde::Serialize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Notification {
     pub app_name: String,
     pub id: u32, 
@@ -42,7 +43,7 @@ impl Notification {
 
 unsafe impl Sync for Notification {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Urgency {
     Low,
     Normal,

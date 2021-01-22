@@ -2,8 +2,24 @@ use std::convert::TryFrom;
 
 use i3_bar_components::protocol::Block;
 use notify_server::notification::Notification;
+use tinytemplate::TinyTemplate;
 
 use crate::notification_bar::NotificationData;
+
+static mut TEMPLATE_MANAGER: Option<TinyTemplate<'static>> = None;
+static mut TEMPLATES: Vec<String> = Vec::new();
+
+fn get_template_manager() -> &'static TinyTemplate<'static> {
+    unsafe {
+        match &TEMPLATE_MANAGER {
+            Some(tm) => tm,
+            None => {
+                TEMPLATE_MANAGER = Some(TinyTemplate::new());
+                TEMPLATE_MANAGER.as_ref().unwrap()
+            }
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct Definition {
@@ -42,17 +58,17 @@ impl TryFrom<&str> for Action {
 
 pub enum SetProperty {
     Icon(String),
-    Text(String),
+    Text(&'static str),
     ExpireTimeout(i32)
 }
 
 impl SetProperty {
 
-    pub fn set(&self, n: &mut NotificationData) {
+    pub fn set(&self, nd: &mut NotificationData, n: &Notification) {
         match self {
-            Self::Icon(i) => n.icon = i.to_owned(),
-            Self::Text(i) => n.text = i.to_owned(),
-            Self::ExpireTimeout(i) => n.expire_timeout = *i,
+            Self::Icon(i) => nd.icon = i.to_owned(),
+            Self::Text(i) => nd.text = get_template_manager().render(i, n).unwrap(),
+            Self::ExpireTimeout(i) => nd.expire_timeout = *i,
         }
     }
 
@@ -66,13 +82,29 @@ impl TryFrom<&str> for SetProperty {
         let value = parts[2..].join(" ");
         let ok = match parts.get(1) {
             Some(&"icon") => Self::Icon(value),
-            Some(&"text") => Self::Text(value),
+            Some(&"text") => Self::Text(property_template(value)?),
             Some(&"expire_timeout") => Self::ExpireTimeout(value.parse().or(Err(()))?),
             _ => return Err(())
         };
         Ok(ok)
     }
 
+}
+
+fn property_template(template: String) -> Result<&'static str, ()> {
+    unsafe {
+        TEMPLATES.push(template);
+        let temp_ref = TEMPLATES.last().unwrap();
+        match &mut TEMPLATE_MANAGER {
+            Some(tm) => tm.add_template(temp_ref, temp_ref).or(Err(()))?,
+            None => {
+                let mut tm = TinyTemplate::new();
+                tm.add_template(temp_ref, temp_ref).or(Err(()))?;
+                TEMPLATE_MANAGER = Some(tm);
+            }
+        }
+        Ok(temp_ref)
+    }
 }
 
 pub enum Rule {

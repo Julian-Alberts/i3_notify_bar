@@ -28,10 +28,10 @@ impl NotificationManager {
 
         let mut notification_data = NotificationData {
             expire_timeout: n.expire_timeout,
-            icon: n.app_icon,
+            icon: n.app_icon.clone(),
             id: n.id,
             style: Vec::new(),
-            text: n.summary
+            text: n.summary.clone()
         };
 
         if let Some(rule) = rule {
@@ -40,8 +40,9 @@ impl NotificationManager {
                     Action::Ignore => {
                         return;
                     },
-                    Action::Set(set_property) => set_property.set(&mut notification_data)
+                    Action::Set(set_property) => set_property.set(&mut notification_data, &n),
                 }
+
             }
             
             notification_data.style = rule.style.clone();

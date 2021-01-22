@@ -98,6 +98,8 @@ version = "0.1.0"
 dependencies = [
  "i3_bar_components",
  "notify_server",
+ "serde",
+ "tinytemplate",
 ]
 
 [[package]]
@@ -148,6 +150,7 @@ name = "notify_server"
 version = "0.1.0"
 dependencies = [
  "observer",
+ "serde",
  "zbus",
  "zvariant",
 ]
@@ -299,6 +302,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "tinytemplate"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2ada8616fad06a2d0c455adc530de4ef57605a8120cc65da9653e0e9623ca74"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
