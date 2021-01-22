@@ -73,10 +73,8 @@ allowed properties
 | name | values |
 | --- | --- |
 |app_name| application name |
-app_icon| application icon |
-summary | short notification |
-body | notification text |
-urgency | Urgency of this message. possible values are: low, normal, critical |
+icon| application icon |
+text | short notification |
 expire_timeout | timeout in secs. -1 this notification will not be hidden
 
 #### style
@@ -103,7 +101,7 @@ def
     app_name = test
   endrule
   action
-    set summary Test app notification
+    set text Test app notification
     set expire_timeout 10
   endaction
   style
