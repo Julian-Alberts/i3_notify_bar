@@ -1,6 +1,7 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::SystemTime};
 
 use notify_server::{Event, Observer, notification::Notification};
+use serde::Serialize;
 use std::sync::Arc;
 use crate::rule::rule::Action;
 
@@ -34,13 +35,22 @@ impl NotificationManager {
             text: n.summary.clone()
         };
 
+        let notification_template_data = NotificationTemplateData {
+            app_name: n.app_name, 
+            icon: n.app_icon, 
+            summary: n.summary, 
+            body: n.body, 
+            expire_timeout: n.expire_timeout,
+            time: SystemTime::now()
+        };
+
         if let Some(rule) = rule {
             for action in &rule.actions {
                 match action {
                     Action::Ignore => {
                         return;
                     },
-                    Action::Set(set_property) => set_property.set(&mut notification_data, &n),
+                    Action::Set(set_property) => set_property.set(&mut notification_data, &notification_template_data),
                 }
 
             }
@@ -78,4 +88,14 @@ pub struct NotificationData {
     pub icon: String,
     pub text: String,
     pub style: Vec<Style>
+}
+
+#[derive(Serialize)]
+pub struct NotificationTemplateData {
+    app_name: String, 
+    icon: String, 
+    summary: String, 
+    body: String, 
+    expire_timeout: i32,
+    time: SystemTime
 }

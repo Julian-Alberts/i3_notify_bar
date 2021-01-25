@@ -4,7 +4,7 @@ use i3_bar_components::protocol::Block;
 use notify_server::notification::Notification;
 use tinytemplate::TinyTemplate;
 
-use crate::notification_bar::NotificationData;
+use crate::notification_bar::{NotificationData, NotificationTemplateData};
 
 static mut TEMPLATE_MANAGER: Option<TinyTemplate<'static>> = None;
 static mut TEMPLATES: Vec<String> = Vec::new();
@@ -64,7 +64,7 @@ pub enum SetProperty {
 
 impl SetProperty {
 
-    pub fn set(&self, nd: &mut NotificationData, n: &Notification) {
+    pub fn set(&self, nd: &mut NotificationData, n: &NotificationTemplateData) {
         match self {
             Self::Icon(i) => nd.icon = i.to_owned(),
             Self::Text(i) => nd.text = get_template_manager().render(i, n).unwrap(),
