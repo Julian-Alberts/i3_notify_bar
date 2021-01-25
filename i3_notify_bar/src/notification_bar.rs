@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, time::SystemTime};
 use notify_server::{Event, Observer, notification::Notification};
 use serde::Serialize;
 use std::sync::Arc;
-use crate::rule::rule::Action;
+use crate::{icons, rule::rule::Action};
 
 use crate::rule::rule::{Definition as RuleDefinition, Style};
 
@@ -29,7 +29,7 @@ impl NotificationManager {
 
         let mut notification_data = NotificationData {
             expire_timeout: n.expire_timeout,
-            icon: n.app_icon.clone(),
+            icon: icons::get_icon(&n.app_name).unwrap_or('\0').to_string(),
             id: n.id,
             style: Vec::new(),
             text: n.summary.clone()

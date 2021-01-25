@@ -1,6 +1,7 @@
 use i3_bar_components::{ComponentManagerMessenger, components::{Button, Label, ProgressBar, prelude::*}, protocol::{Block, ClickEvent}};
 
 use crate::notification_bar::NotificationData;
+use crate::icons;
 
 pub struct NotificationComponent {
     close_type: CloseType,
@@ -15,7 +16,7 @@ impl NotificationComponent {
     pub fn new(nd: &NotificationData) -> NotificationComponent {
         let close_type = match nd.expire_timeout {
             -1 => {
-                let mut b = Button::new(String::from("X"));
+                let mut b = Button::new(format!(" {} ", icons::X_ICON));
                 b.set_seperator(false);
                 b.set_separator_block_width(0);
                 nd.style.iter().for_each(|s| {
