@@ -48,6 +48,6 @@ fn main() {
         drop(nm_lock);
         
         manager.update();
-        std::thread::sleep(Duration::new(1, 0));
+        std::thread::sleep(Duration::from_millis(250));
     }
 }
