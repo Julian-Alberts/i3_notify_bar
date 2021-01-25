@@ -21,6 +21,18 @@ fn get_template_manager() -> &'static TinyTemplate<'static> {
     }
 }
 
+fn get_template_manager_mut() -> &'static mut TinyTemplate<'static> {
+    unsafe {
+        match &mut TEMPLATE_MANAGER {
+            Some(tm) => tm,
+            None => {
+                TEMPLATE_MANAGER = Some(TinyTemplate::new());
+                TEMPLATE_MANAGER.as_mut().unwrap()
+            }
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Definition {
     pub rules: Vec<Rule>,
@@ -95,14 +107,8 @@ fn property_template(template: String) -> Result<&'static str, ()> {
     unsafe {
         TEMPLATES.push(template);
         let temp_ref = TEMPLATES.last().unwrap();
-        match &mut TEMPLATE_MANAGER {
-            Some(tm) => tm.add_template(temp_ref, temp_ref).or(Err(()))?,
-            None => {
-                let mut tm = TinyTemplate::new();
-                tm.add_template(temp_ref, temp_ref).or(Err(()))?;
-                TEMPLATE_MANAGER = Some(tm);
-            }
-        }
+        get_template_manager_mut().add_template(temp_ref, temp_ref).or(Err(()))?;
+            
         Ok(temp_ref)
     }
 }
