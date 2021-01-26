@@ -6,9 +6,11 @@ mod icons;
 use std::{io::BufReader, sync::{Arc, Mutex}, time::Duration};
 use components::NotificationComponent;
 use i3_bar_components::ComponentManagerBuilder;
+use log::{error, info};
 use notification_bar::NotificationManager;
 
 fn main() {
+    logger::init();
     let args = std::env::args().collect::<Vec<String>>();
 
     let path = args.get(1);
@@ -18,7 +20,13 @@ fn main() {
         Some(path) => {
             let config_file = std::fs::File::open(path).unwrap();
             let mut config_file = BufReader::new(config_file);
-            rules = rule::parser::parse_config(&mut config_file).unwrap();
+            rules = match rule::parser::parse_config(&mut config_file) {
+                Ok(r) => r,
+                Err(e) => {
+                    error!("{}", e.to_string());
+                    return
+                }
+            };
         },
         None => {
             rules = Vec::new()
@@ -50,4 +58,41 @@ fn main() {
         manager.update();
         std::thread::sleep(Duration::from_millis(250));
     }
+}
+
+mod logger {
+    use std::fs::OpenOptions;
+
+    use log::LevelFilter;
+    use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger, SharedLogger};
+
+    pub fn init() {
+        
+        let path = std::env::current_exe();
+        let logger: Box<dyn SharedLogger> = match path {
+            Ok(mut path) => {
+                path.pop();
+                path.push("notify.log");
+                let file = OpenOptions::new().create(true).append(true).open(path);
+                match file {
+                    Ok(file) => {
+                        WriteLogger::new(LevelFilter::Info, Config::default(), file)
+                    },
+                    Err(_) => {
+                        TermLogger::new(LevelFilter::Info, Config::default(), simplelog::TerminalMode::Stderr)
+                    }
+                }
+            },
+            Err(_) => {
+                TermLogger::new(LevelFilter::Info, Config::default(), simplelog::TerminalMode::Stderr)
+            }
+        };
+
+        CombinedLogger::init(
+            vec![
+                logger
+            ]
+        ).unwrap();
+    }
+
 }

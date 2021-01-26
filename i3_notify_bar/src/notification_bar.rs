@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, time::SystemTime};
 
+use log::{debug, info};
 use notify_server::{Event, Observer, notification::Notification};
 use serde::Serialize;
 use std::sync::Arc;
@@ -24,7 +25,8 @@ impl NotificationManager {
     }
 
     fn notify(&mut self, n: Notification) {
-
+        info!(r#"Got new notification app_name "{}" summary "{}" body "{}""#, n.app_name, n.summary, n.body);
+        debug!("Notification: {:#?}", n);
         let rule = self.rules.iter().find(|r| r.matches(&n));
 
         let mut notification_data = NotificationData {
@@ -34,6 +36,7 @@ impl NotificationManager {
             style: Vec::new(),
             text: n.summary.clone()
         };
+        debug!("Notification Data: {:#?}", notification_data);
 
         let notification_template_data = NotificationTemplateData {
             app_name: n.app_name, 
@@ -43,6 +46,7 @@ impl NotificationManager {
             expire_timeout: n.expire_timeout,
             time: SystemTime::now()
         };
+        debug!("Notification Tempalate Data: {:#?}", notification_template_data);
 
         if let Some(rule) = rule {
             for action in &rule.actions {
@@ -82,6 +86,7 @@ impl Observer<Event> for NotificationManager {
 
 }
 
+#[derive(Debug)]
 pub struct NotificationData {
     pub id: u32,
     pub expire_timeout: i32,
@@ -90,7 +95,7 @@ pub struct NotificationData {
     pub style: Vec<Style>
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct NotificationTemplateData {
     app_name: String, 
     icon: String, 

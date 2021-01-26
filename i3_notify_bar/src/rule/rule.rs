@@ -143,7 +143,7 @@ impl PartialEq<Notification> for Rule {
 
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Style {
     Background(String),
     Text(String)

@@ -2,6 +2,8 @@ use std::io::BufRead;
 use std::io::{Error, ErrorKind};
 use std::convert::TryFrom;
 
+use log::info;
+
 use super::rule::{Action, Definition, Rule, Style};
 
 /*
@@ -37,7 +39,7 @@ macro_rules! error {
 }
 
 pub fn parse_config(config: &mut dyn BufRead) -> std::io::Result<Vec<Definition>> {
-
+    info!("Reading rules");
     let mut definitions = Vec::new();
     let mut def = None;
     let mut rules = None;
@@ -47,30 +49,37 @@ pub fn parse_config(config: &mut dyn BufRead) -> std::io::Result<Vec<Definition>
     let line_iter = config.lines().enumerate();
 
     for (line_num, line) in line_iter {
-        let line = line.unwrap();
+        let line = match line {
+            Ok(l) => l,
+            Err(e) => return error!("Reading line {} failed: {}", line_num, e.to_string())
+        };
         let line = line.trim();
         match (line, &mut def, &mut rules, &mut actions, &mut styles) {
             ("def", None, None, None, None) => 
                 def = Some(Definition::default()),
             ("enddef", Some(_), None, None, None) => {
+                // def.unwarp can not fail, checked by condition
                 definitions.push(def.unwrap());
                 def = None
             },
             ("rule", Some(_), None, None, None) => 
                 rules = Some(Vec::new()),
             ("endrule", Some(def), Some(_), None, None) => {
+                // rules.unwarp can not fail, checked by condition
                 def.rules = rules.unwrap();
                 rules = None
             },
             ("action", Some(_), None, None, None) => 
                 actions = Some(Vec::new()),
             ("endaction", Some(def), None, Some(_), None) => {
+                // actions.unwarp can not fail, checked by condition
                 def.actions = actions.unwrap();
                 actions = None
             },
             ("style", Some(_), None, None, None) => 
                 styles = Some(Vec::new()),
             ("endstyle", Some(def), None, None, Some(_)) => {
+                // def.style can not fail, checked by condition
                 def.style = styles.unwrap();
                 styles = None
             }
@@ -109,7 +118,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> std::io::Result<Vec<Definition>
         }
 
     }
-    
+    info!("Finished reading rules. Rules found {}", definitions.len());
     Ok(definitions)
 }
 
