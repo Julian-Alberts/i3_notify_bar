@@ -4,9 +4,9 @@ use log::{debug, info};
 use notify_server::{Event, Observer, notification::Notification};
 use serde::Serialize;
 use std::sync::Arc;
-use crate::{icons, rule::rule::Action};
+use crate::{icons, rule::Action};
 
-use crate::rule::rule::{Definition as RuleDefinition, Style};
+use crate::rule::{Definition as RuleDefinition, Style};
 
 pub struct NotificationManager {
     changed: Vec<Arc<NotificationData>>,

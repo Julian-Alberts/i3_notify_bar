@@ -6,7 +6,7 @@ mod icons;
 use std::{io::BufReader, sync::{Arc, Mutex}, time::Duration};
 use components::NotificationComponent;
 use i3_bar_components::ComponentManagerBuilder;
-use log::{error, info};
+use log::error;
 use notification_bar::NotificationManager;
 
 fn main() {
@@ -20,7 +20,7 @@ fn main() {
         Some(path) => {
             let config_file = std::fs::File::open(path).unwrap();
             let mut config_file = BufReader::new(config_file);
-            rules = match rule::parser::parse_config(&mut config_file) {
+            rules = match rule::parse_config(&mut config_file) {
                 Ok(r) => r,
                 Err(e) => {
                     error!("{}", e.to_string());
