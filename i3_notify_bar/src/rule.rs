@@ -167,7 +167,7 @@ impl SetProperty {
     pub fn set(&self, nd: &mut NotificationData, n: &NotificationTemplateData) {
         match self {
             Self::Icon(i) => nd.icon = i.to_owned(),
-            Self::Text(i) => nd.text = get_template_manager().render(i, n).unwrap(),
+            Self::Text(i) => nd.text = get_template_manager().render(i, n).unwrap().replace('\n', ""),
             Self::ExpireTimeout(i) => nd.expire_timeout = *i,
         }
     }
