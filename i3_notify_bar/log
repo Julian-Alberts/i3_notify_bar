@@ -1,0 +1,2 @@
+15:06:33 [INFO] Reading rules
+15:06:33 [ERROR] Could not parse line 2 "app_name = test_app"

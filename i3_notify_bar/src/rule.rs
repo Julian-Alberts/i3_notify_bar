@@ -1,7 +1,7 @@
 use std::{convert::TryFrom, io::{BufRead, Error, ErrorKind}};
 
 use i3_bar_components::protocol::Block;
-use log::info;
+use log::{debug, info};
 use notify_server::notification::Notification;
 use tinytemplate::TinyTemplate;
 
@@ -217,24 +217,28 @@ impl TryFrom<&str> for Rule {
         let parts = line.split('=').collect::<Vec<&str>>();
 
         if parts.len() < 2 {
+            debug!("Missing parameter");
             return Err(());
         }
 
-        let name = match parts.get(1) {
+        let name = match parts.get(0) {
             Some(s) => *s,
-            _ => return Err(())
+            _ => unreachable!("Who did you even get here?")
         };
 
         let value = parts[2..].join(" ");
 
-        match name {
+        match name.trim() {
             "app_name" => Ok(Rule::AppName(value)),
             "app_icon" => Ok(Rule::AppIcon(value)),
             "summary" => Ok(Rule::Summary(value)),
             "body" => Ok(Rule::Body(value)),
             "urgency" => Ok(Rule::Urgency(value)),
             "expire_timeout" => Ok(Rule::ExpireTimeout(value.parse().or(Err(()))?)),
-            _ => Err(())
+            n => {
+                debug!("Unknown property {}", n);
+                Err(())
+            }
         }
     }
 
