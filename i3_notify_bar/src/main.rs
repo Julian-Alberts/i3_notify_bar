@@ -2,21 +2,22 @@ mod components;
 mod notification_bar;
 mod rule;
 mod icons;
+mod args;
 
 use std::{io::BufReader, sync::{Arc, Mutex}, time::Duration};
 use components::NotificationComponent;
 use i3_bar_components::ComponentManagerBuilder;
 use log::error;
 use notification_bar::NotificationManager;
+use args::Args;
+use clap::Clap;
 
 fn main() {
-    logger::init();
-    let args = std::env::args().collect::<Vec<String>>();
-
-    let path = args.get(1);
+    let args: Args = Args::parse();
+    logger::init(args.log_level(), args.log_file());
     
     let rules;
-    match path {
+    match args.rule_file() {
         Some(path) => {
             let config_file = std::fs::File::open(path).unwrap();
             let mut config_file = BufReader::new(config_file);
@@ -56,7 +57,7 @@ fn main() {
         drop(nm_lock);
         
         manager.update();
-        std::thread::sleep(Duration::from_millis(250));
+        std::thread::sleep(Duration::from_millis(args.refresh_rate()));
     }
 }
 
@@ -66,25 +67,22 @@ mod logger {
     use log::LevelFilter;
     use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger, SharedLogger};
 
-    pub fn init() {
+    pub fn init(level_filer: &LevelFilter, log_file: &Option<String>) {
         
-        let path = std::env::current_exe();
-        let logger: Box<dyn SharedLogger> = match path {
-            Ok(mut path) => {
-                path.pop();
-                path.push("notify.log");
+        let logger: Box<dyn SharedLogger> = match &log_file {
+            Some(path) => {
                 let file = OpenOptions::new().create(true).append(true).open(path);
                 match file {
                     Ok(file) => {
-                        WriteLogger::new(LevelFilter::Info, Config::default(), file)
+                        WriteLogger::new(level_filer.to_owned(), Config::default(), file)
                     },
                     Err(_) => {
-                        TermLogger::new(LevelFilter::Info, Config::default(), simplelog::TerminalMode::Stderr)
+                        TermLogger::new(level_filer.to_owned(), Config::default(), simplelog::TerminalMode::Stderr)
                     }
                 }
             },
-            Err(_) => {
-                TermLogger::new(LevelFilter::Info, Config::default(), simplelog::TerminalMode::Stderr)
+            None => {
+                TermLogger::new(level_filer.to_owned(), Config::default(), simplelog::TerminalMode::Stderr)
             }
         };
 
