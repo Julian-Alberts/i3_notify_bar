@@ -27,11 +27,10 @@ impl NotificationManager {
     fn notify(&mut self, n: Notification) {
         info!(r#"Got new notification app_name "{}" summary "{}" body "{}""#, n.app_name, n.summary, n.body);
         debug!("Notification: {:#?}", n);
-        let rule = self.rules.iter().find(|r| r.matches(&n));
 
         let mut notification_data = NotificationData {
             expire_timeout: n.expire_timeout,
-            icon: format!("{} ", icons::get_icon(&n.app_name).unwrap_or('\0')),
+            icon: format!("{} ", icons::get_icon(&n.app_name).unwrap_or(' ')),
             id: n.id,
             style: Vec::new(),
             text: n.summary.clone()
@@ -39,28 +38,48 @@ impl NotificationManager {
         debug!("Notification Data: {:#?}", notification_data);
 
         let notification_template_data = NotificationTemplateData {
-            app_name: n.app_name, 
-            icon: n.app_icon, 
-            summary: n.summary, 
-            body: n.body, 
+            app_name: n.app_name.clone(),
+            icon: n.app_icon.clone(),
+            summary: n.summary.clone(),
+            body: n.body.clone(),
             expire_timeout: n.expire_timeout,
             time: SystemTime::now()
         };
         debug!("Notification Tempalate Data: {:#?}", notification_template_data);
 
-        if let Some(rule) = rule {
-            for action in &rule.actions {
-                match action {
-                    Action::Ignore => {
-                        return;
-                    },
-                    Action::Set(set_property) => set_property.set(&mut notification_data, &notification_template_data),
-                }
+        let mut last_rule_id = 0;
 
+        loop {
+            let rule = self.rules[last_rule_id..]
+                .iter()
+                .enumerate()
+                .find(|(_, r)| r.matches(&n));
+
+            match rule { 
+                Some((index, rule)) => { 
+                    debug!("Matched rule {} {:#?}", last_rule_id + index, rule.rules);
+                    last_rule_id += index + 1;
+
+                    for action in &rule.actions {
+                        match action {
+                            Action::Ignore => {
+                                debug!("Ignore Message");
+                                return
+                            },
+                            Action::Set(set_property) => set_property.set(&mut notification_data, &notification_template_data),
+                            Action::Stop => break
+                        }
+
+                    }
+                    
+                    notification_data.style.extend(rule.style.clone());
+                },
+                None => break
             }
-            
-            notification_data.style = rule.style.clone();
         }
+
+        debug!("Finished rules");
+        debug!("Final notification_data {:#?}", notification_data);
 
         let notification = Arc::new(notification_data);
         self.changed.push(Arc::clone(&notification));

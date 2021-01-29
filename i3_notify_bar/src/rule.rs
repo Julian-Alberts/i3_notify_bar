@@ -138,7 +138,8 @@ impl Definition {
 
 pub enum Action {
     Ignore,
-    Set(SetProperty)
+    Set(SetProperty),
+    Stop
 }
 
 impl TryFrom<&str> for Action {
@@ -149,6 +150,7 @@ impl TryFrom<&str> for Action {
         let ok = match action {
             Some("ignore") => Self::Ignore,
             Some("set") => Self::Set(SetProperty::try_from(line)?),
+            Some("stop") => Self::Stop,
             _ => return Err(())
         };
         Ok(ok)
@@ -201,6 +203,7 @@ fn property_template(template: String) -> Result<&'static str, ()> {
     }
 }
 
+#[derive(Debug)]
 pub enum Rule {
     AppName(String),
     AppIcon(String),
@@ -226,7 +229,7 @@ impl TryFrom<&str> for Rule {
             _ => unreachable!("Who did you even get here?")
         };
 
-        let value = parts[2..].join(" ");
+        let value = parts[1..].join(" ").trim().to_owned();
 
         match name.trim() {
             "app_name" => Ok(Rule::AppName(value)),
