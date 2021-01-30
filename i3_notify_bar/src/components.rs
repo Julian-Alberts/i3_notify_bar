@@ -35,7 +35,12 @@ impl NotificationComponent {
             }
         };
 
-        let mut label = Label::new(format!(" {}{} ", nd.icon, nd.text));
+        let mut label;
+        if nd.icon == " " {
+            label = Label::new(format!(" {} ", nd.text));
+        } else {
+            label = Label::new(format!(" {} {} ",nd.icon, nd.text));
+        }
         label.set_seperator(false);
         label.set_separator_block_width(0);
 
@@ -57,7 +62,7 @@ impl NotificationComponent {
     }
 
     pub fn update_notification(&mut self, nd: &NotificationData) {
-        self.label.set_text(format!(" {}{} ", nd.icon, nd.text));
+        self.label.set_text(format!(" {} {} ", nd.icon, nd.text));
         let close_type = match nd.expire_timeout {
             -1 => {
                 let mut b = Button::new(String::from(" X "));

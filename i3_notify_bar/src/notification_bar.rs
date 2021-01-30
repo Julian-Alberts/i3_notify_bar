@@ -30,7 +30,7 @@ impl NotificationManager {
 
         let mut notification_data = NotificationData {
             expire_timeout: n.expire_timeout,
-            icon: format!("{} ", icons::get_icon(&n.app_name).unwrap_or(' ')),
+            icon: icons::get_icon(&n.app_name).unwrap_or(' ').to_string(),
             id: n.id,
             style: Vec::new(),
             text: n.summary.clone()
