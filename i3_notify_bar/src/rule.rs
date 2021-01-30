@@ -1,6 +1,5 @@
 use std::{convert::TryFrom, io::{BufRead, Error, ErrorKind}};
 
-use i3_bar_components::protocol::Block;
 use log::{debug, info};
 use notify_server::notification::Notification;
 use tinytemplate::TinyTemplate;
@@ -276,13 +275,13 @@ pub enum Style {
 
 impl Style {
     
-    pub fn apply(&self, block: &mut Block) {
+    pub fn apply(&self, base_component: &mut i3_bar_components::components::BaseComponent) {
         match self {
             Style::Background(c) => {
-                block.set_background(c.to_owned())
+                base_component.set_background(c.to_owned())
             },
             Style::Text(c) => {
-                block.set_color(c.to_owned())
+                base_component.set_color(c.to_owned())
             },
 
         }

@@ -1,4 +1,4 @@
-use i3_bar_components::{ComponentManagerMessenger, components::{Button, Label, ProgressBar, prelude::*}, protocol::{Block, ClickEvent}};
+use i3_bar_components::{ComponentManagerMessenger, components::{BaseComponent, Button, Label, ProgressBar, prelude::*}, protocol::ClickEvent};
 
 use crate::notification_bar::NotificationData;
 use crate::icons;
@@ -20,7 +20,7 @@ impl NotificationComponent {
                 b.set_seperator(false);
                 b.set_separator_block_width(0);
                 nd.style.iter().for_each(|s| {
-                    s.apply(b.get_block_mut());
+                    s.apply(b.get_base_component_mut());
                 });
                 CloseType::Button(b)
             },
@@ -29,7 +29,7 @@ impl NotificationComponent {
                 t.set_seperator(false);
                 t.set_separator_block_width(0);
                 nd.style.iter().for_each(|s| {
-                    s.apply(t.get_block_mut());
+                    s.apply(t.get_base_component_mut());
                 });
                 CloseType::Timer(t)
             }
@@ -42,8 +42,8 @@ impl NotificationComponent {
         let mut padding_r = Label::new(String::from(" "));
 
         nd.style.iter().for_each(|s| {
-            s.apply(label.get_block_mut());
-            s.apply(padding_r.get_block_mut());
+            s.apply(label.get_base_component_mut());
+            s.apply(padding_r.get_base_component_mut());
         });
         
         
@@ -64,7 +64,7 @@ impl NotificationComponent {
                 b.set_seperator(false);
                 b.set_separator_block_width(0);
                 nd.style.iter().for_each(|s| {
-                    s.apply(b.get_block_mut());
+                    s.apply(b.get_base_component_mut());
                 });
                 CloseType::Button(b)
             },
@@ -73,7 +73,7 @@ impl NotificationComponent {
                 t.set_seperator(false);
                 t.set_separator_block_width(0);
                 nd.style.iter().for_each(|s| {
-                    s.apply(t.get_block_mut());
+                    s.apply(t.get_base_component_mut());
                 });
                 CloseType::Timer(t)
             }
@@ -85,10 +85,16 @@ impl NotificationComponent {
 
 impl Component for NotificationComponent {
 
-    fn collect_blocks<'a>(&'a self, blocks: &mut Vec<&'a Block>) {
-        self.label.collect_blocks(blocks);
-        self.close_type.collect_blocks(blocks);
-        self.padding_r.collect_blocks(blocks);
+    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
+        self.label.collect_base_components(base_components);
+        self.close_type.collect_base_components(base_components);
+        self.padding_r.collect_base_components(base_components);
+    }
+
+    fn collect_base_components_mut<'a>(&'a mut self, base_components: &mut Vec<&'a mut BaseComponent>) {
+        self.label.collect_base_components_mut(base_components);
+        self.close_type.collect_base_components_mut(base_components);
+        self.padding_r.collect_base_components_mut(base_components);
     }
 
     fn event(&mut self, ce: &ClickEvent) {
@@ -172,10 +178,17 @@ impl Component for CloseType {
         }
     }
 
-    fn collect_blocks<'a>(&'a self, blocks: &mut Vec<&'a Block>) {
+    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
         match self {
-            Self::Button(b) => b.collect_blocks(blocks),
-            Self::Timer(t) => t.collect_blocks(blocks)
+            Self::Button(b) => b.collect_base_components(base_components),
+            Self::Timer(t) => t.collect_base_components(base_components)
+        }
+    }
+
+    fn collect_base_components_mut<'a>(&'a mut self, base_components: &mut Vec<&'a mut BaseComponent>) {
+        match self {
+            Self::Button(b) => b.collect_base_components_mut(base_components),
+            Self::Timer(t) => t.collect_base_components_mut(base_components)
         }
     }
 
@@ -204,17 +217,17 @@ impl Component for CloseType {
 
 impl Widget for CloseType {
 
-    fn get_block(&self) -> &Block {
+    fn get_base_component(&self) -> &BaseComponent {
         match self {
-            Self::Button(b) => b.get_block(),
-            Self::Timer(t) => t.get_block()
+            Self::Button(b) => b.get_base_component(),
+            Self::Timer(t) => t.get_base_component()
         }
     }
 
-    fn get_block_mut(&mut self) -> &mut Block {
+    fn get_base_component_mut(&mut self) -> &mut BaseComponent {
         match self {
-            Self::Button(b) => b.get_block_mut(),
-            Self::Timer(t) => t.get_block_mut()
+            Self::Button(b) => b.get_base_component_mut(),
+            Self::Timer(t) => t.get_base_component_mut()
         }
     }
 

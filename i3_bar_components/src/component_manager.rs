@@ -23,7 +23,7 @@ impl ComponentManager {
             let element_id = event.get_id();
             let comp = self.components.iter_mut().find(|comp| {
                     let mut blocks = Vec::new();
-                    comp.collect_blocks(&mut blocks);
+                    comp.collect_base_components(&mut blocks);
                     blocks.iter().any(|b| b.get_id() == element_id)
                 }
             );
@@ -59,13 +59,22 @@ impl ComponentManager {
 
         drop(messages);
 
-        let blocks = self.components.iter().fold(Vec::with_capacity(self.render_last_block_count), |mut blocks, c| {
-            c.collect_blocks(&mut blocks);
+        let mut blocks = self.components.iter_mut().fold(Vec::with_capacity(self.render_last_block_count), |mut blocks, c| {
+            c.collect_base_components_mut(&mut blocks);
+            blocks
+        }).iter_mut().enumerate().fold(vec![b'['], |mut blocks, (index, block)| {
+            if index != 0 {
+                blocks.push(b',');
+            }
+            blocks.extend(block.serialize_cache());
             blocks
         });
+        blocks.push(b']');
+        blocks.push(b',');
+        blocks.push(10);
+
         self.render_last_block_count = blocks.len();
-        self.out_writer.write_all(serde_json::to_string(&blocks).unwrap().as_bytes()).unwrap();
-        self.out_writer.write_all(&[b',', 10]).unwrap();
+        self.out_writer.write_all(&blocks).unwrap();
         self.out_writer.flush().unwrap();
     }
 

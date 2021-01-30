@@ -1,8 +1,8 @@
 use crate::{ComponentManagerMessenger, protocol::{Block, ClickEvent}};
-use super::prelude::*;
+use super::{BaseComponent, prelude::*};
 
 pub struct Label {
-    block: Block,
+    base_component: BaseComponent,
     component_manager: Option<ComponentManagerMessenger>
 }
 
@@ -11,13 +11,13 @@ impl Label {
     pub fn new(text: String) -> Self {
         let block = Block::new().with_full_text(text);
         Self {
-            block,
+            base_component: BaseComponent::from(block),
             component_manager: None
         }
     }
 
     pub fn set_text(&mut self, s: String) {
-        self.block.set_full_text(s)
+        self.base_component.set_full_text(s);
     }
 
 }
@@ -27,12 +27,16 @@ impl Component for Label {
     fn update(&mut self) {}
     fn event(&mut self, _: &ClickEvent) {}
 
-    fn collect_blocks<'a>(&'a self, blocks: &mut Vec<&'a Block>) {
-        blocks.push(&self.block);    
+    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
+        base_components.push(&self.base_component)
+    }
+
+    fn collect_base_components_mut<'a>(&'a mut self, base_components: &mut Vec<&'a mut BaseComponent>) {
+        base_components.push(&mut self.base_component)
     }
 
     fn name(&self) -> &str {
-        match self.block.name() {
+        match self.base_component.get_name() {
             Some(name) => name,
             None => ""
         }
@@ -43,19 +47,19 @@ impl Component for Label {
     }
 
     fn get_id(&self) -> &str {
-        self.block.get_id()
+        self.base_component.get_id()
     }
 
 }
 
 impl Widget for Label {
 
-    fn get_block(&self) -> &Block {
-        &self.block
+    fn get_base_component(&self) -> &BaseComponent {
+        &self.base_component
     }
 
-    fn get_block_mut(&mut self) -> &mut Block {
-        &mut self.block
+    fn get_base_component_mut(&mut self) -> &mut BaseComponent {
+        &mut self.base_component
     }
 
 }

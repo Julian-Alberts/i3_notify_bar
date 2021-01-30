@@ -1,11 +1,11 @@
 use std::time::SystemTime;
 
-use crate::{ComponentManagerMessenger, protocol::{Block, ClickEvent}};
+use crate::{ComponentManagerMessenger, protocol::ClickEvent};
 
-use super::prelude::*;
+use super::{BaseComponent, prelude::*};
 
 pub struct ProgressBar {
-    block: Block,
+    base_component: BaseComponent,
     current: SystemTime,
     max: u64,
     component_manager: Option<ComponentManagerMessenger>
@@ -15,7 +15,7 @@ impl ProgressBar {
 
     pub fn new(max: u64) -> Self {
         Self {
-            block: Block::new(),
+            base_component: BaseComponent::new(),
             current: SystemTime::now(),
             max,
             component_manager: None
@@ -30,8 +30,12 @@ impl ProgressBar {
 
 impl Component for ProgressBar {
 
-    fn collect_blocks<'a>(&'a self, blocks: &mut Vec<&'a Block>) {
-        blocks.push(&self.block);
+    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
+        base_components.push(&self.base_component)
+    }
+
+    fn collect_base_components_mut<'a>(&'a mut self, base_components: &mut Vec<&'a mut BaseComponent>) {
+        base_components.push(&mut self.base_component);
     }
 
     fn event(&mut self, _: &ClickEvent) {}
@@ -51,11 +55,11 @@ impl Component for ProgressBar {
             _ => ' '
         };
 
-        self.block.set_full_text([icon].iter().collect::<String>())
+        self.base_component.set_full_text([icon].iter().collect::<String>())
     }
 
     fn name(&self) -> &str {
-        match self.block.name() {
+        match self.base_component.get_name() {
             Some(name) => name,
             None => ""
         }
@@ -66,19 +70,19 @@ impl Component for ProgressBar {
     }
 
     fn get_id(&self) -> &str {
-        self.get_block().get_id()
+        self.get_base_component().get_id()
     }
 
 }
 
 impl Widget for ProgressBar {
 
-    fn get_block(&self) -> &Block {
-        &self.block
+    fn get_base_component(&self) -> &BaseComponent {
+        &self.base_component
     }
 
-    fn get_block_mut(&mut self) -> &mut Block {
-        &mut self.block
+    fn get_base_component_mut(&mut self) -> &mut BaseComponent {
+        &mut self.base_component
     }
 
 }
