@@ -48,8 +48,9 @@ impl NotificationManager {
         debug!("Notification Tempalate Data: {:#?}", notification_template_data);
 
         let mut last_rule_id = 0;
+        let mut read_next_rule = true;
 
-        loop {
+        while read_next_rule {
             let rule = self.rules[last_rule_id..]
                 .iter()
                 .enumerate()
@@ -67,14 +68,14 @@ impl NotificationManager {
                                 return
                             },
                             Action::Set(set_property) => set_property.set(&mut notification_data, &notification_template_data),
-                            Action::Stop => break
+                            Action::Stop => read_next_rule = false
                         }
 
                     }
                     
                     notification_data.style.extend(rule.style.clone());
                 },
-                None => break
+                None => read_next_rule = false
             }
         }
 
