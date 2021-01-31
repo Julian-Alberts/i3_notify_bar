@@ -50,7 +50,7 @@ impl Header {
     create_setter!(click_events: bool => set: set_click_events with: with_click_events);
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct Block {
     full_text: String,
     #[serde(skip_serializing_if = "Option::is_none")]

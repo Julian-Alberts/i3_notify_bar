@@ -202,7 +202,7 @@ fn property_template(template: String) -> Result<&'static str, ()> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Rule {
     AppName(String),
     AppIcon(String),
@@ -267,7 +267,7 @@ impl PartialEq<Notification> for Rule {
 
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Style {
     Background(String),
     Text(String)
@@ -307,5 +307,64 @@ impl TryFrom<&str> for Style {
 
         Ok(ok)
     }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use core::convert::TryFrom;
+
+    use super::{Rule, Style};
+
+    #[test]
+    fn style_background_from_str() {
+        const COLOR: &str = "#FFFFFF";
+        let expected = Style::Background(COLOR.to_owned());
+        let actual = Style::try_from(&format!("background {}", COLOR)[..]);
+        assert!(actual.is_ok(), r#"Error parsing "{} {}""#, "background", COLOR);
+        let actual = actual.unwrap();
+        assert_eq!(expected, actual);
+
+        assert!(Style::try_from("background").is_err());
+        assert!(Style::try_from("background ").is_err());
+    }
+
+    #[test]
+    fn style_text_from_str() {
+        const COLOR: &str = "#FFFFFF";
+        let expected = Style::Text(COLOR.to_owned());
+        let actual = Style::try_from(&format!("text {}", COLOR)[..]);
+        assert!(actual.is_ok(), r#"Error parsing "{} {}""#, "text", COLOR);
+        let actual = actual.unwrap();
+        assert_eq!(expected, actual);
+
+        assert!(Style::try_from("text").is_err());
+        assert!(Style::try_from("text ").is_err());
+    }
+
+    #[test]
+    fn style_try_from_unknown() {
+        assert!(Style::try_from("unknown_option").is_err())
+    }
+
+    macro_rules! rule_try_from_macro {
+        ($fn_name:ident $cnf_key:literal = $cnf_value:literal $type:tt) => {
+            #[test]
+            fn $fn_name() {
+                let rule = Rule::try_from(&format!("{} = {}", $cnf_key, $cnf_value)[..]);
+                assert!(rule.is_ok());
+                let rule = rule.unwrap();
+                assert_eq!(Rule::$type($cnf_value.to_owned()), rule)
+            }
+        };
+    }
+
+    rule_try_from_macro!(rule_try_from_app_name "app_name" = "test_app_name" AppName);
+    rule_try_from_macro!(rule_try_from_app_icon "app_icon" = "icon" AppIcon);
+    rule_try_from_macro!(rule_try_from_summary "summary" = "summ" Summary);
+    rule_try_from_macro!(rule_try_from_body "body" = "test body" Body);
+    rule_try_from_macro!(rule_try_from_urgency "urgency" = "low" Urgency);
+    rule_try_from_macro!(rule_try_from_expire_timeout "expire_timeout" = 100 ExpireTimeout);
+
 
 }

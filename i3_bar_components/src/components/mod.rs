@@ -15,7 +15,7 @@ macro_rules! block_pass_through {
         }
     };
 }
-
+#[derive(Debug, PartialEq)]
 pub struct BaseComponent {
     block: Block,
     is_dirty: bool,

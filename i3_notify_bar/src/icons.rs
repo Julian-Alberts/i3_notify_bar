@@ -27,3 +27,18 @@ icons!(
     "Thunderbird" => MAIL_ICON = '\u{F2B6}',
     "x" => X_ICON = '\u{F057}'
 );
+
+#[cfg(test)]
+mod tests {
+    
+    #[test]
+    fn macro_test() {
+        icons!(
+            "Test" => TEST_ICON = 'w'
+        );
+
+        assert_eq!(get_icon("Test"), Some('w'));
+        assert_eq!(get_icon(""), None);
+        assert_eq!(TEST_ICON, 'w');
+    }
+}
