@@ -277,14 +277,16 @@ struct AnimatedText {
 impl AnimatedText {
 
     fn update(&mut self) {
-        if self.text.len() <= self.max_with {
+        let text_len = self.text.chars().count();
+
+        if text_len <= self.max_with {
             return
         }
         let dt = self.last_update.elapsed().unwrap().as_secs_f64();
         self.last_update = SystemTime::now();
         let move_chars = self.move_chars_per_sec as f64 * dt;
         self.start_offset += move_chars;
-        if self.start_offset as usize >= self.text.len() {
+        if self.start_offset as usize >= text_len {
             self.start_offset = 0.0;
         }
     }
@@ -294,16 +296,23 @@ impl AnimatedText {
 impl ToString for AnimatedText {
 
     fn to_string(&self) -> String {
-        if self.text.len() <= self.max_with {
+
+        let text_len = self.text.chars().count();
+
+        if text_len <= self.max_with {
             return self.text.to_owned()
         }
         let end;
-        if self.start_offset as usize + self.max_with < self.text.len() {
+        if self.start_offset as usize + self.max_with < text_len {
             end = self.start_offset as usize + self.max_with;
         } else {
-            end = self.text.len();
+            end = text_len;
         }
-        format!("{text: <width$}", text=self.text[self.start_offset as usize..end].to_owned(), width=self.max_with)
+
+        let chars = self.text.chars().collect::<Vec<char>>();
+        let chars = &chars[self.start_offset as usize..end];
+
+        format!("{text: <width$}", text=chars.into_iter().collect::<String>(), width=self.max_with)
     }
 
 }
