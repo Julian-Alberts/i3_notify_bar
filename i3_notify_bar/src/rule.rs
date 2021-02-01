@@ -50,6 +50,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> std::io::Result<Vec<Definition>
     let line_iter = config.lines().enumerate();
 
     for (line_num, line) in line_iter {
+        let line_num = line_num + 1;
         let line = match line {
             Ok(l) => l,
             Err(e) => return error!("Reading line {} failed: {}", line_num, e.to_string())
@@ -111,7 +112,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> std::io::Result<Vec<Definition>
                 };
                 styles.push(style)
             },
-            ("", _, _, _, _) => {},
+            ("", _, _, _, _) | ("#", _, _, _, _) => {},
             _ => return error!("Unknown error: Can not parse line {}", line_num)
         }
 

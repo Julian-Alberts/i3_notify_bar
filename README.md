@@ -65,6 +65,10 @@ action
 endaction
 ```
 
+`stop` Action
+
+If the `stop` action is specified no further rules will be validated.
+
 `set` Action
 
 The set Action is used to modify notification properties
