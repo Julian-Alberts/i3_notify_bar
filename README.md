@@ -1,6 +1,6 @@
 # i3_notify_bar
 
-i3 notify bar is a simple notification bar for the i3 window manager.
+i3 notify bar is a simple notification bar for i3 window manager.
 
 ## Configuration
 
@@ -33,7 +33,7 @@ A rule definition always starts with `def` and ends with `enddef`. A definition 
 
 #### rule
 
-Rules start with a key and an equals sign (=) and end with a value it should be compared with.
+Rules start with a key and an equal sign (=) and end with a value it should be compared with.
 example
 ```
 rule
