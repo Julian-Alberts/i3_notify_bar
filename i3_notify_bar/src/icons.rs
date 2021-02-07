@@ -21,10 +21,13 @@ macro_rules! icons {
 
 icons!(
     "Discord" => DISCORD_ICON = '\u{F392}',
+    "Download" => X_DOWNLOAD = '\u{F019}',
+    "FileZilla" => X_DOWNLOAD,
+    "Mail" => MAIL_ICON = '\u{F2B6}',
     "Slack" => SLACK_ICON = '\u{F198}',
     "Spotify" => SPOTIFY_ICON = '\u{F1BC}',
     "Steam" => STEAM_ICON = '\u{F1B6}',
-    "Thunderbird" => MAIL_ICON = '\u{F2B6}',
+    "Thunderbird" => MAIL_ICON,
     "x" => X_ICON = '\u{F057}'
 );
 
