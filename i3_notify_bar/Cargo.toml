@@ -14,3 +14,7 @@ serde = { version = "1.0", features = ["derive"] }
 simplelog = "0.8.0"
 log = "0.4.11"
 clap = "3.0.0-beta.2"
+
+[features]
+parse_config_experimental = []
+default = []

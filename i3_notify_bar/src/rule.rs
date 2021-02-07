@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, io::{BufRead, Error, ErrorKind}};
+use std::{convert::TryFrom, io::{BufRead, Error, ErrorKind, Result as IOResult}};
 
 use log::{debug, info};
 use notify_server::notification::Notification;
@@ -39,7 +39,112 @@ fn get_template_manager_mut() -> &'static mut TinyTemplate<'static> {
     }
 }
 
-pub fn parse_config(config: &mut dyn BufRead) -> std::io::Result<Vec<Definition>> {
+#[cfg(feature = "parse_config_experimental")]
+pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
+    info!("Reading rules experimental");
+    let mut definitions = Vec::new();
+    let lines = config
+        .lines()
+        .map(Result::unwrap)
+        .map(trim_string)
+        .enumerate()
+        .filter(ignore_lines)
+        .collect::<Vec<(usize, String)>>();
+
+    let definition_blocks = find_blocks(&lines[..], "def", "enddef")?;
+    
+    for block in definition_blocks {
+        let action_blocks = find_blocks(block, "action", "endaction")?
+            .iter()
+            .fold(Vec::new(), fold_blocks);
+        let rule_blocks = find_blocks(block, "rule", "endrule")?
+            .iter()
+            .fold(Vec::new(), fold_blocks);
+        let style_blocks = find_blocks(block, "style", "endstyle")?
+            .iter()
+            .fold(Vec::new(), fold_blocks);
+
+        let mut actions = Vec::new();
+        for (line_num, line) in action_blocks.iter() {
+            match Action::try_from(&line[..]) {
+                Ok(a) => actions.push(a),
+                Err(_) => return error!(r#"Faild to read action "{}" in line {}"#, line, line_num)
+            }
+        }
+
+        let mut rules = Vec::new();
+        for (line_num, line) in rule_blocks.iter() {
+            match Rule::try_from(&line[..]) {
+                Ok(r) => rules.push(r),
+                Err(_) => return error!(r#"Faild to read rule "{}" in line {}"#, line, line_num)
+            }
+        }
+
+        let mut style = Vec::new();
+        for (line_num, line) in style_blocks.iter() {
+            match Style::try_from(&line[..]) {
+                Ok(s) => style.push(s),
+                Err(_) => return error!(r#"Faild to read style "{}" in line {}"#, line, line_num)
+            }
+        }
+
+        definitions.push(
+            Definition {
+                actions,
+                rules,
+                style
+            }
+        )
+    }
+    
+    Ok(definitions)
+}
+
+#[cfg(feature = "parse_config_experimental")]
+fn trim_string(str: String) -> String {
+    str.trim().to_owned()
+}
+
+#[cfg(feature = "parse_config_experimental")]
+fn ignore_lines((_, line): &(usize, String)) -> bool {
+    !(line.is_empty() || line.starts_with('#'))
+}
+
+#[cfg(feature = "parse_config_experimental")]
+fn find_blocks<'a>(lines: &'a [(usize, String)], start_key: &str, end_key: &str) -> IOResult<Vec<&'a [(usize, String)]>> {
+    let mut blocks = Vec::new();
+    
+    let mut searched_key = start_key;
+    let mut other_key = end_key;
+
+    let mut match_count = 0;
+    let mut start_index = 0;
+
+    for (index, (line_num, line)) in lines.iter().enumerate() {
+        if line == searched_key {
+            match_count += 1;
+            std::mem::swap(&mut searched_key, &mut other_key);
+            if match_count & 1 == 1 {
+                start_index = index;
+            } else {
+                blocks.push(&lines[start_index+1..index])
+            }
+        } else if line == other_key {
+            return error!("Unexpected {} in line {}", other_key, line_num)
+        }
+    }
+
+    Ok(blocks)
+}
+
+#[cfg(feature = "parse_config_experimental")]
+fn fold_blocks<'a>(mut target: Vec<&'a (usize, String)>, data: &&'a [(usize, String)]) -> Vec<&'a(usize, String)>{
+    target.extend(data.iter());
+    target
+}
+
+#[cfg(not(feature = "parse_config_experimental"))]
+pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
     info!("Reading rules");
     let mut definitions = Vec::new();
     let mut def = None;
@@ -121,7 +226,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> std::io::Result<Vec<Definition>
     Ok(definitions)
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Definition {
     pub rules: Vec<Rule>,
     pub actions: Vec<Action>,
@@ -136,6 +241,7 @@ impl Definition {
 
 }
 
+#[derive(Debug)]
 pub enum Action {
     Ignore,
     Set(SetProperty),
@@ -158,6 +264,7 @@ impl TryFrom<&str> for Action {
 
 }
 
+#[derive(Debug)]
 pub enum SetProperty {
     Icon(String),
     Text(&'static str),
