@@ -63,6 +63,7 @@ impl BaseComponent {
     block_pass_through!(set_separator_block_width(sbw: usize));
     block_pass_through!(set_background(color: String));
     block_pass_through!(set_color(color: String));
+    block_pass_through!(set_urgent(urgent: bool));
 
 }
 

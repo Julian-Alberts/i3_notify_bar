@@ -6,7 +6,7 @@ mod args;
 
 use std::{io::BufReader, sync::{Arc, Mutex}, time::Duration};
 use components::NotificationComponent;
-use i3_bar_components::ComponentManagerBuilder;
+use i3_bar_components::{ComponentManagerBuilder, components::Label};
 use log::error;
 use notification_bar::NotificationManager;
 use args::Args;
@@ -25,7 +25,7 @@ fn main() {
                 Ok(r) => r,
                 Err(e) => {
                     error!("{}", e.to_string());
-                    return
+                    print_error(e.to_string());
                 }
             };
         },
@@ -58,6 +58,20 @@ fn main() {
         
         manager.update();
         std::thread::sleep(Duration::from_millis(args.refresh_rate()));
+    }
+}
+
+fn print_error(data: String) -> ! {
+    use i3_bar_components::components::prelude::Component;
+    let mut cm = ComponentManagerBuilder::new().with_click_events(false).build();
+    let mut label = Label::new(data);
+    let mut base_components = Vec::new();
+    label.collect_base_components_mut(&mut base_components);
+    base_components[0].set_urgent(true);
+    cm.add_component(Box::new(label));
+    cm.update();
+    loop {
+        std::thread::sleep(Duration::new(10, 0));
     }
 }
 
