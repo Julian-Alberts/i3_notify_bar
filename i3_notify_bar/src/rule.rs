@@ -39,7 +39,6 @@ fn get_template_manager_mut() -> &'static mut TinyTemplate<'static> {
     }
 }
 
-#[cfg(feature = "parse_config_experimental")]
 pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
     info!("Reading rules experimental");
     let mut definitions = Vec::new();
@@ -100,17 +99,14 @@ pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
     Ok(definitions)
 }
 
-#[cfg(feature = "parse_config_experimental")]
 fn trim_string(str: String) -> String {
     str.trim().to_owned()
 }
 
-#[cfg(feature = "parse_config_experimental")]
 fn ignore_lines((_, line): &(usize, String)) -> bool {
     !(line.is_empty() || line.starts_with('#'))
 }
 
-#[cfg(feature = "parse_config_experimental")]
 fn find_blocks<'a>(lines: &'a [(usize, String)], start_key: &str, end_key: &str) -> IOResult<Vec<&'a [(usize, String)]>> {
     let mut blocks = Vec::new();
     
@@ -137,93 +133,9 @@ fn find_blocks<'a>(lines: &'a [(usize, String)], start_key: &str, end_key: &str)
     Ok(blocks)
 }
 
-#[cfg(feature = "parse_config_experimental")]
 fn fold_blocks<'a>(mut target: Vec<&'a (usize, String)>, data: &&'a [(usize, String)]) -> Vec<&'a(usize, String)>{
     target.extend(data.iter());
     target
-}
-
-#[cfg(not(feature = "parse_config_experimental"))]
-pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
-    info!("Reading rules");
-    let mut definitions = Vec::new();
-    let mut def = None;
-    let mut rules = None;
-    let mut actions = None;
-    let mut styles = None;
-
-    let line_iter = config.lines().enumerate();
-
-    for (line_num, line) in line_iter {
-        let line_num = line_num + 1;
-        let line = match line {
-            Ok(l) => l,
-            Err(e) => return error!("Reading line {} failed: {}", line_num, e.to_string())
-        };
-        let line = line.trim();
-        match (line, &mut def, &mut rules, &mut actions, &mut styles) {
-            ("def", None, None, None, None) => 
-                def = Some(Definition::default()),
-            ("enddef", Some(_), None, None, None) => {
-                // def.unwarp can not fail, checked by condition
-                definitions.push(def.unwrap());
-                def = None
-            },
-            ("rule", Some(_), None, None, None) => 
-                rules = Some(Vec::new()),
-            ("endrule", Some(def), Some(_), None, None) => {
-                // rules.unwarp can not fail, checked by condition
-                def.rules = rules.unwrap();
-                rules = None
-            },
-            ("action", Some(_), None, None, None) => 
-                actions = Some(Vec::new()),
-            ("endaction", Some(def), None, Some(_), None) => {
-                // actions.unwarp can not fail, checked by condition
-                def.actions = actions.unwrap();
-                actions = None
-            },
-            ("style", Some(_), None, None, None) => 
-                styles = Some(Vec::new()),
-            ("endstyle", Some(def), None, None, Some(_)) => {
-                // def.style can not fail, checked by condition
-                def.style = styles.unwrap();
-                styles = None
-            }
-            (rule_line, Some(_), Some(rules), None, None) => {
-                let split = rule_line.splitn(2, '=');
-                let split = split.collect::<Vec<&str>>();
-                if split.len() != 2 {
-                    return error!("Missing argument in line {}", line_num)
-                }
-
-                let r = Rule::try_from(rule_line);
-                match r {
-                    Ok(r) => rules.push(r),
-                    _ => return error!("Could not parse line {} \"{}\"", line_num, rule_line)
-                }
-            },
-            (action_line, Some(_), None, Some(actions), None) => {
-                let r = Action::try_from(action_line);
-                match r {
-                    Ok(r) => actions.push(r),
-                    Err(_) => return error!("Could not parse line {}", line_num)
-                }
-            },
-            (style_line, Some(_), None, None, Some(styles)) => {
-                let style = match Style::try_from(style_line) {
-                    Ok(o) => o,
-                    Err(_) => return error!("Could not parse line {} \"{}\"", line_num, style_line)
-                };
-                styles.push(style)
-            },
-            ("", _, _, _, _) | ("#", _, _, _, _) => {},
-            _ => return error!("Unknown error: Can not parse line {}", line_num)
-        }
-
-    }
-    info!("Finished reading rules. Rules found {}", definitions.len());
-    Ok(definitions)
 }
 
 #[derive(Default, Debug)]

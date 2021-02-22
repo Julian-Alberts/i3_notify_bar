@@ -16,10 +16,9 @@ log = "0.4.11"
 clap = "3.0.0-beta.2"
 
 [features]
-parse_config_experimental = []
 fa_icons = []
 defaults = ["fa_icons"]
-all = ["parse_config_experimental", "fa_icons"]
+all = ["fa_icons"]
 
 [profile.release]
 opt-level = 3
