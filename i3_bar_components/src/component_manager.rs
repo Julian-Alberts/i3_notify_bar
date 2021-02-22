@@ -1,4 +1,4 @@
-use std::{io::{Read, Stdout, Write, BufRead}, sync::mpsc::Sender};
+use std::{io::{Read, Stdout, Write, BufRead}, sync::mpsc::Sender, time::SystemTime};
 use std::sync::mpsc::Receiver;
 use log::*;
 use std::any::Any;
@@ -11,12 +11,15 @@ pub struct ComponentManager {
     out_writer: Stdout,
     render_last_block_count: usize,
     message_tx: Sender<Message>,
-    message_rx: Receiver<Message>
+    message_rx: Receiver<Message>,
+    last_update: SystemTime
 }
 
 impl ComponentManager {
 
     pub fn update(&mut self) {
+        let dt = self.last_update.elapsed().unwrap().as_secs_f64();
+        self.last_update = SystemTime::now();
         let events = self.event_reader.try_iter().collect::<Vec<ClickEvent>>();
 
         events.iter().for_each(|event| {
@@ -33,7 +36,7 @@ impl ComponentManager {
             }
         });
 
-        self.components.iter_mut().for_each(|c| c.update());
+        self.components.iter_mut().for_each(|c| c.update(dt));
         
         let messages = self.message_rx.try_recv().into_iter().collect::<Vec<Message>>();
 
@@ -213,7 +216,8 @@ impl ComponentManagerBuilder {
             out_writer: out_writer,
             render_last_block_count: 0,
             message_rx,
-            message_tx
+            message_tx,
+            last_update: SystemTime::now()
         }
     }
 

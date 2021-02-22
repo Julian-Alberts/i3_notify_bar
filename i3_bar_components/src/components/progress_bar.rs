@@ -40,7 +40,7 @@ impl Component for ProgressBar {
 
     fn event(&mut self, _: &ClickEvent) {}
 
-    fn update(&mut self) {
+    fn update(&mut self, _: f64) {
         let step = (self.current.elapsed().unwrap().as_secs_f64() / self.max as f64 * 8_f64).floor() as u8;
 
         let icon = match step {

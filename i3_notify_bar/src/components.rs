@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use i3_bar_components::{ComponentManagerMessenger, components::{BaseComponent, Button, Label, ProgressBar, prelude::*}, protocol::ClickEvent};
 
 use crate::notification_bar::NotificationData;
@@ -40,7 +38,6 @@ impl NotificationComponent {
         };
 
         let text = AnimatedText {
-            last_update: SystemTime::now(),
             max_with: 20,
             move_chars_per_sec: 5,
             start_offset: 0.0,
@@ -135,7 +132,7 @@ impl Component for NotificationComponent {
         }
     }
 
-    fn update(&mut self) {
+    fn update(&mut self, dt: f64) {
         let cm = match &self.component_manager {
             Some(cm) => cm,
             None => panic!("ComponentManagerMassenger not set")
@@ -145,10 +142,10 @@ impl Component for NotificationComponent {
             cm.remove();
         }
 
-        self.text.update();
+        self.text.update(dt);
         self.update_label_text();
-        self.label.update();
-        self.close_type.update();
+        self.label.update(dt);
+        self.close_type.update(dt);
     }
 
     fn name(&self) -> &str {
@@ -197,10 +194,10 @@ impl CloseType {
 
 impl Component for CloseType {
 
-    fn update(&mut self) {
+    fn update(&mut self, dt: f64) {
         match self {
-            Self::Button(b) => b.update(),
-            Self::Timer(t) => t.update()
+            Self::Button(b) => b.update(dt),
+            Self::Timer(t) => t.update(dt)
         }
     }
 
@@ -267,7 +264,6 @@ impl Widget for CloseType {
 }
 
 struct AnimatedText {
-    last_update: SystemTime,
     start_offset: f64,
     max_with: usize,
     move_chars_per_sec: usize,
@@ -276,14 +272,12 @@ struct AnimatedText {
 
 impl AnimatedText {
 
-    fn update(&mut self) {
+    fn update(&mut self, dt: f64) {
         let text_len = self.text.chars().count();
 
         if text_len <= self.max_with {
             return
         }
-        let dt = self.last_update.elapsed().unwrap().as_secs_f64();
-        self.last_update = SystemTime::now();
         let move_chars = self.move_chars_per_sec as f64 * dt;
         self.start_offset += move_chars;
         if self.start_offset as usize >= text_len {

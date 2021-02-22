@@ -24,7 +24,7 @@ impl Button {
 
 impl Component for Button {
 
-    fn update(&mut self) {}
+    fn update(&mut self, _: f64) {}
     fn event(&mut self, _: &ClickEvent) {
         self.base_component.set_background(String::from("#00FF00"));
     }

@@ -24,7 +24,7 @@ impl Label {
 
 impl Component for Label {
 
-    fn update(&mut self) {}
+    fn update(&mut self, _: f64) {}
     fn event(&mut self, _: &ClickEvent) {}
 
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
