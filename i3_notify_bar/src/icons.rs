@@ -19,6 +19,7 @@ macro_rules! icons {
     };
 }
 
+#[cfg(feature = "fa_icons")]
 icons!(
     "Discord" => DISCORD_ICON = '\u{F392}',
     "Download" => X_DOWNLOAD = '\u{F019}',
@@ -29,6 +30,11 @@ icons!(
     "Steam" => STEAM_ICON = '\u{F1B6}',
     "Thunderbird" => MAIL_ICON,
     "x" => X_ICON = '\u{F057}'
+);
+
+#[cfg(not(feature = "fa_icons"))]
+icons!(
+    "x" => X_ICON = 'X'
 );
 
 #[cfg(test)]

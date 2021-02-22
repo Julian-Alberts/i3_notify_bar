@@ -17,7 +17,8 @@ clap = "3.0.0-beta.2"
 
 [features]
 parse_config_experimental = []
-default = []
+fa_icons = []
+defaults = ["fa_icons"]
 
 [profile.release]
 opt-level = 3
