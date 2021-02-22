@@ -41,7 +41,8 @@ impl NotificationComponent {
             max_with: 20,
             move_chars_per_sec: 5,
             start_offset: 0.0,
-            text: nd.text.clone()
+            text: nd.text.clone(),
+            stop_animation_for_secs: 0.0
         };
 
         let mut label;
@@ -267,7 +268,8 @@ struct AnimatedText {
     start_offset: f64,
     max_with: usize,
     move_chars_per_sec: usize,
-    text: String
+    text: String,
+    stop_animation_for_secs: f64
 }
 
 impl AnimatedText {
@@ -278,10 +280,17 @@ impl AnimatedText {
         if text_len <= self.max_with {
             return
         }
+
+        if self.stop_animation_for_secs > 0.0 {
+            self.stop_animation_for_secs -= dt;
+            return;
+        }
+
         let move_chars = self.move_chars_per_sec as f64 * dt;
         self.start_offset += move_chars;
         if self.start_offset as usize >= text_len {
             self.start_offset = 0.0;
+            self.stop_animation_for_secs = 1.0;
         }
     }
 
