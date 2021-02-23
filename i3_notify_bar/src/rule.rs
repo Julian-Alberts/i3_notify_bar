@@ -2,41 +2,13 @@ use std::{convert::TryFrom, io::{BufRead, Error, ErrorKind, Result as IOResult}}
 
 use log::{debug, info};
 use notify_server::notification::Notification;
-use tinytemplate::TinyTemplate;
 
-use crate::notification_bar::{NotificationData, NotificationTemplateData};
-
-static mut TEMPLATE_MANAGER: Option<TinyTemplate<'static>> = None;
-static mut TEMPLATES: Vec<String> = Vec::new();
+use crate::{notification_bar::{NotificationData, NotificationTemplateData}, template};
 
 macro_rules! error {
     ($($arg:tt)*) => {
         Err(Error::new(ErrorKind::Other, format!($($arg)*)))
     };
-}
-
-fn get_template_manager() -> &'static TinyTemplate<'static> {
-    unsafe {
-        match &TEMPLATE_MANAGER {
-            Some(tm) => tm,
-            None => {
-                TEMPLATE_MANAGER = Some(TinyTemplate::new());
-                TEMPLATE_MANAGER.as_ref().unwrap()
-            }
-        }
-    }
-}
-
-fn get_template_manager_mut() -> &'static mut TinyTemplate<'static> {
-    unsafe {
-        match &mut TEMPLATE_MANAGER {
-            Some(tm) => tm,
-            None => {
-                TEMPLATE_MANAGER = Some(TinyTemplate::new());
-                TEMPLATE_MANAGER.as_mut().unwrap()
-            }
-        }
-    }
 }
 
 pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
@@ -188,7 +160,7 @@ impl SetProperty {
     pub fn set(&self, nd: &mut NotificationData, n: &NotificationTemplateData) {
         match self {
             Self::Icon(i) => nd.icon = i.to_owned(),
-            Self::Text(i) => nd.text = get_template_manager().render(i, n).unwrap().replace('\n', ""),
+            Self::Text(i) => nd.text = template::render_template(i, n),
             Self::ExpireTimeout(i) => nd.expire_timeout = *i,
         }
     }
@@ -203,23 +175,13 @@ impl TryFrom<&str> for SetProperty {
         let value = parts[2..].join(" ");
         let ok = match parts.get(1) {
             Some(&"icon") => Self::Icon(value),
-            Some(&"text") => Self::Text(property_template(value)?),
+            Some(&"text") => Self::Text(template::add_template(value)?),
             Some(&"expire_timeout") => Self::ExpireTimeout(value.parse().or(Err(()))?),
             _ => return Err(())
         };
         Ok(ok)
     }
 
-}
-
-fn property_template(template: String) -> Result<&'static str, ()> {
-    unsafe {
-        TEMPLATES.push(template);
-        let temp_ref = TEMPLATES.last().unwrap();
-        get_template_manager_mut().add_template(temp_ref, temp_ref).or(Err(()))?;
-            
-        Ok(temp_ref)
-    }
 }
 
 #[derive(Debug, PartialEq)]

@@ -3,6 +3,7 @@ mod notification_bar;
 mod rule;
 mod icons;
 mod args;
+mod template;
 
 use std::{io::BufReader, sync::{Arc, Mutex}, time::Duration};
 use components::NotificationComponent;
