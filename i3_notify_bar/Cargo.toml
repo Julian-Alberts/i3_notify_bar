@@ -17,7 +17,7 @@ clap = "3.0.0-beta.2"
 
 [features]
 fa_icons = []
-defaults = ["fa_icons"]
+default = ["fa_icons"]
 all = ["fa_icons"]
 
 [profile.release]
