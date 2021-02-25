@@ -8,6 +8,6 @@ edition = "2018"
 
 [dependencies]
 zbus = "1.8.0"
-zvariant = "2.3.0"
+zvariant = "2.5.0"
 observer = { path = "../observer"}
 serde = { version = "1.0", features = ["derive"] }
