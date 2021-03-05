@@ -24,6 +24,6 @@ macro_rules! create_filter {
 
 pub type Filter = dyn Fn(Vec<&Value>) -> Result<Value, &str>;
 
-pub const STR_LEN: &Filter = &create_filter!(|input: String| -> isize {
-    input.len()
+pub const STR_LEN: &Filter = &create_filter!(|input: String| -> f64 {
+    input.len() as f64
 });

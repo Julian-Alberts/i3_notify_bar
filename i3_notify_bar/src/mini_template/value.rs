@@ -1,14 +1,34 @@
 use super::prelude::*;
 
+#[derive(Debug, PartialEq)]
 pub enum Value {
     String(String),
-    Int(isize),
-    UInt(usize),
+    Number(f64),
     Bool(bool),
-    Float(f64)
 }
 
 macro_rules! value_impl {
+    ($name: ident => $main_type: ty as [$($type: ty),+]) => {
+        value_impl!($name => $main_type);
+        $(
+            impl TryFrom<&Value> for $type {
+                type Error = &'static str;
+                fn try_from(value: &Value) -> Result<Self, Self::Error> {
+                    match value {
+                        Value::$name(s) => Ok(*s as $type),
+                        _ => Err("is not a string")
+                    }
+                }
+            }
+
+            impl From<$type> for Value {
+                fn from(s: $type) -> Self {
+                    Self::$name(s as $main_type)
+                }
+            }
+
+        )+
+    };
     ($name: ident => $type: ty) => {
         value_impl!(try_from_type $name => $type);
         value_impl!(from_value $name => $type);
@@ -35,7 +55,5 @@ macro_rules! value_impl {
 }
 
 value_impl!(String => String);
-value_impl!(Int => isize);
-value_impl!(UInt => usize);
 value_impl!(Bool => bool);
-value_impl!(Float => f64);
+value_impl!(Number => f64 as [isize]);
