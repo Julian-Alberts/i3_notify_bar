@@ -198,7 +198,6 @@ dependencies = [
  "regex",
  "serde",
  "simplelog",
- "tinytemplate",
 ]
 
 [[package]]
@@ -545,16 +544,6 @@ dependencies = [
  "libc",
  "wasi 0.10.0+wasi-snapshot-preview1",
  "winapi",
-]
-
-[[package]]
-name = "tinytemplate"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2ada8616fad06a2d0c455adc530de4ef57605a8120cc65da9653e0e9623ca74"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]

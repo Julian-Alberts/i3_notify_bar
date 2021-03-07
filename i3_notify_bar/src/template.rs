@@ -1,36 +1,48 @@
-use tinytemplate::TinyTemplate;
+use std::collections::HashMap;
 
-use crate::notification_bar::NotificationTemplateData;
+use crate::{mini_template::{MiniTemplate, value::Value}, notification_bar::NotificationTemplateData};
 
-static mut TEMPLATE_MANAGER: Option<TinyTemplate<'static>> = None;
-static mut TEMPLATES: Vec<String> = Vec::new();
+static mut TEMPLATE_MANAGER: Option<MiniTemplate<u64>> = None;
+static mut NEXT_TEPLATE_ID: u64 = 0;
 
-pub fn render_template(tpl_name: &str, context: &NotificationTemplateData) -> String {
+pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> String {
+    let mut data = HashMap::with_capacity(5);
+
+    data.insert("app_name".to_string(), Value::String(context.app_name.to_owned()));
+    data.insert("body".to_string(), Value::String(context.body.to_owned()));
+    data.insert("expire_timeout".to_string(), Value::Number(context.expire_timeout as f64));
+    data.insert("icon".to_string(), Value::String(context.icon.to_owned()));
+    data.insert("summary".to_string(), Value::String(context.summary.to_owned()));
+
     unsafe {
         match &TEMPLATE_MANAGER {
             Some(tm) => tm,
             None => {
-                TEMPLATE_MANAGER = Some(TinyTemplate::new());
+                TEMPLATE_MANAGER = Some(init_template_manager());
                 TEMPLATE_MANAGER.as_ref().unwrap()
             }
-        }.render(tpl_name, context).unwrap().replace('\n', "")
+        }.render(tpl_id, &data).unwrap().replace('\n', "")
     }
 }
 
-pub fn add_template(template: String) -> Result<&'static str, ()> {
+pub fn add_template(template: String) -> Result<u64, ()> {
 
     unsafe {
-        TEMPLATES.push(template);
-        let temp_ref = TEMPLATES.last().unwrap();
-            
         match &mut TEMPLATE_MANAGER {
             Some(tm) => tm,
             None => {
-                TEMPLATE_MANAGER = Some(TinyTemplate::new());
+                TEMPLATE_MANAGER = Some(init_template_manager());
                 TEMPLATE_MANAGER.as_mut().unwrap()
             }
-        }.add_template(temp_ref, temp_ref).or(Err(()))?;
+        }.add_template(NEXT_TEPLATE_ID, template.clone());
+        NEXT_TEPLATE_ID += 1;
 
-        Ok(temp_ref)
+        Ok(NEXT_TEPLATE_ID - 1)
     }
+}
+
+fn init_template_manager() -> MiniTemplate<u64> {
+    let mut tplm = MiniTemplate::new();
+    tplm.add_default_modifiers();
+    tplm
 }

@@ -1,10 +1,22 @@
 use super::prelude::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     String(String),
     Number(f64),
     Bool(bool),
+}
+
+impl ToString for Value {
+    
+    fn to_string(&self) -> String {
+        match self {
+            Self::String(s) => s.to_owned(),
+            Self::Number(n) => n.to_string(),
+            Self::Bool(b) => if *b {String::from("true")}else{String::from("false")}
+        }
+    }
+
 }
 
 macro_rules! value_impl {
@@ -56,4 +68,4 @@ macro_rules! value_impl {
 
 value_impl!(String => String);
 value_impl!(Bool => bool);
-value_impl!(Number => f64 as [isize]);
+value_impl!(Number => f64 as [isize, i32, usize]);

@@ -1,12 +1,11 @@
-use std::{io::prelude::*, vec};
+use log::error;
+use regex::Regex;
 
-use regex::{Regex, bytes::RegexBuilder};
-
-use super::value::Value;
+use super::{Statement, StorageMethod, Template, value::Value};
 
 const STATEMENT_REGEX_STR: &str = r#"\{(?P<var_name>[a-z_0-9]+)(?P<modifier>|[^}]+)\}"#;
 const MODIFIER_REGEX_STR: &str = r#"\|(?P<modifier>[a-z_0-9]+)(?P<args>:[^|]+)*"#;
-const ARGS_REGEX_STR: &str = r#":(?P<var>[a-z][a-z_0-9]*)|(?:"(?P<str>[^"]*)")|(?P<num>\d+(.\d+)?)"#;
+const ARGS_REGEX_STR: &str = r#":(?P<var>[a-z][a-z_0-9]*)|(?:"(?P<str>[^"]*)")|(?P<num>[+-]?\d+(.\d+)?)"#;
 
 pub fn compile(tpl: String) -> Template {
     let mut compiled_tpl = Template {
@@ -15,12 +14,14 @@ pub fn compile(tpl: String) -> Template {
     };
 
     let tpl = &compiled_tpl.tpl_str[..];
+    // Compiling the regex should not fail
     let statement_regex = Regex::new(STATEMENT_REGEX_STR).unwrap();
     let modifier_regex = Regex::new(MODIFIER_REGEX_STR).unwrap();
     let args_regex = Regex::new(ARGS_REGEX_STR).unwrap();
 
     let mut end_of_last_match = 0;
     for captures in statement_regex.captures_iter(tpl) {
+        //If there was no full match the iterrator would not run
         let full_match = captures.get(0).unwrap();
             if end_of_last_match != full_match.start() {
             let v = &tpl[end_of_last_match..full_match.start()];
@@ -29,16 +30,17 @@ pub fn compile(tpl: String) -> Template {
         end_of_last_match = full_match.end();
 
         let var_name = &captures["var_name"];
-        let pipes;
+        let modifiers;
 
         if let Some(modifier) = captures.name("modifier") {
-            pipes = modifier_regex.captures_iter(modifier.as_str()).map(|m| {
+            modifiers = modifier_regex.captures_iter(modifier.as_str()).map(|m| {
                 let modifier_name = &m["modifier"];
                 let args_list;
                 if let Some(args) = m.name("args") {
                     args_list = args_regex.captures_iter(args.as_str()).map(|a| {
                         match (a.name("num"), a.name("str"), a.name("var")) {
                             (Some(num), None, None) => {
+                                // If the conversion from string to f64 fails the regex does not work and should be checked
                                 StorageMethod::Const(Value::Number(num.as_str().parse().unwrap()))
                             },
                             (None, Some(string), None) => {
@@ -47,7 +49,10 @@ pub fn compile(tpl: String) -> Template {
                             (None, None, Some(var)) => {
                                 StorageMethod::Variable(var.as_str())
                             },
-                            _ => unimplemented!()
+                            _ => {
+                                error!("{} did match {} but did not match any groups", args.as_str(), ARGS_REGEX_STR);
+                                unreachable!("{} did match {} but did not match any groups", args.as_str(), ARGS_REGEX_STR);
+                            }
                         }
                     }).collect();
                 } else {
@@ -57,10 +62,10 @@ pub fn compile(tpl: String) -> Template {
             }).collect();
             
         } else {
-            pipes = Vec::with_capacity(0);
+            modifiers = Vec::with_capacity(0);
         }
 
-        compiled_tpl.tpl.push(Statement::Calculated{var_name, pipes })
+        compiled_tpl.tpl.push(Statement::Calculated{var_name, modifiers })
     }
 
     if end_of_last_match < tpl.len() {
@@ -68,21 +73,6 @@ pub fn compile(tpl: String) -> Template {
     }
 
     compiled_tpl
-}
-
-#[derive(Debug)]
-enum Statement {
-    Literal(*const str),
-    Calculated {
-        var_name: *const str,
-        pipes: Vec<(*const str, Vec<StorageMethod>)>
-    },
-}
-
-#[derive(Debug)]
-enum StorageMethod {
-    Const(Value),
-    Variable(*const str)
 }
 
 #[cfg(test)]
@@ -95,18 +85,18 @@ impl PartialEq for Statement {
             (Statement::Literal(s), Statement::Literal(o)) => unsafe {
                 s.as_ref() == o.as_ref()
             },
-            (Statement::Calculated{var_name: s_var_name, pipes: s_pipes}, Statement::Calculated{var_name: o_var_name, pipes: o_pipes}) => {
+            (Statement::Calculated{var_name: s_var_name, modifiers: s_modifiers}, Statement::Calculated{var_name: o_var_name, modifiers: o_modifiers}) => {
                 unsafe {
                     if s_var_name.as_ref().unwrap() != o_var_name.as_ref().unwrap(){
                         return false
                     }
                 }
 
-                if s_pipes.len() != o_pipes.len() {
+                if s_modifiers.len() != o_modifiers.len() {
                     return false;
                 }
 
-                if s_pipes.iter().zip(o_pipes).any(|(sp, op)| {
+                if s_modifiers.iter().zip(o_modifiers).any(|(sp, op)| {
                     unsafe {
                         if sp.0.as_ref() != op.0.as_ref() {
                             return true
@@ -138,11 +128,6 @@ impl PartialEq for Statement {
         }
     }
 
-}
-
-pub struct Template {
-    tpl_str: String,
-    tpl: Vec<Statement>
 }
 
 #[cfg(test)]
@@ -226,21 +211,21 @@ mod tests {
         assert_eq!(
             vec![
                 Statement::Literal("Simple " as *const _),
-                Statement::Calculated{var_name: "var" as *const _, pipes: vec![]},
+                Statement::Calculated{var_name: "var" as *const _, modifiers: vec![]},
                 Statement::Literal(" template " as *const _),
-                Statement::Calculated{var_name: "foo", pipes: vec![]}
+                Statement::Calculated{var_name: "foo", modifiers: vec![]}
             ], 
             tpl.tpl
         )
     }
 
     #[test]
-    fn variable_value_simple_pipe() {
+    fn variable_value_simple_modifier() {
         let tpl = compile("Simple {var|test} template".to_owned());
         assert_eq!(
             vec![
                 Statement::Literal("Simple " as *const _),
-                Statement::Calculated{var_name: "var" as *const _, pipes: vec![("test" as *const _, vec![])]},
+                Statement::Calculated{var_name: "var" as *const _, modifiers: vec![("test" as *const _, vec![])]},
                 Statement::Literal(" template" as *const _)
             ], 
             tpl.tpl
@@ -248,12 +233,12 @@ mod tests {
     }
 
     #[test]
-    fn variable_value_pipe_string_value() {
+    fn variable_value_modifier_string_value() {
         let tpl = compile(r#"Simple {var|test:"test value"} template"#.to_owned());
         assert_eq!(
             vec![
                 Statement::Literal("Simple " as *const _),
-                Statement::Calculated{var_name: "var" as *const _, pipes: vec![("test" as *const _, vec![StorageMethod::Const(Value::String("test value".to_string()))])]},
+                Statement::Calculated{var_name: "var" as *const _, modifiers: vec![("test" as *const _, vec![StorageMethod::Const(Value::String("test value".to_string()))])]},
                 Statement::Literal(" template" as *const _)
             ], 
             tpl.tpl
@@ -261,12 +246,12 @@ mod tests {
     }
 
     #[test]
-    fn variable_value_pipe_num_value() {
+    fn variable_value_modifier_num_value() {
         let tpl = compile(r#"Simple {var|test:42} template"#.to_owned());
         assert_eq!(
             vec![
                 Statement::Literal("Simple " as *const _),
-                Statement::Calculated{var_name: "var" as *const _, pipes: vec![("test" as *const _, vec![StorageMethod::Const(Value::Number(42_f64))])]},
+                Statement::Calculated{var_name: "var" as *const _, modifiers: vec![("test" as *const _, vec![StorageMethod::Const(Value::Number(42_f64))])]},
                 Statement::Literal(" template" as *const _)
             ], 
             tpl.tpl
@@ -274,12 +259,12 @@ mod tests {
     }
 
     #[test]
-    fn variable_value_pipe_var_value() {
+    fn variable_value_modifier_var_value() {
         let tpl = compile(r#"Simple {var|test:foobar} template"#.to_owned());
         assert_eq!(
             vec![
                 Statement::Literal("Simple " as *const _),
-                Statement::Calculated{var_name: "var" as *const _, pipes: vec![("test" as *const _, vec![StorageMethod::Variable("foobar")])]},
+                Statement::Calculated{var_name: "var" as *const _, modifiers: vec![("test" as *const _, vec![StorageMethod::Variable("foobar")])]},
                 Statement::Literal(" template" as *const _)
             ], 
             tpl.tpl
