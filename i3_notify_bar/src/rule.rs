@@ -151,7 +151,7 @@ impl TryFrom<&str> for Action {
 #[derive(Debug)]
 pub enum SetProperty {
     Icon(String),
-    Text(&'static str),
+    Text(u64),
     ExpireTimeout(i32)
 }
 
