@@ -117,10 +117,10 @@ pub struct NotificationData {
 
 #[derive(Debug, Serialize)]
 pub struct NotificationTemplateData {
-    app_name: String, 
-    icon: String, 
-    summary: String, 
-    body: String, 
-    expire_timeout: i32,
-    time: SystemTime
+    pub app_name: String, 
+    pub icon: String, 
+    pub summary: String, 
+    pub body: String, 
+    pub expire_timeout: i32,
+    pub time: SystemTime
 }
