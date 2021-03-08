@@ -10,7 +10,7 @@ pub struct NotificationComponent {
     id: String,
     component_manager: Option<ComponentManagerMessenger>,
     text: AnimatedText,
-    icon: String
+    icon: char
 }
 
 impl NotificationComponent {
@@ -46,7 +46,7 @@ impl NotificationComponent {
         };
 
         let mut label;
-        if nd.icon == " " {
+        if nd.icon == ' ' {
             label = Label::new(format!(" {} ", text.to_string()));
         } else {
             label = Label::new(format!(" {} {} ",nd.icon, text.to_string()));
@@ -68,13 +68,13 @@ impl NotificationComponent {
             id: format!("{}", nd.id),
             component_manager: None,
             padding_r,
-            icon: nd.icon.clone(),
+            icon: nd.icon,
             text
         }
     }
 
     pub fn update_notification(&mut self, nd: &NotificationData) {
-        self.icon = nd.icon.to_string();
+        self.icon = nd.icon;
         self.text.text = nd.text.to_string();
 
         self.update_label_text();
@@ -103,7 +103,7 @@ impl NotificationComponent {
     }
 
     fn update_label_text(&mut self) {
-        if self.icon == " " {
+        if self.icon == ' ' {
             self.label.set_text(format!(" {} ", self.text.to_string()));
         } else {
             self.label.set_text(format!(" {} {} ",self.icon, self.text.to_string()));

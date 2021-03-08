@@ -30,7 +30,7 @@ impl NotificationManager {
 
         let mut notification_data = NotificationData {
             expire_timeout: n.expire_timeout,
-            icon: icons::get_icon(&n.app_name).unwrap_or(' ').to_string(),
+            icon: icons::get_icon(&n.app_name).unwrap_or(' '),
             id: n.id,
             style: Vec::new(),
             text: n.summary.clone()
@@ -110,7 +110,7 @@ impl Observer<Event> for NotificationManager {
 pub struct NotificationData {
     pub id: u32,
     pub expire_timeout: i32,
-    pub icon: String,
+    pub icon: char,
     pub text: String,
     pub style: Vec<Style>
 }

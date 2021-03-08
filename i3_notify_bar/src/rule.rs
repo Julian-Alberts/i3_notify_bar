@@ -150,7 +150,7 @@ impl TryFrom<&str> for Action {
 
 #[derive(Debug)]
 pub enum SetProperty {
-    Icon(String),
+    Icon(char),
     Text(u64),
     ExpireTimeout(i32)
 }
@@ -159,7 +159,7 @@ impl SetProperty {
 
     pub fn set(&self, nd: &mut NotificationData, n: &NotificationTemplateData) {
         match self {
-            Self::Icon(i) => nd.icon = i.to_owned(),
+            Self::Icon(i) => nd.icon = *i,
             Self::Text(i) => nd.text = template::render_template(i, n),
             Self::ExpireTimeout(i) => nd.expire_timeout = *i,
         }
@@ -174,7 +174,7 @@ impl TryFrom<&str> for SetProperty {
         let parts = line.split_whitespace().collect::<Vec<&str>>();
         let value = parts[2..].join(" ");
         let ok = match parts.get(1) {
-            Some(&"icon") => Self::Icon(value),
+            Some(&"icon") => Self::Icon(value.chars().next().ok_or(())?),
             Some(&"text") => Self::Text(template::add_template(value)?),
             Some(&"expire_timeout") => Self::ExpireTimeout(value.parse().or(Err(()))?),
             _ => return Err(())
