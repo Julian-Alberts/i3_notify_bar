@@ -2,6 +2,7 @@ use std::{convert::TryFrom, io::{BufRead, Error, ErrorKind, Result as IOResult}}
 
 use log::{debug, info};
 use notify_server::notification::Notification;
+use regex::Regex;
 
 use crate::{notification_bar::{NotificationData, NotificationTemplateData}, template};
 
@@ -120,7 +121,7 @@ pub struct Definition {
 impl Definition {
 
     pub fn matches(&self, notification: &Notification) -> bool {
-        !self.rules.iter().any(|r| !r.eq(notification))
+        !self.rules.iter().any(|r| !r.is_match(notification))
     }
 
 }
@@ -188,8 +189,8 @@ impl TryFrom<&str> for SetProperty {
 pub enum Rule {
     AppName(String),
     AppIcon(String),
-    Summary(String),
-    Body(String),
+    Summary(RuleTypeString),
+    Body(RuleTypeString),
     Urgency(String),
     ExpireTimeout(i32)
 }
@@ -198,9 +199,9 @@ impl TryFrom<&str> for Rule {
 
     type Error = ();
     fn try_from(line: &str) -> Result<Self, Self::Error> {
-        let parts = line.split('=').collect::<Vec<&str>>();
+        let parts = line.split_whitespace().collect::<Vec<&str>>();
 
-        if parts.len() < 2 {
+        if parts.len() < 3 {
             debug!("Missing parameter");
             return Err(());
         }
@@ -210,13 +211,25 @@ impl TryFrom<&str> for Rule {
             _ => unreachable!("Who did you even get here?")
         };
 
-        let value = parts[1..].join(" ").trim().to_owned();
+        let value = parts[2..].join(" ").trim().to_owned();
 
         match name.trim() {
             "app_name" => Ok(Rule::AppName(value)),
             "app_icon" => Ok(Rule::AppIcon(value)),
-            "summary" => Ok(Rule::Summary(value)),
-            "body" => Ok(Rule::Body(value)),
+            "summary" => {
+                match parts[1] {
+                    "=" => Ok(Rule::Summary(RuleTypeString::Literal(value))),
+                    "match" => Ok(Rule::Summary(RuleTypeString::Regex(Regex::new(&value[..]).or(Err(()))?))),
+                    _ => Err(())
+                }
+            },
+            "body" => {
+                match parts[1] {
+                    "=" => Ok(Rule::Body(RuleTypeString::Literal(value))),
+                    "match" => Ok(Rule::Body(RuleTypeString::Regex(Regex::new(&value[..]).or(Err(()))?))),
+                    _ => Err(())
+                }
+            }
             "urgency" => Ok(Rule::Urgency(value)),
             "expire_timeout" => Ok(Rule::ExpireTimeout(value.parse().or(Err(()))?)),
             n => {
@@ -228,14 +241,16 @@ impl TryFrom<&str> for Rule {
 
 }
 
-impl PartialEq<Notification> for Rule {
+impl Rule {
 
-    fn eq(&self, other: &Notification) -> bool {
+    fn is_match (&self, other: &Notification) -> bool {
         match self {
             Rule::AppIcon(v) => v == &other.app_icon,
             Rule::AppName(v) => v == &other.app_name,
-            Rule::Summary(v) => v == &other.summary,
-            Rule::Body(v) => v == &other.body,
+            Rule::Summary(RuleTypeString::Literal(v)) => v == &other.summary,
+            Rule::Summary(RuleTypeString::Regex(v)) => v.is_match(&other.summary),
+            Rule::Body(RuleTypeString::Literal(v)) => v == &other.body,
+            Rule::Body(RuleTypeString::Regex(v)) => v.is_match(&other.body),
             Rule::Urgency(v) => {
                 match &other.urgency {
                     notify_server::notification::Urgency::Low => v == "low" ,
@@ -244,6 +259,24 @@ impl PartialEq<Notification> for Rule {
                 }
             },
             Rule::ExpireTimeout(v) => *v == other.expire_timeout 
+        }
+    }
+
+}
+
+#[derive(Debug)]
+pub enum RuleTypeString {
+    Literal(String),
+    Regex(Regex)
+}
+
+impl PartialEq for RuleTypeString {
+
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Literal(s), Self::Literal(o)) => s == o,
+            (Self::Regex(s), Self::Regex(o)) => s.as_str() == o.as_str(),
+            _ => false
         }
     }
 
@@ -296,57 +329,172 @@ impl TryFrom<&str> for Style {
 mod tests {
     use core::convert::TryFrom;
 
-    use super::{Rule, Style};
+    use super::*;
 
-    #[test]
-    fn style_background_from_str() {
-        const COLOR: &str = "#FFFFFF";
-        let expected = Style::Background(COLOR.to_owned());
-        let actual = Style::try_from(&format!("background {}", COLOR)[..]);
-        assert!(actual.is_ok(), r#"Error parsing "{} {}""#, "background", COLOR);
-        let actual = actual.unwrap();
-        assert_eq!(expected, actual);
+    mod parse {
+        use super::*;
 
-        assert!(Style::try_from("background").is_err());
-        assert!(Style::try_from("background ").is_err());
-    }
+        #[test]
+        fn style_background_from_str() {
+            const COLOR: &str = "#FFFFFF";
+            let expected = Style::Background(COLOR.to_owned());
+            let actual = Style::try_from(&format!("background {}", COLOR)[..]);
+            assert!(actual.is_ok(), r#"Error parsing "{} {}""#, "background", COLOR);
+            let actual = actual.unwrap();
+            assert_eq!(expected, actual);
 
-    #[test]
-    fn style_text_from_str() {
-        const COLOR: &str = "#FFFFFF";
-        let expected = Style::Text(COLOR.to_owned());
-        let actual = Style::try_from(&format!("text {}", COLOR)[..]);
-        assert!(actual.is_ok(), r#"Error parsing "{} {}""#, "text", COLOR);
-        let actual = actual.unwrap();
-        assert_eq!(expected, actual);
+            assert!(Style::try_from("background").is_err());
+            assert!(Style::try_from("background ").is_err());
+        }
 
-        assert!(Style::try_from("text").is_err());
-        assert!(Style::try_from("text ").is_err());
-    }
+        #[test]
+        fn style_text_from_str() {
+            const COLOR: &str = "#FFFFFF";
+            let expected = Style::Text(COLOR.to_owned());
+            let actual = Style::try_from(&format!("text {}", COLOR)[..]);
+            assert!(actual.is_ok(), r#"Error parsing "{} {}""#, "text", COLOR);
+            let actual = actual.unwrap();
+            assert_eq!(expected, actual);
 
-    #[test]
-    fn style_try_from_unknown() {
-        assert!(Style::try_from("unknown_option").is_err())
-    }
+            assert!(Style::try_from("text").is_err());
+            assert!(Style::try_from("text ").is_err());
+        }
 
-    macro_rules! rule_try_from_macro {
-        ($fn_name:ident $cnf_key:literal = $cnf_value:literal $type:tt) => {
-            #[test]
-            fn $fn_name() {
-                let rule = Rule::try_from(&format!("{} = {}", $cnf_key, $cnf_value)[..]);
-                assert!(rule.is_ok());
-                let rule = rule.unwrap();
-                assert_eq!(Rule::$type($cnf_value.to_owned()), rule)
+        #[test]
+        fn style_try_from_unknown() {
+            assert!(Style::try_from("unknown_option").is_err())
+        }
+
+        macro_rules! rule_try_from_macro {
+            ($fn_name:ident $cnf_key:literal = $cnf_value:literal $type:tt) => {
+                #[test]
+                fn $fn_name() {
+                    let rule = Rule::try_from(&format!("{} = {}", $cnf_key, $cnf_value)[..]);
+                    assert!(rule.is_ok());
+                    let rule = rule.unwrap();
+                    assert_eq!(Rule::$type($cnf_value.to_owned()), rule)
+                }
+            };
+            (RuleTypeString $fn_name:ident $cnf_key:literal = $cnf_value:literal $type:tt) => {
+                #[test]
+                fn $fn_name() {
+                    let rule = Rule::try_from(&format!("{} = {}", $cnf_key, $cnf_value)[..]);
+                    assert!(rule.is_ok());
+                    let rule = rule.unwrap();
+                    assert_eq!(Rule::$type(RuleTypeString::Literal($cnf_value.to_owned())), rule);
+                    
+                    let rule = Rule::try_from(&format!("{} match {}", $cnf_key, "[a-z]")[..]);
+                    assert!(rule.is_ok());
+                    let rule = rule.unwrap();
+                    assert_eq!(Rule::$type(RuleTypeString::Regex(Regex::new("[a-z]").unwrap())), rule)
+                }
             }
-        };
+        }
+
+        rule_try_from_macro!(rule_try_from_app_name "app_name" = "test_app_name" AppName);
+        rule_try_from_macro!(rule_try_from_app_icon "app_icon" = "icon" AppIcon);
+        rule_try_from_macro!(RuleTypeString rule_try_from_summary "summary" = "summ" Summary);
+        rule_try_from_macro!(RuleTypeString rule_try_from_body "body" = "test body" Body);
+        rule_try_from_macro!(rule_try_from_urgency "urgency" = "low" Urgency);
+        rule_try_from_macro!(rule_try_from_expire_timeout "expire_timeout" = 100 ExpireTimeout);
     }
 
-    rule_try_from_macro!(rule_try_from_app_name "app_name" = "test_app_name" AppName);
-    rule_try_from_macro!(rule_try_from_app_icon "app_icon" = "icon" AppIcon);
-    rule_try_from_macro!(rule_try_from_summary "summary" = "summ" Summary);
-    rule_try_from_macro!(rule_try_from_body "body" = "test body" Body);
-    rule_try_from_macro!(rule_try_from_urgency "urgency" = "low" Urgency);
-    rule_try_from_macro!(rule_try_from_expire_timeout "expire_timeout" = 100 ExpireTimeout);
+    mod rule_match {
 
+        use super::*;
 
+        fn new_notification() -> Notification {
+            Notification {
+                app_name: "".to_owned(),
+                actions: vec![],
+                app_icon: "".to_owned(),
+                body: "".to_owned(),
+                expire_timeout: 0,
+                id: 0,
+                summary: "".to_owned(),
+                urgency: notify_server::notification::Urgency::Normal
+            }
+        }
+
+        #[test]
+        fn app_icon() {
+            let rule = Rule::AppIcon(String::from("#"));
+            let mut n = new_notification();
+            n.app_icon = String::from("#");
+            assert!(rule.is_match(&n));
+            n.app_icon = String::new();
+            assert!(!rule.is_match(&n));
+        }
+
+        #[test]
+        fn app_name() {
+            let rule = Rule::AppName(String::from("name"));
+            let mut n = new_notification();
+            n.app_name = String::from("name");
+            assert!(rule.is_match(&n));
+            n.app_name = String::from("other");
+            assert!(!rule.is_match(&n));
+        }
+
+        #[test]
+        fn summary_literal() {
+            let rule = Rule::Summary(RuleTypeString::Literal(String::from("summary")));
+            let mut n = new_notification();
+            n.summary = String::from("summary");
+            assert!(rule.is_match(&n));
+            n.summary = String::from("other");
+            assert!(!rule.is_match(&n));
+        }
+
+        #[test]
+        fn summary_regex() {
+            let rule = Rule::Summary(RuleTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
+            let mut n = new_notification();
+            n.summary = String::from("summary");
+            assert!(rule.is_match(&n));
+            n.summary = String::from("o2ther");
+            assert!(!rule.is_match(&n));
+        }
+
+        #[test]
+        fn body_literal() {
+            let rule = Rule::Body(RuleTypeString::Literal(String::from("body")));
+            let mut n = new_notification();
+            n.body = String::from("body");
+            assert!(rule.is_match(&n));
+            n.body = String::from("other");
+            assert!(!rule.is_match(&n));
+        }
+
+        #[test]
+        fn body_regex() {
+            let rule = Rule::Body(RuleTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
+            let mut n = new_notification();
+            n.body = String::from("body");
+            assert!(rule.is_match(&n));
+            n.body = String::from("bo2dy");
+            assert!(!rule.is_match(&n));
+        }
+
+        #[test]
+        fn urgency() {
+            let rule = Rule::Urgency("low".to_owned());
+            let mut n = new_notification();
+            n.urgency = notify_server::notification::Urgency::Low;
+            assert!(rule.is_match(&n));
+            n.urgency = notify_server::notification::Urgency::Critical;
+            assert!(!rule.is_match(&n));
+        }
+
+        #[test]
+        fn expire_timeout() {
+            let rule = Rule::ExpireTimeout(42);
+            let mut n = new_notification();
+            n.expire_timeout = 42;
+            assert!(rule.is_match(&n));
+            n.expire_timeout = 21;
+            assert!(!rule.is_match(&n));
+        }
+
+    }
 }
