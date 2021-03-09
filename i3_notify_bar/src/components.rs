@@ -15,7 +15,7 @@ pub struct NotificationComponent {
 
 impl NotificationComponent {
 
-    pub fn new(nd: &NotificationData) -> NotificationComponent {
+    pub fn new(nd: &NotificationData, max_width: usize, move_chars_per_sec: usize) -> NotificationComponent {
         let close_type = match nd.expire_timeout {
             -1 => {
                 let mut b = Button::new(format!(" {} ", icons::X_ICON));
@@ -38,8 +38,8 @@ impl NotificationComponent {
         };
 
         let text = AnimatedText {
-            max_with: 20,
-            move_chars_per_sec: 5,
+            max_width,
+            move_chars_per_sec,
             start_offset: 0.0,
             text: nd.text.clone(),
             stop_animation_for_secs: 0.0
@@ -266,7 +266,7 @@ impl Widget for CloseType {
 
 struct AnimatedText {
     start_offset: f64,
-    max_with: usize,
+    max_width: usize,
     move_chars_per_sec: usize,
     text: String,
     stop_animation_for_secs: f64
@@ -277,7 +277,7 @@ impl AnimatedText {
     fn update(&mut self, dt: f64) {
         let text_len = self.text.chars().count();
 
-        if text_len <= self.max_with {
+        if text_len <= self.max_width {
             return
         }
 
@@ -302,12 +302,12 @@ impl ToString for AnimatedText {
 
         let text_len = self.text.chars().count();
 
-        if text_len <= self.max_with {
+        if text_len <= self.max_width {
             return self.text.to_owned()
         }
         let end;
-        if self.start_offset as usize + self.max_with < text_len {
-            end = self.start_offset as usize + self.max_with;
+        if self.start_offset as usize + self.max_width < text_len {
+            end = self.start_offset as usize + self.max_width;
         } else {
             end = text_len;
         }
@@ -315,7 +315,7 @@ impl ToString for AnimatedText {
         let chars = self.text.chars().collect::<Vec<char>>();
         let chars = &chars[self.start_offset as usize..end];
 
-        format!("{text: <width$}", text=chars.into_iter().collect::<String>(), width=self.max_with)
+        format!("{text: <width$}", text=chars.into_iter().collect::<String>(), width=self.max_width)
     }
 
 }

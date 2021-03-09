@@ -47,16 +47,16 @@ fn main() {
         let mut nm_lock = notification_manager.lock();
         let nm = nm_lock.as_mut().unwrap();
         let changed = nm.get_changed();
-        
+        drop(nm_lock);
+
         changed.iter().for_each(|n| {
             match manager.get_component_mut::<NotificationComponent>(&format!("{}", n.id)) {
                 Some(c) => c.update_notification(&n),
                 None => {
-                    manager.add_component(Box::new(NotificationComponent::new(&n)))
+                    manager.add_component(Box::new(NotificationComponent::new(&n, args.max_text_length(), args.animation_chars_per_second())))
                 },
             }
         });
-        drop(nm_lock);
         
         manager.update();
         std::thread::sleep(Duration::from_millis(args.refresh_rate()));
