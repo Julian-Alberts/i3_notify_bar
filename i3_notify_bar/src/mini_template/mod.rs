@@ -27,7 +27,7 @@ impl <K: Eq + Hash + Display> MiniTemplate<K> {
 
     pub fn add_default_modifiers(&mut self) {
         self.add_modifier("slice".to_owned(), SLICE);
-        self.add_modifier("match".to_owned(), MATCH);
+        self.add_modifier("regex".to_owned(), MATCH);
     }
 
     pub fn add_modifier(&mut self, key: String, modifier: &'static Modifier) {
