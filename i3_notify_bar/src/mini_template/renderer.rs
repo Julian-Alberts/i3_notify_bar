@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+use log::error;
+use super::error::{Result, ErrorKind};
+
 use super::{Statement, StorageMethod, Template, modifier::Modifier, value::Value};
 
-pub fn render<'a>(tpl: &Template, modifier: &HashMap<String, &'a Modifier>, variables: &HashMap<String, Value>) -> Result<String, String> {
+pub fn render<'a, 't>(tpl: &'t Template, modifier: &HashMap<String, &'a Modifier>, variables: &HashMap<String, Value>) -> Result<'t, String> {
     let tpl = &tpl.tpl;
     let mut tpl_string = String::new();
 
@@ -16,16 +19,23 @@ pub fn render<'a>(tpl: &Template, modifier: &HashMap<String, &'a Modifier>, vari
                 // var_name points to tpl.tpl_str and should never be null
                 let var_name = unsafe {var_name.as_ref().unwrap()};
                 let var = variables.get(var_name);
-                let mut var = var.ok_or(format!("Unknown variable {}", var_name))?.to_owned();
+                let mut var = var.ok_or(ErrorKind::UnknownVariable(var_name))?.to_owned();
 
                 for (modifier_name, args) in modifiers {
                     // modifier_name points to tpl.tpl_str and should never be null
                     let modifier_name = unsafe {modifier_name.as_ref().unwrap()};
-                    let modifier = modifier.get(modifier_name).ok_or(format!("Unknown modifier {}", modifier_name))?;
+                    let modifier = modifier.get(modifier_name).ok_or(ErrorKind::UnknownModifier(modifier_name))?;
 
                     let args = storage_methods_to_values(args, variables)?;
 
-                    var = modifier(&var, args)?;
+                    var = match modifier(&var, args) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            let error = e.to_string();
+                            error!("{}", error);
+                            Err(ErrorKind::ModifierError(e))?
+                        }
+                    };
                 }
 
                 tpl_string.push_str(&var.to_string()[..])
@@ -36,7 +46,7 @@ pub fn render<'a>(tpl: &Template, modifier: &HashMap<String, &'a Modifier>, vari
     Ok(tpl_string)
 }
 
-fn storage_methods_to_values<'a>(args: &'a Vec<StorageMethod>, variables: &'a HashMap<String, Value>) -> Result<Vec<&'a Value>, String> {
+fn storage_methods_to_values<'a, 't>(args: &'a Vec<StorageMethod>, variables: &'a HashMap<String, Value>) -> Result<'t, Vec<&'a Value>> {
     let mut real_args = Vec::with_capacity(args.len());
     
     for arg in args {
@@ -45,7 +55,7 @@ fn storage_methods_to_values<'a>(args: &'a Vec<StorageMethod>, variables: &'a Ha
             StorageMethod::Variable(var) => unsafe {
                 // var points to tpl.tpl_str and should never be null
                 let var = var.as_ref().unwrap();
-                variables.get(var).ok_or(format!("Unknown variable \"{}\"", var))?
+                variables.get(var).ok_or(ErrorKind::UnknownVariable(var))?
             }
         };
         real_args.push(arg);
@@ -59,7 +69,6 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{create_modifier, mini_template::{compiler::compile, modifier::Modifier, value::Value}};
-    use std::convert::TryInto;
 
     use super::render;
 

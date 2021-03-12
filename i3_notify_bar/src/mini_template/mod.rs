@@ -3,6 +3,7 @@ mod modifier;
 mod prelude;
 pub mod value;
 mod renderer;
+mod error;
 
 use std::{collections::HashMap, fmt::Display, hash::Hash};
 use compiler::compile;
@@ -38,10 +39,10 @@ impl <K: Eq + Hash + Display> MiniTemplate<K> {
         self.template.insert(key, compile(tpl));
     }
 
-    pub fn render(&self, key: &K, data: &HashMap<String, Value>) -> Result<String, String> {
+    pub fn render(&self, key: &K, data: &HashMap<String, Value>) -> error::Result<String> {
         let tpl = match self.template.get(key) {
             Some(t) => t,
-            None => return Err(format!("Template \"{}\" not found", key))
+            None => return Err(error::ErrorKind::UnknownTemplate)
         };
         render(tpl, &self.modifier, data)
     }

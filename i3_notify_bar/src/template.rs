@@ -15,13 +15,18 @@ pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> Stri
     data.insert("summary".to_string(), Value::String(context.summary.to_owned()));
 
     unsafe {
-        match &TEMPLATE_MANAGER {
+        let tplm = match &TEMPLATE_MANAGER {
             Some(tm) => tm,
             None => {
                 TEMPLATE_MANAGER = Some(init_template_manager());
                 TEMPLATE_MANAGER.as_ref().unwrap()
             }
-        }.render(tpl_id, &data).unwrap().replace('\n', "")
+        };
+        let output = match tplm.render(tpl_id, &data) {
+            Ok(s) => s,
+            Err(e) => e.to_string()
+        };
+        output.replace('\n', "")
     }
 }
 

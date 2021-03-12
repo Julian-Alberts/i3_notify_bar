@@ -1,45 +1,48 @@
 use log::error;
 use regex::Regex;
 
-use super::{prelude::*, value::Value};
+use super::value::Value;
+pub use error::*;
 
 #[macro_export]
 macro_rules! create_modifier {
-    (|$first_name:ident: $first_t: ty $(,$name: ident: $t: ty $(= $default: expr;)?)*| -> $return: ty $b: block) => {
-        |value, args| {
-            
+    (|$first_name:ident: $first_t: ty $($(,$name: ident: $t: ty $(= $default: expr;)?)+)?| -> $return: ty $b: block) => {
+        |value, _args| {
+            use $crate::mini_template::{modifier::error::ErrorKind, prelude::*};
+
             let $first_name: $first_t = match value.try_into() {
                 Ok($first_name) => $first_name,
-                Err(_) => Err("Can not parse value".to_owned())?
+                Err(_) => Err(ErrorKind::TypeError{value: value.to_string(), expected_type: stringify!($first_t)})?
             };
 
-            #[allow(unused_mut, unused_variables)]
-            let mut args = args.into_iter();
             $(
-                let $name: $t = match args.next() {
-                    Some($name) => match $name.try_into() {
-                        Ok($name) => $name,
-                        Err(_) => Err("Can not parse value".to_owned())?
-                    }
-                    None => create_modifier!(default_value $($default)?)
-                };
-            )*
+                let mut args = _args.into_iter();
+                $(
+                    let $name: $t = match args.next() {
+                        Some($name) => match $name.try_into() {
+                            Ok($name) => $name,
+                            Err(_) => Err(ErrorKind::TypeError{value: $name.to_string(), expected_type: stringify!($t)})?
+                        }
+                        None => create_modifier!(default_value $name $($default)?)
+                    };
+                )+
+            )?
 
-            fn inner($first_name: $first_t $(,$name: $t)*) -> $return $b;
+            fn inner($first_name: $first_t $($(,$name: $t)+)?) -> $return $b;
 
-            let result = inner($first_name $(,$name)*);
+            let result = inner($first_name $($(,$name)+)?);
             Ok(result.into())
         }
     };
-    (default_value) => {
-        Err("Can not parse value".to_owned())?
+    (default_value $arg_name: ident) => {
+        Err(ErrorKind::MissingArgument{argument_name: stringify!($arg_name)})?
     };
-    (default_value $default: tt) => {
+    (default_value $arg_name: ident $default: tt) => {
         $default
     }
 }
 
-pub type Modifier = dyn Fn(&Value, Vec<&Value>) -> Result<Value, String>;
+pub type Modifier = dyn Fn(&Value, Vec<&Value>) -> Result<Value>;
 
 pub const SLICE: &Modifier = &create_modifier!(|input: String, start: usize, end: usize| -> String {
     input[start..end].to_owned()
@@ -64,6 +67,28 @@ pub const MATCH: &Modifier = &create_modifier!(|input: String, regex: String, gr
     c.to_owned()
     
 });
+
+pub mod error {
+
+    pub type Result<T> = std::result::Result<T, ErrorKind>;
+    #[derive(Debug, PartialEq)]
+    pub enum ErrorKind {
+        MissingArgument{argument_name: &'static str},
+        TypeError{value: String, expected_type: &'static str}
+    }
+
+    impl ToString for ErrorKind {
+
+        fn to_string(&self) -> String {
+            match self {
+                Self::MissingArgument{argument_name} => format!("Missing argument \"{}\"", argument_name),
+                Self::TypeError{value, expected_type} => format!("Can not convert {} to type {}", value, expected_type)
+            }
+        }
+
+    }
+
+}
 
 #[cfg(test)]
 mod tests {
@@ -107,4 +132,28 @@ mod tests {
         assert_eq!(result, Ok(input))
     }
 
+    #[test]
+    fn missing_argument() {
+        let input = Value::String(String::from("My test string"));
+        let args = vec![];
+
+        let result = MATCH(&input, args);
+        assert_eq!(result, Err(ErrorKind::MissingArgument{argument_name: "regex"}));
+    }
+
+    #[test]
+    fn can_not_parse_argument() {
+        let input = Value::String(String::from("My test string"));
+
+        let regex = Value::String(String::from(r#"(\d[a-z]+\d) string"#));
+        let number = Value::String(String::from("test"));
+
+        let args = vec![
+            &regex,
+            &number
+        ];
+
+        let result = MATCH(&input, args);
+        assert_eq!(result, Err(ErrorKind::TypeError{expected_type: "usize", value: String::from("test")}));
+    }
 }

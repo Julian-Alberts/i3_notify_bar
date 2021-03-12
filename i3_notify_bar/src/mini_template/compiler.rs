@@ -5,7 +5,7 @@ use super::{Statement, StorageMethod, Template, value::Value};
 
 const STATEMENT_REGEX_STR: &str = r#"\{(?P<var_name>[a-z_0-9]+)(?P<modifier>|[^}]+)\}"#;
 const MODIFIER_REGEX_STR: &str = r#"\|(?P<modifier>[a-z_0-9]+)(?P<args>:[^|]+)*"#;
-const ARGS_REGEX_STR: &str = r#":(?P<var>[a-z][a-z_0-9]*)|(?:"(?P<str>[^"]*)")|(?P<num>[+-]?\d+(.\d+)?)"#;
+const ARGS_REGEX_STR: &str = r#":(?P<var>[a-z][a-z_0-9]*)|(?:"(?P<str>(?:(?:\\")|[^"])*)")|(?P<num>[+-]?\d+(.\d+)?)"#;
 
 pub fn compile(tpl: String) -> Template {
     let mut compiled_tpl = Template {
