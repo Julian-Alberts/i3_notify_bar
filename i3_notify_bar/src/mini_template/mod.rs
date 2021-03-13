@@ -7,7 +7,7 @@ mod error;
 
 use std::{collections::HashMap, fmt::Display, hash::Hash};
 use compiler::compile;
-use modifier::{Modifier, MATCH, SLICE};
+use modifier::{Modifier, match_modifier, slice_modifier};
 use renderer::render;
 use value::Value;
 
@@ -27,8 +27,8 @@ impl <K: Eq + Hash + Display> MiniTemplate<K> {
     }
 
     pub fn add_default_modifiers(&mut self) {
-        self.add_modifier("slice".to_owned(), SLICE);
-        self.add_modifier("regex".to_owned(), MATCH);
+        self.add_modifier("slice".to_owned(), &slice_modifier);
+        self.add_modifier("regex".to_owned(), &match_modifier);
     }
 
     pub fn add_modifier(&mut self, key: String, modifier: &'static Modifier) {

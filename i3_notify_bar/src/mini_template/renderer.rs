@@ -72,11 +72,11 @@ mod tests {
 
     use super::render;
 
-    const UPPER_CASE_MODIFIER: &Modifier = &create_modifier!(|data: String| -> String {
+    create_modifier!(fn upper_case_modifier(data: String) -> String {
         data.to_uppercase()
     });
 
-    const ARGS_MODIFIER: &Modifier = &create_modifier!(|data: String, other: String, num: i32| -> String {
+    create_modifier!(fn args_modifier(data: String, other: String, num: i32) -> String {
         format!("{}={}={}", data, other, num)
     });
 
@@ -106,8 +106,8 @@ mod tests {
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
 
-        let mut modifiers = HashMap::new();
-        modifiers.insert("upper".to_owned(), UPPER_CASE_MODIFIER);
+        let mut modifiers: HashMap<String, &Modifier> = HashMap::new();
+        modifiers.insert("upper".to_owned(), &upper_case_modifier);
 
         let rendered = render(&tpl, &modifiers, &variables).unwrap();
         assert_eq!(rendered, String::from("Simple MY TEST VALUE template string"));
@@ -121,8 +121,8 @@ mod tests {
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
 
-        let mut modifiers = HashMap::new();
-        modifiers.insert("args".to_owned(), ARGS_MODIFIER);
+        let mut modifiers: HashMap<String, &Modifier> = HashMap::new();
+        modifiers.insert("args".to_owned(), &args_modifier);
 
         let rendered = render(&tpl, &modifiers, &variables).unwrap();
         assert_eq!(rendered, String::from("Simple my test value=BAR=42 template string"));
@@ -136,9 +136,9 @@ mod tests {
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
 
-        let mut modifiers = HashMap::new();
-        modifiers.insert("args".to_owned(), ARGS_MODIFIER);
-        modifiers.insert("upper".to_owned(), UPPER_CASE_MODIFIER);
+        let mut modifiers: HashMap<String, &Modifier> = HashMap::new();
+        modifiers.insert("args".to_owned(), &args_modifier);
+        modifiers.insert("upper".to_owned(), &upper_case_modifier);
 
         let rendered = render(&tpl, &modifiers, &variables).unwrap();
         assert_eq!(rendered, String::from("Simple MY TEST VALUE=bar=42 template string"));

@@ -6,8 +6,9 @@ pub use error::*;
 
 #[macro_export]
 macro_rules! create_modifier {
-    (|$first_name:ident: $first_t: ty $($(,$name: ident: $t: ty $(= $default: expr;)?)+)?| -> $return: ty $b: block) => {
-        |value, _args| {
+    (fn $modifier_name: ident ($first_name:ident: $first_t: ty $($(,$name: ident: $t: ty $(= $default: expr)?)+)?) -> $return: ty $b: block) => {
+        #[allow(unused_variables)]
+        pub fn $modifier_name(value: &$crate::mini_template::value::Value, args: Vec<&$crate::mini_template::value::Value>) -> $crate::mini_template::modifier::error::Result<Value> {
             use $crate::mini_template::{modifier::error::ErrorKind, prelude::*};
 
             let $first_name: $first_t = match value.try_into() {
@@ -16,7 +17,7 @@ macro_rules! create_modifier {
             };
 
             $(
-                let mut args = _args.into_iter();
+                let mut args = args.into_iter();
                 $(
                     let $name: $t = match args.next() {
                         Some($name) => match $name.try_into() {
@@ -44,11 +45,11 @@ macro_rules! create_modifier {
 
 pub type Modifier = dyn Fn(&Value, Vec<&Value>) -> Result<Value>;
 
-pub const SLICE: &Modifier = &create_modifier!(|input: String, start: usize, end: usize| -> String {
+create_modifier!(fn slice_modifier(input: String, start: usize, end: usize) -> String {
     input[start..end].to_owned()
 });
 
-pub const MATCH: &Modifier = &create_modifier!(|input: String, regex: String, group: usize = 0;| -> String {
+create_modifier!(fn match_modifier(input: String, regex: String, group: usize = 0) -> String {
     let regex = match Regex::new(&regex) {
         Ok(r) => r,
         Err(r) => {
@@ -107,28 +108,28 @@ mod tests {
             &full_match
         ];
 
-        let result = MATCH(&input, args);
+        let result = super::match_modifier(&input, args);
         assert_eq!(result, Ok(Value::String(String::from("2test2 string"))));
 
         let args = vec![
             &regex,
         ];
 
-        let result = MATCH(&input, args);
+        let result = super::match_modifier(&input, args);
         assert_eq!(result, Ok(Value::String(String::from("2test2 string"))));
 
         let args = vec![
             &regex,
             &group
         ];
-        let result = MATCH(&input, args);
+        let result = super::match_modifier(&input, args);
         assert_eq!(result, Ok(Value::String(String::from("2test2"))));
 
         let args = vec![
             &invalid_regex,
             &full_match
         ];
-        let result = MATCH(&input, args);
+        let result = super::match_modifier(&input, args);
         assert_eq!(result, Ok(input))
     }
 
@@ -137,7 +138,7 @@ mod tests {
         let input = Value::String(String::from("My test string"));
         let args = vec![];
 
-        let result = MATCH(&input, args);
+        let result = super::match_modifier(&input, args);
         assert_eq!(result, Err(ErrorKind::MissingArgument{argument_name: "regex"}));
     }
 
@@ -153,7 +154,7 @@ mod tests {
             &number
         ];
 
-        let result = MATCH(&input, args);
+        let result = super::match_modifier(&input, args);
         assert_eq!(result, Err(ErrorKind::TypeError{expected_type: "usize", value: String::from("test")}));
     }
 }
