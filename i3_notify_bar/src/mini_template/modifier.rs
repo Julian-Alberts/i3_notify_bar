@@ -68,8 +68,9 @@ macro_rules! create_modifier {
 
 pub type Modifier = dyn Fn(&Value, Vec<&Value>) -> Result<Value>;
 
-create_modifier!(fn slice_modifier(input: String, start: usize, end: usize) -> String {
-    input[start..end].to_owned()
+create_modifier!(fn slice_modifier(input: String, start: usize, length: usize) -> String {
+    let chars = input.chars().skip(start);
+    chars.take(length).collect::<String>()
 });
 
 create_modifier!(fn match_modifier(input: String, regex: String, group: usize = 0) -> Result<String> {
@@ -155,6 +156,30 @@ mod tests {
         ];
         let result = super::match_modifier(&input, args);
         assert_eq!(result, Err(ErrorKind::ModifierError("regex parse error:\n    (\\d[a-z]+\\d string\n    ^\nerror: unclosed group".to_owned())))
+    }
+
+    #[test]
+    fn slice_modifier() {
+        let input = Value::String(String::from("Hello World!!!"));
+        let start_in = Value::Number(6f64);
+        let start_out = Value::Number(14f64);
+        let length_5 = Value::Number(5f64);
+
+        let args = vec![
+            &start_in,
+            &length_5
+        ];
+
+        let result = super::slice_modifier(&input, args);
+        assert_eq!(result, Ok(Value::String(String::from("World"))));
+
+        let args = vec![
+            &start_out,
+            &length_5
+        ];
+
+        let result = super::slice_modifier(&input, args);
+        assert_eq!(result, Ok(Value::String(String::from(""))))
     }
 
     #[test]
