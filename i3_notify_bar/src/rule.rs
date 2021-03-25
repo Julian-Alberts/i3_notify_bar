@@ -13,7 +13,7 @@ macro_rules! error {
 }
 
 pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
-    info!("Reading rules experimental");
+    info!("Reading rules");
     let mut definitions = Vec::new();
     let lines = config
         .lines()
@@ -208,7 +208,7 @@ impl TryFrom<&str> for Rule {
 
         let name = match parts.get(0) {
             Some(s) => *s,
-            _ => unreachable!("Who did you even get here?")
+            _ => unreachable!("How did you even get here?")
         };
 
         let value = parts[2..].join(" ").trim().to_owned();
