@@ -127,7 +127,7 @@ impl Component for NotificationComponent {
     }
 
     fn event(&mut self, ce: &ClickEvent) {
-        if self.close_type.is_button() && ce.get_id() == self.close_type.get_id() {
+        if self.close_type.is_button() && ce.get_button() == 1 && ce.get_id() == self.close_type.get_id() {
             let cm = self.component_manager.as_ref().unwrap();
             cm.remove();
         }
