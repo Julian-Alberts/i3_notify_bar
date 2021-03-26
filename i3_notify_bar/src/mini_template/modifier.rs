@@ -92,6 +92,26 @@ create_modifier!(fn match_modifier(input: String, regex: String, group: usize = 
     Ok(c.to_owned())
 });
 
+create_modifier!(fn replace_modifier(input: String, from: String, to: String, count: usize = 0) -> String {
+    if count == 0 {
+        input.replace(&from[..], &to[..])
+    } else {
+        input.replacen(&from[..], &to[..], count)
+    }
+});
+
+create_modifier!(fn replace_regex_modifier(input: String, regex: String, to: String, count: usize = 0) -> Result<String> {
+    let regex = match Regex::new(&regex) {
+        Ok(r) => r,
+        Err(r) => {
+            error!("{}", r.to_string());
+            Err(r.to_string())?
+        }
+    };
+
+    Ok(regex.replacen(&input, count, to).to_string())
+});
+
 pub mod error {
 
     pub type Result<T> = std::result::Result<T, ErrorKind>;
