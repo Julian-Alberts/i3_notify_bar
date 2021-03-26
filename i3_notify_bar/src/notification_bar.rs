@@ -1,16 +1,14 @@
-use std::{collections::BTreeMap, time::SystemTime};
+use std::time::SystemTime;
 
 use log::{debug, info};
 use notify_server::{Event, Observer, notification::Notification};
 use serde::Serialize;
-use std::sync::Arc;
 use crate::{icons, rule::Action};
 
 use crate::rule::{Definition as RuleDefinition, Style};
 
 pub struct NotificationManager {
-    changed: Vec<Arc<NotificationData>>,
-    notifications: BTreeMap<u32, Arc<NotificationData>>,
+    new_notifications: Vec<NotificationData>,
     rules: Vec<RuleDefinition>
 }
 
@@ -18,8 +16,7 @@ impl NotificationManager {
 
     pub fn new(rules: Vec<RuleDefinition>) -> Self {
         Self {
-            changed: Vec::new(),
-            notifications: BTreeMap::new(),
+            new_notifications: Vec::new(),
             rules
         }
     }
@@ -82,16 +79,13 @@ impl NotificationManager {
         debug!("Finished rules");
         debug!("Final notification_data {:#?}", notification_data);
 
-        let notification = Arc::new(notification_data);
-        self.changed.push(Arc::clone(&notification));
-        self.notifications.insert(notification.id, notification);
-        
+        self.new_notifications.push(notification_data);        
     }
 
-    pub fn get_changed(&mut self) -> Vec<Arc<NotificationData>> {
-        let mut changed = Vec::new();
-        std::mem::swap(&mut changed, &mut self.changed);
-        changed
+    pub fn get_new(&mut self) -> Vec<NotificationData> {
+        let mut new_notifications = Vec::new();
+        std::mem::swap(&mut new_notifications, &mut self.new_notifications);
+        new_notifications
     }
 
 }

@@ -46,10 +46,10 @@ fn main() {
 
         let mut nm_lock = notification_manager.lock();
         let nm = nm_lock.as_mut().unwrap();
-        let changed = nm.get_changed();
+        let new_notifications = nm.get_new();
         drop(nm_lock);
 
-        changed.iter().for_each(|n| {
+        new_notifications.iter().for_each(|n| {
             match manager.get_component_mut::<NotificationComponent>(&format!("{}", n.id)) {
                 Some(c) => c.update_notification(&n),
                 None => {
