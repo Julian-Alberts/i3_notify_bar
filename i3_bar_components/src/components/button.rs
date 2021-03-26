@@ -4,7 +4,8 @@ use super::{BaseComponent, prelude::*};
 
 pub struct Button {
     base_component: BaseComponent,
-    component_manager: Option<ComponentManagerMessenger>
+    component_manager: Option<ComponentManagerMessenger>,
+    on_click: &'static dyn Fn(&mut Self, &ClickEvent)
 }
 
 impl Button {
@@ -16,8 +17,13 @@ impl Button {
             .with_full_text(text);
         Button {
             base_component: BaseComponent::from(block),
-            component_manager: None
+            component_manager: None,
+            on_click: &|_, _| {}
         }
+    }
+
+    pub fn set_on_click(&mut self, on_click: &'static dyn Fn(&mut Self, &ClickEvent)) {
+        self.on_click = on_click;
     }
 
 }
@@ -25,8 +31,8 @@ impl Button {
 impl Component for Button {
 
     fn update(&mut self, _: f64) {}
-    fn event(&mut self, _: &ClickEvent) {
-        self.base_component.set_background(String::from("#00FF00"));
+    fn event(&mut self, ce: &ClickEvent) {
+        (self.on_click)(self, ce);
     }
 
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
