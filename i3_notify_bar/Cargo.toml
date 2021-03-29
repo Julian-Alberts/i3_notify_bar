@@ -10,7 +10,7 @@ edition = "2018"
 i3_bar_components = { path = "../i3_bar_components"}
 notify_server = { path = "../notify_server" }
 serde = { version = "1.0", features = ["derive"] }
-simplelog = "0.9.0"
+simplelog = "0.10.0"
 log = "0.4.14"
 clap = "3.0.0-beta.2"
 regex = "1.4.5"
