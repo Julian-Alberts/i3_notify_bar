@@ -152,6 +152,7 @@ impl TryFrom<&str> for Action {
 #[derive(Debug)]
 pub enum SetProperty {
     Icon(char),
+    Id(String),
     Text(u64),
     ExpireTimeout(i32)
 }
@@ -163,6 +164,7 @@ impl SetProperty {
             Self::Icon(i) => nd.icon = *i,
             Self::Text(i) => nd.text = template::render_template(i, n),
             Self::ExpireTimeout(i) => nd.expire_timeout = *i,
+            Self::Id(i) => nd.id = i.clone()
         }
     }
 
@@ -176,6 +178,7 @@ impl TryFrom<&str> for SetProperty {
         let value = parts[2..].join(" ");
         let ok = match parts.get(1) {
             Some(&"icon") => Self::Icon(value.chars().next().ok_or(())?),
+            Some(&"id") => Self::Id(value),
             Some(&"text") => Self::Text(template::add_template(value)?),
             Some(&"expire_timeout") => Self::ExpireTimeout(value.parse().or(Err(()))?),
             _ => return Err(())

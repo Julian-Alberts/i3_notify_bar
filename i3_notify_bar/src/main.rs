@@ -50,7 +50,7 @@ fn main() {
         drop(nm_lock);
 
         new_notifications.iter().for_each(|n| {
-            match manager.get_component_mut::<NotificationComponent>(&format!("{}", n.id)) {
+            match manager.get_component_mut::<NotificationComponent>(&n.id) {
                 Some(c) => c.update_notification(&n),
                 None => {
                     manager.add_component(Box::new(NotificationComponent::new(&n, args.max_text_length(), args.animation_chars_per_second())))
