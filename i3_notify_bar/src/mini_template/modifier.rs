@@ -61,7 +61,7 @@ macro_rules! create_modifier {
     (try_into $value: ident: $type: ty) => {
         match $value.try_into() {
             Ok(inner) => inner,
-            Err(_) => Err(ErrorKind::TypeError{value: $value.to_string(), expected_type: stringify!($type)})?
+            Err(e) => Err(ErrorKind::TypeError{value: $value.to_string(), type_error: e})?
         }
     }
 }
@@ -113,12 +113,14 @@ create_modifier!(fn replace_regex_modifier(input: String, regex: String, to: Str
 });
 
 pub mod error {
+    use crate::mini_template::value::TypeError;
+
 
     pub type Result<T> = std::result::Result<T, ErrorKind>;
     #[derive(Debug, PartialEq)]
     pub enum ErrorKind {
         MissingArgument{argument_name: &'static str},
-        TypeError{value: String, expected_type: &'static str},
+        TypeError{value: String, type_error: TypeError},
         ModifierError(String)
     }
 
@@ -127,7 +129,7 @@ pub mod error {
         fn to_string(&self) -> String {
             match self {
                 Self::MissingArgument{argument_name} => format!("Missing argument \"{}\"", argument_name),
-                Self::TypeError{value, expected_type} => format!("Can not convert {} to type {}", value, expected_type),
+                Self::TypeError{value, type_error} => format!("Can not convert {} to type {} value of type {} found", value, type_error.expected_type, type_error.storage_type),
                 Self::ModifierError(e) => e.to_owned()
             }
         }
@@ -138,6 +140,8 @@ pub mod error {
 
 #[cfg(test)]
 mod tests {
+
+    use crate::mini_template::value::TypeError;
 
     use super::*;
 
@@ -224,6 +228,6 @@ mod tests {
         ];
 
         let result = super::match_modifier(&input, args);
-        assert_eq!(result, Err(ErrorKind::TypeError{expected_type: "usize", value: String::from("test")}));
+        assert_eq!(result, Err(ErrorKind::TypeError{type_error: TypeError{expected_type: "usize", storage_type: "Number"}, value: String::from("test")}));
     }
 }

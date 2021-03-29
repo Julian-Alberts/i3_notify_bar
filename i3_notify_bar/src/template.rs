@@ -39,7 +39,7 @@ pub fn add_template(template: String) -> Result<u64, ()> {
                 TEMPLATE_MANAGER = Some(init_template_manager());
                 TEMPLATE_MANAGER.as_mut().unwrap()
             }
-        }.add_template(NEXT_TEPLATE_ID, template.clone());
+        }.add_template(NEXT_TEPLATE_ID, template);
         NEXT_TEPLATE_ID += 1;
 
         Ok(NEXT_TEPLATE_ID - 1)

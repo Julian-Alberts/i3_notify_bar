@@ -7,6 +7,12 @@ pub enum Value {
     Bool(bool),
 }
 
+#[derive(Debug, PartialEq)]
+pub struct TypeError {
+    pub storage_type: &'static str, 
+    pub expected_type: &'static str
+}
+
 impl ToString for Value {
     
     fn to_string(&self) -> String {
@@ -24,11 +30,11 @@ macro_rules! value_impl {
         value_impl!($name => $main_type);
         $(
             impl TryFrom<&Value> for $type {
-                type Error = &'static str;
+                type Error = TypeError;
                 fn try_from(value: &Value) -> Result<Self, Self::Error> {
                     match value {
                         Value::$name(s) => Ok(*s as $type),
-                        _ => Err("is not a string")
+                        _ => Err(TypeError{ expected_type: stringify!($type), storage_type: stringify!($name)})
                     }
                 }
             }
@@ -47,11 +53,11 @@ macro_rules! value_impl {
     };
     (try_from_type $name: ident => $type: ty) => {
         impl TryFrom<&Value> for $type {
-            type Error = &'static str;
+            type Error = TypeError;
             fn try_from(value: &Value) -> Result<Self, Self::Error> {
                 match value {
                     Value::$name(s) => Ok(s.clone()),
-                    _ => Err("is not a string")
+                    _ => Err(TypeError{ expected_type: stringify!($type), storage_type: stringify!($name)})
                 }
             }
         }
