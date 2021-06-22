@@ -23,7 +23,7 @@ macro_rules! create_modifier {
                 )+
             )?
 
-            fn inner($first_name: $first_t $($(,$name: $t)+)?) -> std::result::Result<$return, String> $b;
+            fn inner($first_name: $first_t $($(,$name: $t)+)?) -> std::result::Result<$return, String> $b
 
             let result = inner($first_name $($(,$name)+)?).or_else(|e| Err(ErrorKind::ModifierError(e)))?;
             Ok(result.into())
@@ -46,7 +46,7 @@ macro_rules! create_modifier {
                 )+
             )?
 
-            fn inner($first_name: $first_t $($(,$name: $t)+)?) -> $return $b;
+            fn inner($first_name: $first_t $($(,$name: $t)+)?) -> $return $b
 
             let result = inner($first_name $($(,$name)+)?);
             Ok(result.into())
