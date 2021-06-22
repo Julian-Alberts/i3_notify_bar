@@ -81,7 +81,7 @@ mod logger {
     use std::fs::OpenOptions;
 
     use log::LevelFilter;
-    use simplelog::{CombinedLogger, Config, TermLogger, WriteLogger, SharedLogger};
+    use simplelog::{ColorChoice, CombinedLogger, Config, SharedLogger, TermLogger, WriteLogger};
 
     pub fn init(level_filer: &LevelFilter, log_file: &Option<String>) {
         
@@ -93,12 +93,12 @@ mod logger {
                         WriteLogger::new(level_filer.to_owned(), Config::default(), file)
                     },
                     Err(_) => {
-                        TermLogger::new(level_filer.to_owned(), Config::default(), simplelog::TerminalMode::Stderr)
+                        TermLogger::new(level_filer.to_owned(), Config::default(), simplelog::TerminalMode::Stderr, ColorChoice::Auto)
                     }
                 }
             },
             None => {
-                TermLogger::new(level_filer.to_owned(), Config::default(), simplelog::TerminalMode::Stderr)
+                TermLogger::new(level_filer.to_owned(), Config::default(), simplelog::TerminalMode::Stderr, ColorChoice::Auto)
             }
         };
 
