@@ -1,6 +1,8 @@
+use std::sync::{Arc, Mutex};
+
 use i3_bar_components::{ComponentManagerMessenger, components::{BaseComponent, Button, Label, ProgressBar, prelude::*}, protocol::ClickEvent};
 
-use crate::notification_bar::NotificationData;
+use crate::notification_bar::{NotificationData, NotificationManager};
 use crate::icons;
 
 pub struct NotificationComponent {
@@ -8,14 +10,14 @@ pub struct NotificationComponent {
     label: Label,
     padding_r: Label,
     id: String,
-    component_manager: Option<ComponentManagerMessenger>,
+    notification_manager: Arc<Mutex<NotificationManager>>,
     text: AnimatedText,
     icon: char
 }
 
 impl NotificationComponent {
 
-    pub fn new(nd: &NotificationData, max_width: usize, move_chars_per_sec: usize) -> NotificationComponent {
+    pub fn new(nd: &NotificationData, max_width: usize, move_chars_per_sec: usize, notification_manager: Arc<Mutex<NotificationManager>>) -> NotificationComponent {
         let close_type = match nd.expire_timeout {
             -1 => {
                 let mut b = Button::new(format!(" {} ", icons::X_ICON));
@@ -66,7 +68,7 @@ impl NotificationComponent {
             close_type,
             label,
             id: format!("{}", nd.id),
-            component_manager: None,
+            notification_manager,
             padding_r,
             icon: nd.icon,
             text
@@ -128,19 +130,13 @@ impl Component for NotificationComponent {
 
     fn event(&mut self, ce: &ClickEvent) {
         if self.close_type.is_button() && ce.get_button() == 1 && ce.get_id() == self.close_type.get_id() {
-            let cm = self.component_manager.as_ref().unwrap();
-            cm.remove();
+            self.notification_manager.lock().unwrap().remove(&self.id);
         }
     }
 
     fn update(&mut self, dt: f64) {
-        let cm = match &self.component_manager {
-            Some(cm) => cm,
-            None => panic!("ComponentManagerMassenger not set")
-        };
-
         if self.close_type.is_timer() && self.close_type.is_finished() {
-            cm.remove();
+            self.notification_manager.lock().unwrap().remove(&self.id);
         }
 
         self.text.update(dt);
@@ -153,8 +149,8 @@ impl Component for NotificationComponent {
         &self.id
     }
 
-    fn add_component_manager_messenger(&mut self, component_manager_messanger: ComponentManagerMessenger) {
-        self.component_manager = Some(component_manager_messanger);
+    fn add_component_manager_messenger(&mut self, _: ComponentManagerMessenger) {
+        
     }
 
     fn get_id(&self) -> &str {

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use std::sync::RwLock;
 use std::time::SystemTime;
 
 use log::{debug, info};
@@ -8,7 +10,8 @@ use crate::{icons, rule::Action};
 use crate::rule::{Definition as RuleDefinition, Style};
 
 pub struct NotificationManager {
-    new_notifications: Vec<NotificationData>,
+    notifications: Vec<Arc<RwLock<NotificationData>>>,
+    events: Vec<NotificationEvent>,
     rules: Vec<RuleDefinition>
 }
 
@@ -16,7 +19,8 @@ impl NotificationManager {
 
     pub fn new(rules: Vec<RuleDefinition>) -> Self {
         Self {
-            new_notifications: Vec::new(),
+            notifications: Vec::new(),
+            events: Vec::new(),
             rules
         }
     }
@@ -79,13 +83,24 @@ impl NotificationManager {
         debug!("Finished rules");
         debug!("Final notification_data {:#?}", notification_data);
 
-        self.new_notifications.push(notification_data);        
+        let notification = Arc::new(RwLock::new(notification_data));
+        self.notifications.push(Arc::clone(&notification));
+        self.events.push(NotificationEvent::Add(notification));        
     }
 
-    pub fn get_new(&mut self) -> Vec<NotificationData> {
-        let mut new_notifications = Vec::new();
-        std::mem::swap(&mut new_notifications, &mut self.new_notifications);
-        new_notifications
+    pub fn get_events(&mut self) -> Vec<NotificationEvent> {
+        std::mem::replace(&mut self.events, Vec::new())
+    }
+
+    pub fn remove(&mut self, id: &str) {
+        let id = id.to_owned();
+        let filtered_notifications = self.notifications
+            .iter()
+            .filter(|n| n.read().unwrap().id == id)
+            .map(Arc::clone)
+            .collect::<Vec<Arc<RwLock<NotificationData>>>>();
+        self.notifications = filtered_notifications;
+        self.events.push(NotificationEvent::Remove(id));
     }
 
 }
@@ -98,6 +113,12 @@ impl Observer<Event> for NotificationManager {
         }
     }
 
+}
+
+pub enum NotificationEvent  {
+    Remove(String),
+    Add(Arc<RwLock<NotificationData>>),
+    Update(Arc<RwLock<NotificationData>>)
 }
 
 #[derive(Debug)]

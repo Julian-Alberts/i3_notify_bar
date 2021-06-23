@@ -10,7 +10,7 @@ use std::{io::BufReader, sync::{Arc, Mutex}, time::Duration};
 use components::NotificationComponent;
 use i3_bar_components::{ComponentManagerBuilder, components::Label};
 use log::error;
-use notification_bar::NotificationManager;
+use notification_bar::{NotificationManager, NotificationEvent};
 use args::Args;
 use clap::Clap;
 
@@ -46,16 +46,34 @@ fn main() {
 
         let mut nm_lock = notification_manager.lock();
         let nm = nm_lock.as_mut().unwrap();
-        let new_notifications = nm.get_new();
+        let events = nm.get_events();
         drop(nm_lock);
 
-        new_notifications.iter().for_each(|n| {
-            match manager.get_component_mut::<NotificationComponent>(&n.id) {
-                Some(c) => c.update_notification(&n),
-                None => {
-                    manager.add_component(Box::new(NotificationComponent::new(&n, args.max_text_length(), args.animation_chars_per_second())))
+        events.iter().for_each(|event| {
+
+            match &event {
+                &NotificationEvent::Add(n) | &NotificationEvent::Update(n) => {
+                    let n = n.read().unwrap();
+                    match manager.get_component_mut::<NotificationComponent>(&n.id) {
+                        Some(c) => c.update_notification(&n),
+                        None => {
+                            manager.add_component(Box::new(
+                                NotificationComponent::new(
+                                    &n, 
+                                    args.max_text_length(), 
+                                    args.animation_chars_per_second(),
+                                    Arc::clone(&notification_manager)
+                                )
+                            ))
+                        },
+                    }
                 },
+                &NotificationEvent::Remove(id) => {
+                    manager.remove_by_name(id)
+                }
             }
+
+            
         });
         
         manager.update();
