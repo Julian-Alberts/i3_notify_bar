@@ -83,9 +83,21 @@ impl NotificationManager {
         debug!("Finished rules");
         debug!("Final notification_data {:#?}", notification_data);
 
-        let notification = Arc::new(RwLock::new(notification_data));
-        self.notifications.push(Arc::clone(&notification));
-        self.events.push(NotificationEvent::Add(notification));        
+        let notification_position = self.notifications.iter().position(|n| n.read().unwrap().id == notification_data.id);
+        match notification_position {
+            Some(index) => {
+                let mut notification_data_storage = self.notifications[index].write().unwrap();
+                *notification_data_storage = notification_data;
+                drop(notification_data_storage);
+                self.events.push(NotificationEvent::Update(Arc::clone(&self.notifications[index])));
+            },
+            None => {
+                let notification = Arc::new(RwLock::new(notification_data));
+                self.notifications.push(Arc::clone(&notification));
+                self.events.push(NotificationEvent::Add(notification));  
+            }
+        }
+              
     }
 
     pub fn get_events(&mut self) -> Vec<NotificationEvent> {
