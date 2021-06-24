@@ -32,6 +32,7 @@ impl Routes {
             }
         }
     }
+
 }
 
 #[dbus_interface(name = "org.freedesktop.Notifications")]
@@ -69,5 +70,11 @@ impl Routes {
             "1.2"
         )
     }
+
+    #[dbus_interface(signal)]
+    pub fn action_invoked(&self, id: u32, action: &str) -> zbus::Result<()>;
+
+    #[dbus_interface(signal)]
+    pub fn notification_closed(&self, id: u32, reason: u32) -> zbus::Result<()>;
 
 }
