@@ -19,6 +19,9 @@ jobs:
     - name: Build
       working-directory: ./i3_notify_bar
       run: cargo build --verbose
-    - name: Run tests
+    - name: Run tests i3_notify_bar
       working-directory: ./i3_notify_bar
+      run: cargo test --verbose
+    - name: Run tests observer
+      working-directory: ./observer
       run: cargo test --verbose

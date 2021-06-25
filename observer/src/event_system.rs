@@ -56,3 +56,83 @@ impl <E> SingleEventSystem<E> {
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    macro_rules! create_observer {
+        ($name: ident, $t: ty, $expected: literal) => {
+            struct $name {
+                pub value: Option<()>
+            }
+            impl $name {
+                fn new() -> Self {
+                    Self {
+                        value: None
+                    }
+                }
+            }
+            impl ObserverTrait<$t> for $name {
+                fn on_notify(&mut self, data: &String) {
+                    assert_eq!(data, $expected);
+                    self.value = Some(())
+                }
+            }
+            unsafe impl Send for $name {}
+            unsafe impl Sync for $name {} 
+        };
+    }
+
+    #[test]
+    fn event_system_create() {
+        EventSystem::<String>::new();
+    }
+
+    #[test]
+    fn event_system_notify() {
+        let es = EventSystem::new();
+        es.notify(&"test");
+    }
+
+    #[test]
+    fn event_system_single_listener() {
+        create_observer!(Observer, String, "test");
+
+        let mut es = EventSystem::new();
+        let observer = Arc::new(Mutex::new(Observer::new()));
+        let observer_cp = Arc::clone(&observer);
+        es.add_observer(observer_cp);
+        es.notify(&String::from("test"));
+        assert!(observer.lock().unwrap().value.is_some());
+    }
+
+    #[test]
+    fn event_system_multiple_listener() {
+        create_observer!(Observer, String, "test");
+
+        let mut es = EventSystem::new();
+        let observer = Arc::new(Mutex::new(Observer::new()));
+        let observer_cp = Arc::clone(&observer);
+        es.add_observer(observer_cp);
+        let observer2 = Arc::new(Mutex::new(Observer::new()));
+        let observer_cp = Arc::clone(&observer2);
+        es.add_observer(observer_cp);
+        es.notify(&String::from("test"));
+        assert!(observer.lock().unwrap().value.is_some());
+        assert!(observer2.lock().unwrap().value.is_some());
+    }
+
+    #[test]
+    fn single_event_system_create() {
+        SingleEventSystem::<()>::new();
+    }
+
+    #[test]
+    fn single_event_system_notify() {
+        let ses = SingleEventSystem::<()>::new();
+        ses.notify(());
+    }
+
+}
