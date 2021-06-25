@@ -1,10 +1,16 @@
-use std::{convert::TryFrom, io::{BufRead, Error, ErrorKind, Result as IOResult}};
+use std::{
+    convert::TryFrom,
+    io::{BufRead, Error, ErrorKind, Result as IOResult},
+};
 
 use log::{debug, info};
 use notify_server::notification::Notification;
 use regex::Regex;
 
-use crate::{notification_bar::{NotificationData, NotificationTemplateData}, template};
+use crate::{
+    notification_bar::{NotificationData, NotificationTemplateData},
+    template,
+};
 
 macro_rules! error {
     ($($arg:tt)*) => {
@@ -24,7 +30,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
         .collect::<Vec<(usize, String)>>();
 
     let definition_blocks = find_blocks(&lines[..], "def", "enddef")?;
-    
+
     for block in definition_blocks {
         let action_blocks = find_blocks(block, "action", "endaction")?
             .iter()
@@ -40,7 +46,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
         for (line_num, line) in action_blocks.iter() {
             match Action::try_from(&line[..]) {
                 Ok(a) => actions.push(a),
-                Err(_) => return error!(r#"Faild to read action "{}" in line {}"#, line, line_num)
+                Err(_) => return error!(r#"Faild to read action "{}" in line {}"#, line, line_num),
             }
         }
 
@@ -48,7 +54,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
         for (line_num, line) in rule_blocks.iter() {
             match Rule::try_from(&line[..]) {
                 Ok(r) => rules.push(r),
-                Err(_) => return error!(r#"Faild to read rule "{}" in line {}"#, line, line_num)
+                Err(_) => return error!(r#"Faild to read rule "{}" in line {}"#, line, line_num),
             }
         }
 
@@ -56,19 +62,17 @@ pub fn parse_config(config: &mut dyn BufRead) -> IOResult<Vec<Definition>> {
         for (line_num, line) in style_blocks.iter() {
             match Style::try_from(&line[..]) {
                 Ok(s) => style.push(s),
-                Err(_) => return error!(r#"Faild to read style "{}" in line {}"#, line, line_num)
+                Err(_) => return error!(r#"Faild to read style "{}" in line {}"#, line, line_num),
             }
         }
 
-        definitions.push(
-            Definition {
-                actions,
-                rules,
-                style
-            }
-        )
+        definitions.push(Definition {
+            actions,
+            rules,
+            style,
+        })
     }
-    
+
     Ok(definitions)
 }
 
@@ -80,9 +84,13 @@ fn ignore_lines((_, line): &(usize, String)) -> bool {
     !(line.is_empty() || line.starts_with('#'))
 }
 
-fn find_blocks<'a>(lines: &'a [(usize, String)], start_key: &str, end_key: &str) -> IOResult<Vec<&'a [(usize, String)]>> {
+fn find_blocks<'a>(
+    lines: &'a [(usize, String)],
+    start_key: &str,
+    end_key: &str,
+) -> IOResult<Vec<&'a [(usize, String)]>> {
     let mut blocks = Vec::new();
-    
+
     let mut searched_key = start_key;
     let mut other_key = end_key;
 
@@ -96,17 +104,20 @@ fn find_blocks<'a>(lines: &'a [(usize, String)], start_key: &str, end_key: &str)
             if match_count & 1 == 1 {
                 start_index = index;
             } else {
-                blocks.push(&lines[start_index+1..index])
+                blocks.push(&lines[start_index + 1..index])
             }
         } else if line == other_key {
-            return error!("Unexpected {} in line {}", other_key, line_num)
+            return error!("Unexpected {} in line {}", other_key, line_num);
         }
     }
 
     Ok(blocks)
 }
 
-fn fold_blocks<'a>(mut target: Vec<&'a (usize, String)>, data: &&'a [(usize, String)]) -> Vec<&'a(usize, String)>{
+fn fold_blocks<'a>(
+    mut target: Vec<&'a (usize, String)>,
+    data: &&'a [(usize, String)],
+) -> Vec<&'a (usize, String)> {
     target.extend(data.iter());
     target
 }
@@ -115,26 +126,23 @@ fn fold_blocks<'a>(mut target: Vec<&'a (usize, String)>, data: &&'a [(usize, Str
 pub struct Definition {
     pub rules: Vec<Rule>,
     pub actions: Vec<Action>,
-    pub style: Vec<Style>
+    pub style: Vec<Style>,
 }
 
 impl Definition {
-
     pub fn matches(&self, notification: &Notification) -> bool {
         !self.rules.iter().any(|r| !r.is_match(notification))
     }
-
 }
 
 #[derive(Debug)]
 pub enum Action {
     Ignore,
     Set(SetProperty),
-    Stop
+    Stop,
 }
 
 impl TryFrom<&str> for Action {
-    
     type Error = ();
     fn try_from(line: &str) -> Result<Self, Self::Error> {
         let action = line.split_whitespace().next();
@@ -142,11 +150,10 @@ impl TryFrom<&str> for Action {
             Some("ignore") => Self::Ignore,
             Some("set") => Self::Set(SetProperty::try_from(line)?),
             Some("stop") => Self::Stop,
-            _ => return Err(())
+            _ => return Err(()),
         };
         Ok(ok)
     }
-
 }
 
 #[derive(Debug)]
@@ -154,24 +161,21 @@ pub enum SetProperty {
     Icon(char),
     Id(String),
     Text(u64),
-    ExpireTimeout(i32)
+    ExpireTimeout(i32),
 }
 
 impl SetProperty {
-
     pub fn set(&self, nd: &mut NotificationData, n: &NotificationTemplateData) {
         match self {
             Self::Icon(i) => nd.icon = *i,
             Self::Text(i) => nd.text = template::render_template(i, n),
             Self::ExpireTimeout(i) => nd.expire_timeout = *i,
-            Self::Id(i) => nd.id = i.clone()
+            Self::Id(i) => nd.id = i.clone(),
         }
     }
-
 }
 
 impl TryFrom<&str> for SetProperty {
-    
     type Error = ();
     fn try_from(line: &str) -> Result<Self, Self::Error> {
         let parts = line.split_whitespace().collect::<Vec<&str>>();
@@ -181,11 +185,10 @@ impl TryFrom<&str> for SetProperty {
             Some(&"id") => Self::Id(value),
             Some(&"text") => Self::Text(template::add_template(value)?),
             Some(&"expire_timeout") => Self::ExpireTimeout(value.parse().or(Err(()))?),
-            _ => return Err(())
+            _ => return Err(()),
         };
         Ok(ok)
     }
-
 }
 
 #[derive(Debug, PartialEq)]
@@ -195,11 +198,10 @@ pub enum Rule {
     Summary(RuleTypeString),
     Body(RuleTypeString),
     Urgency(String),
-    ExpireTimeout(i32)
+    ExpireTimeout(i32),
 }
 
 impl TryFrom<&str> for Rule {
-
     type Error = ();
     fn try_from(line: &str) -> Result<Self, Self::Error> {
         let parts = line.split_whitespace().collect::<Vec<&str>>();
@@ -211,7 +213,7 @@ impl TryFrom<&str> for Rule {
 
         let name = match parts.get(0) {
             Some(s) => *s,
-            _ => unreachable!("How did you even get here?")
+            _ => unreachable!("How did you even get here?"),
         };
 
         let value = parts[2..].join(" ").trim().to_owned();
@@ -219,20 +221,20 @@ impl TryFrom<&str> for Rule {
         match name.trim() {
             "app_name" => Ok(Rule::AppName(value)),
             "app_icon" => Ok(Rule::AppIcon(value)),
-            "summary" => {
-                match parts[1] {
-                    "=" => Ok(Rule::Summary(RuleTypeString::Literal(value))),
-                    "match" => Ok(Rule::Summary(RuleTypeString::Regex(Regex::new(&value[..]).or(Err(()))?))),
-                    _ => Err(())
-                }
+            "summary" => match parts[1] {
+                "=" => Ok(Rule::Summary(RuleTypeString::Literal(value))),
+                "match" => Ok(Rule::Summary(RuleTypeString::Regex(
+                    Regex::new(&value[..]).or(Err(()))?,
+                ))),
+                _ => Err(()),
             },
-            "body" => {
-                match parts[1] {
-                    "=" => Ok(Rule::Body(RuleTypeString::Literal(value))),
-                    "match" => Ok(Rule::Body(RuleTypeString::Regex(Regex::new(&value[..]).or(Err(()))?))),
-                    _ => Err(())
-                }
-            }
+            "body" => match parts[1] {
+                "=" => Ok(Rule::Body(RuleTypeString::Literal(value))),
+                "match" => Ok(Rule::Body(RuleTypeString::Regex(
+                    Regex::new(&value[..]).or(Err(()))?,
+                ))),
+                _ => Err(()),
+            },
             "urgency" => Ok(Rule::Urgency(value)),
             "expire_timeout" => Ok(Rule::ExpireTimeout(value.parse().or(Err(()))?)),
             n => {
@@ -241,12 +243,10 @@ impl TryFrom<&str> for Rule {
             }
         }
     }
-
 }
 
 impl Rule {
-
-    fn is_match (&self, other: &Notification) -> bool {
+    fn is_match(&self, other: &Notification) -> bool {
         match self {
             Rule::AppIcon(v) => v == &other.app_icon,
             Rule::AppName(v) => v == &other.app_name,
@@ -254,61 +254,48 @@ impl Rule {
             Rule::Summary(RuleTypeString::Regex(v)) => v.is_match(&other.summary),
             Rule::Body(RuleTypeString::Literal(v)) => v == &other.body,
             Rule::Body(RuleTypeString::Regex(v)) => v.is_match(&other.body),
-            Rule::Urgency(v) => {
-                match &other.urgency {
-                    notify_server::notification::Urgency::Low => v == "low" ,
-                    notify_server::notification::Urgency::Normal => v == "normal" ,
-                    notify_server::notification::Urgency::Critical => v == "critical"
-                }
+            Rule::Urgency(v) => match &other.urgency {
+                notify_server::notification::Urgency::Low => v == "low",
+                notify_server::notification::Urgency::Normal => v == "normal",
+                notify_server::notification::Urgency::Critical => v == "critical",
             },
-            Rule::ExpireTimeout(v) => *v == other.expire_timeout 
+            Rule::ExpireTimeout(v) => *v == other.expire_timeout,
         }
     }
-
 }
 
 #[derive(Debug)]
 pub enum RuleTypeString {
     Literal(String),
-    Regex(Regex)
+    Regex(Regex),
 }
 
 impl PartialEq for RuleTypeString {
-
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Literal(s), Self::Literal(o)) => s == o,
             (Self::Regex(s), Self::Regex(o)) => s.as_str() == o.as_str(),
-            _ => false
+            _ => false,
         }
     }
-
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Style {
     Background(String),
-    Text(String)
+    Text(String),
 }
 
 impl Style {
-    
     pub fn apply(&self, base_component: &mut i3_bar_components::components::BaseComponent) {
         match self {
-            Style::Background(c) => {
-                base_component.set_background(c.to_owned())
-            },
-            Style::Text(c) => {
-                base_component.set_color(c.to_owned())
-            },
-
+            Style::Background(c) => base_component.set_background(c.to_owned()),
+            Style::Text(c) => base_component.set_color(c.to_owned()),
         }
     }
-
 }
 
 impl TryFrom<&str> for Style {
-
     type Error = ();
 
     fn try_from(line: &str) -> Result<Style, Self::Error> {
@@ -318,14 +305,11 @@ impl TryFrom<&str> for Style {
         let ok = match name {
             Some(&"background") => Self::Background(split.get(1).ok_or(())?.to_owned().to_owned()),
             Some(&"text") => Self::Text(split.get(1).ok_or(())?.to_owned().to_owned()),
-            _ => {
-                return Err(())
-            }
+            _ => return Err(()),
         };
 
         Ok(ok)
     }
-
 }
 
 #[cfg(test)]
@@ -342,7 +326,12 @@ mod tests {
             const COLOR: &str = "#FFFFFF";
             let expected = Style::Background(COLOR.to_owned());
             let actual = Style::try_from(&format!("background {}", COLOR)[..]);
-            assert!(actual.is_ok(), r#"Error parsing "{} {}""#, "background", COLOR);
+            assert!(
+                actual.is_ok(),
+                r#"Error parsing "{} {}""#,
+                "background",
+                COLOR
+            );
             let actual = actual.unwrap();
             assert_eq!(expected, actual);
 
@@ -384,14 +373,20 @@ mod tests {
                     let rule = Rule::try_from(&format!("{} = {}", $cnf_key, $cnf_value)[..]);
                     assert!(rule.is_ok());
                     let rule = rule.unwrap();
-                    assert_eq!(Rule::$type(RuleTypeString::Literal($cnf_value.to_owned())), rule);
-                    
+                    assert_eq!(
+                        Rule::$type(RuleTypeString::Literal($cnf_value.to_owned())),
+                        rule
+                    );
+
                     let rule = Rule::try_from(&format!("{} match {}", $cnf_key, "[a-z]")[..]);
                     assert!(rule.is_ok());
                     let rule = rule.unwrap();
-                    assert_eq!(Rule::$type(RuleTypeString::Regex(Regex::new("[a-z]").unwrap())), rule)
+                    assert_eq!(
+                        Rule::$type(RuleTypeString::Regex(Regex::new("[a-z]").unwrap())),
+                        rule
+                    )
                 }
-            }
+            };
         }
 
         rule_try_from_macro!(rule_try_from_app_name "app_name" = "test_app_name" AppName);
@@ -415,7 +410,7 @@ mod tests {
                 expire_timeout: 0,
                 id: 0,
                 summary: "".to_owned(),
-                urgency: notify_server::notification::Urgency::Normal
+                urgency: notify_server::notification::Urgency::Normal,
             }
         }
 
@@ -498,6 +493,5 @@ mod tests {
             n.expire_timeout = 21;
             assert!(!rule.is_match(&n));
         }
-
     }
 }

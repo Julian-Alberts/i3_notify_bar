@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{mini_template::{MiniTemplate, value::Value}, notification_bar::NotificationTemplateData};
+use crate::{
+    mini_template::{value::Value, MiniTemplate},
+    notification_bar::NotificationTemplateData,
+};
 
 static mut TEMPLATE_MANAGER: Option<MiniTemplate<u64>> = None;
 static mut NEXT_TEPLATE_ID: u64 = 0;
@@ -8,11 +11,20 @@ static mut NEXT_TEPLATE_ID: u64 = 0;
 pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> String {
     let mut data = HashMap::with_capacity(5);
 
-    data.insert("app_name".to_string(), Value::String(context.app_name.to_owned()));
+    data.insert(
+        "app_name".to_string(),
+        Value::String(context.app_name.to_owned()),
+    );
     data.insert("body".to_string(), Value::String(context.body.to_owned()));
-    data.insert("expire_timeout".to_string(), Value::Number(context.expire_timeout as f64));
+    data.insert(
+        "expire_timeout".to_string(),
+        Value::Number(context.expire_timeout as f64),
+    );
     data.insert("icon".to_string(), Value::String(context.icon.to_owned()));
-    data.insert("summary".to_string(), Value::String(context.summary.to_owned()));
+    data.insert(
+        "summary".to_string(),
+        Value::String(context.summary.to_owned()),
+    );
 
     unsafe {
         let tplm = match &TEMPLATE_MANAGER {
@@ -24,14 +36,13 @@ pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> Stri
         };
         let output = match tplm.render(tpl_id, &data) {
             Ok(s) => s,
-            Err(e) => e.to_string()
+            Err(e) => e.to_string(),
         };
         output.replace('\n', "")
     }
 }
 
 pub fn add_template(template: String) -> Result<u64, ()> {
-
     unsafe {
         match &mut TEMPLATE_MANAGER {
             Some(tm) => tm,
@@ -39,7 +50,8 @@ pub fn add_template(template: String) -> Result<u64, ()> {
                 TEMPLATE_MANAGER = Some(init_template_manager());
                 TEMPLATE_MANAGER.as_mut().unwrap()
             }
-        }.add_template(NEXT_TEPLATE_ID, template);
+        }
+        .add_template(NEXT_TEPLATE_ID, template);
         NEXT_TEPLATE_ID += 1;
 
         Ok(NEXT_TEPLATE_ID - 1)

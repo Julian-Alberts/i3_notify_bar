@@ -5,19 +5,16 @@ pub enum ErrorKind<'t> {
     ModifierError(super::modifier::error::ErrorKind),
     UnknownVariable(&'t str),
     UnknownModifier(&'t str),
-    UnknownTemplate
+    UnknownTemplate,
 }
 
-impl <'t> ToString for ErrorKind<'t> {
-
+impl<'t> ToString for ErrorKind<'t> {
     fn to_string(&self) -> String {
         match self {
             Self::ModifierError(e) => e.to_string(),
             Self::UnknownVariable(var_name) => format!("unknown variable {}", var_name),
             Self::UnknownModifier(modifier_name) => format!("unknown modifier {}", modifier_name),
-            Self::UnknownTemplate => format!("unknown template")
+            Self::UnknownTemplate => format!("unknown template"),
         }
     }
-
 }
-

@@ -15,7 +15,7 @@ macro_rules! icons {
             Some(c)
         }
 
-        
+
     };
 }
 
@@ -39,7 +39,7 @@ icons!(
 
 #[cfg(test)]
 mod tests {
-    
+
     #[test]
     fn macro_test() {
         icons!(

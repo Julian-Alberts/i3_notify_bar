@@ -1,9 +1,16 @@
-use std::{io::{Read, Stdout, Write, BufRead}, sync::mpsc::Sender, time::SystemTime};
-use std::sync::mpsc::Receiver;
 use log::*;
 use std::any::Any;
+use std::sync::mpsc::Receiver;
+use std::{
+    io::{BufRead, Read, Stdout, Write},
+    sync::mpsc::Sender,
+    time::SystemTime,
+};
 
-use crate::{components::prelude::*, protocol::{ClickEvent, Header}};
+use crate::{
+    components::prelude::*,
+    protocol::{ClickEvent, Header},
+};
 
 pub struct ComponentManager {
     components: Vec<Box<dyn Component>>,
@@ -12,11 +19,10 @@ pub struct ComponentManager {
     render_last_block_count: usize,
     message_tx: Sender<Message>,
     message_rx: Receiver<Message>,
-    last_update: SystemTime
+    last_update: SystemTime,
 }
 
 impl ComponentManager {
-
     pub fn update(&mut self) {
         let dt = self.last_update.elapsed().unwrap().as_secs_f64();
         self.last_update = SystemTime::now();
@@ -25,11 +31,10 @@ impl ComponentManager {
         events.iter().for_each(|event| {
             let element_id = event.get_id();
             let comp = self.components.iter_mut().find(|comp| {
-                    let mut blocks = Vec::new();
-                    comp.collect_base_components(&mut blocks);
-                    blocks.iter().any(|b| b.get_id() == element_id)
-                }
-            );
+                let mut blocks = Vec::new();
+                comp.collect_base_components(&mut blocks);
+                blocks.iter().any(|b| b.get_id() == element_id)
+            });
 
             if let Some(comp) = comp {
                 comp.event(event);
@@ -37,24 +42,32 @@ impl ComponentManager {
         });
 
         self.components.iter_mut().for_each(|c| c.update(dt));
-        
-        let messages = self.message_rx.try_recv().into_iter().collect::<Vec<Message>>();
+
+        let messages = self
+            .message_rx
+            .try_recv()
+            .into_iter()
+            .collect::<Vec<Message>>();
 
         messages.iter().for_each(|m| {
             let id = m.get_id();
             match m.get_message_type() {
                 MessageType::Remove => {
-                    let index = self.components.iter().enumerate().find_map(|(index, component)| {
-                        if component.get_id() == id {
-                            Some(index)
-                        } else {
-                            None
-                        }
-                    });
+                    let index =
+                        self.components
+                            .iter()
+                            .enumerate()
+                            .find_map(|(index, component)| {
+                                if component.get_id() == id {
+                                    Some(index)
+                                } else {
+                                    None
+                                }
+                            });
 
                     match index {
                         Some(i) => self.components.remove(i),
-                        None => return
+                        None => return,
                     };
                 }
             }
@@ -62,16 +75,25 @@ impl ComponentManager {
 
         drop(messages);
 
-        let mut blocks = self.components.iter_mut().fold(Vec::with_capacity(self.render_last_block_count), |mut blocks, c| {
-            c.collect_base_components_mut(&mut blocks);
-            blocks
-        }).iter_mut().enumerate().fold(vec![b'['], |mut blocks, (index, block)| {
-            if index != 0 {
-                blocks.push(b',');
-            }
-            blocks.extend(block.serialize_cache());
-            blocks
-        });
+        let mut blocks = self
+            .components
+            .iter_mut()
+            .fold(
+                Vec::with_capacity(self.render_last_block_count),
+                |mut blocks, c| {
+                    c.collect_base_components_mut(&mut blocks);
+                    blocks
+                },
+            )
+            .iter_mut()
+            .enumerate()
+            .fold(vec![b'['], |mut blocks, (index, block)| {
+                if index != 0 {
+                    blocks.push(b',');
+                }
+                blocks.extend(block.serialize_cache());
+                blocks
+            });
         blocks.push(b']');
         blocks.push(b',');
         blocks.push(10);
@@ -83,14 +105,11 @@ impl ComponentManager {
 
     pub fn add_component(&mut self, mut comp: Box<dyn Component>) {
         let comp_ref = comp.as_mut();
-        comp_ref.add_component_manager_messenger(
-            ComponentManagerMessenger::new(
-                String::from(comp_ref.get_id()), 
-                self.message_tx.clone()
-            )
-        );
+        comp_ref.add_component_manager_messenger(ComponentManagerMessenger::new(
+            String::from(comp_ref.get_id()),
+            self.message_tx.clone(),
+        ));
         self.components.push(comp);
-        
     }
 
     pub fn get_component_mut<'a, T: Component>(&'a mut self, name: &str) -> Option<&'a mut T> {
@@ -105,20 +124,22 @@ impl ComponentManager {
     }
 
     pub fn remove_by_name(&mut self, name: &str) {
-        let index = match self.components.iter().position(|c| c.name() == name ) {
+        let index = match self.components.iter().position(|c| c.name() == name) {
             Some(s) => s,
-            None => return
+            None => return,
         };
 
         self.components.remove(index);
-        
     }
-
 }
 
-fn read_events(reader: &mut dyn BufRead, event_number: &mut usize, tx: &std::sync::mpsc::Sender<ClickEvent>) {
+fn read_events(
+    reader: &mut dyn BufRead,
+    event_number: &mut usize,
+    tx: &std::sync::mpsc::Sender<ClickEvent>,
+) {
     let mut event = String::new();
-    
+
     reader.read_line(&mut event).unwrap();
     debug!(r#"Received Event "{}""#, event);
 
@@ -128,13 +149,13 @@ fn read_events(reader: &mut dyn BufRead, event_number: &mut usize, tx: &std::syn
         0 => {
             std::mem::swap(event_number, &mut new_event_number);
             return;
-        },
+        }
         1 => &event,
-        _ => &event[1..]
+        _ => &event[1..],
     };
 
     std::mem::swap(event_number, &mut new_event_number);
-    
+
     let click_event = serde_json::from_str::<ClickEvent>(event).unwrap();
     tx.send(click_event).unwrap();
 }
@@ -142,7 +163,7 @@ fn read_events(reader: &mut dyn BufRead, event_number: &mut usize, tx: &std::syn
 pub struct ComponentManagerBuilder {
     stdin: Option<Box<dyn Read>>,
     stdout: Option<Box<dyn Write>>,
-    click_events: bool
+    click_events: bool,
 }
 
 impl Default for ComponentManagerBuilder {
@@ -152,12 +173,11 @@ impl Default for ComponentManagerBuilder {
 }
 
 impl ComponentManagerBuilder {
-
     pub fn new() -> Self {
         Self {
             stdin: None,
             stdout: None,
-            click_events: false
+            click_events: false,
         }
     }
 
@@ -193,7 +213,9 @@ impl ComponentManagerBuilder {
 
         let header = Header::new().with_click_events(self.click_events);
 
-        out_writer.write_all(&serde_json::to_vec(&header).unwrap()).unwrap();
+        out_writer
+            .write_all(&serde_json::to_vec(&header).unwrap())
+            .unwrap();
         out_writer.write_all(&[10, b'[']).unwrap();
 
         let (tx, rx) = std::sync::mpsc::channel();
@@ -217,42 +239,37 @@ impl ComponentManagerBuilder {
             render_last_block_count: 0,
             message_rx,
             message_tx,
-            last_update: SystemTime::now()
+            last_update: SystemTime::now(),
         }
     }
-
 }
 
 pub struct ComponentManagerMessenger {
     id: String,
-    tx: Sender<Message>
+    tx: Sender<Message>,
 }
 
 impl ComponentManagerMessenger {
-
     fn new(id: String, tx: Sender<Message>) -> Self {
-        Self {
-            id,
-            tx
-        }
+        Self { id, tx }
     }
 
     pub fn remove(&self) {
-        self.tx.send(Message {
-            id: self.id.clone(),
-            message_type: MessageType::Remove
-        }).unwrap();
+        self.tx
+            .send(Message {
+                id: self.id.clone(),
+                message_type: MessageType::Remove,
+            })
+            .unwrap();
     }
-
 }
 
 pub struct Message {
     id: String,
-    message_type: MessageType
+    message_type: MessageType,
 }
 
 impl Message {
-    
     pub fn get_id(&self) -> &str {
         &self.id
     }
@@ -260,9 +277,8 @@ impl Message {
     pub fn get_message_type(&self) -> &MessageType {
         &self.message_type
     }
-
 }
 
 pub enum MessageType {
-    Remove
+    Remove,
 }

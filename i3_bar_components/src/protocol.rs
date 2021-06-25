@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use log::*;
+use serde::{Deserialize, Serialize};
 
 macro_rules! create_setter {
     ($var:ident: $type:ty => $(set: $set:ident)?  $(with: $with:ident)? $(get: $get:ident)?) => {
@@ -21,7 +21,7 @@ macro_rules! create_setter {
                 &self.$var
             }
         )?
-        
+
     };
 }
 
@@ -29,7 +29,7 @@ macro_rules! create_setter {
 pub struct Header {
     version: u8,
     #[serde(skip_serializing_if = "Option::is_none")]
-    click_events: Option<bool>
+    click_events: Option<bool>,
 }
 
 impl Default for Header {
@@ -39,11 +39,10 @@ impl Default for Header {
 }
 
 impl Header {
-
     pub fn new() -> Header {
         Self {
             version: 1,
-            click_events: None
+            click_events: None,
         }
     }
 
@@ -93,7 +92,6 @@ impl Default for Block {
 }
 
 impl Block {
-
     pub fn new() -> Self {
         let instance = format!("{}", rand::random::<u128>());
 
@@ -148,11 +146,11 @@ impl Block {
         self.align = Some(match align {
             Align::Left => String::from("left"),
             Align::Center => String::from("center"),
-            Align::Right => String::from("right")
+            Align::Right => String::from("right"),
         });
     }
 
-    create_setter!(name: String => set: set_name  with: with_name get: name); 
+    create_setter!(name: String => set: set_name  with: with_name get: name);
     create_setter!(urgent: bool => set: set_urgent with: with_urgent);
     create_setter!(separator: bool => set: set_separator with: with_separator);
     create_setter!(separator_block_width: usize => set: set_separator_block_width with: with_separator_block_width);
@@ -165,10 +163,9 @@ impl Block {
     pub fn set_markup(&mut self, markup: Markup) {
         self.align = Some(match markup {
             Markup::Pango => String::from("pango"),
-            Markup::None => String::from("none")
+            Markup::None => String::from("none"),
         });
     }
-
 }
 
 impl Block {
@@ -190,11 +187,10 @@ pub struct ClickEvent {
     output_x: usize,
     output_y: usize,
     width: usize,
-    height: usize
+    height: usize,
 }
 
 impl ClickEvent {
-
     pub fn get_name(&self) -> &Option<String> {
         &self.name
     }
@@ -248,7 +244,7 @@ impl ClickEvent {
     pub fn get_id(&self) -> &str {
         match self.get_instance() {
             Some(s) => s,
-            None => ""
+            None => "",
         }
     }
 }
@@ -256,10 +252,10 @@ impl ClickEvent {
 pub enum Align {
     Left,
     Center,
-    Right
+    Right,
 }
 
 pub enum Markup {
     Pango,
-    None
+    None,
 }

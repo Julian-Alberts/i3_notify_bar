@@ -1,28 +1,26 @@
 mod compiler;
+mod error;
 mod modifier;
 mod prelude;
-pub mod value;
 mod renderer;
-mod error;
+pub mod value;
 
-use std::{collections::HashMap, fmt::Display, hash::Hash};
 use compiler::compile;
 use modifier::Modifier;
 use renderer::render;
+use std::{collections::HashMap, fmt::Display, hash::Hash};
 use value::Value;
-
 
 pub struct MiniTemplate<K: Eq + Hash + Display> {
     modifier: HashMap<String, &'static Modifier>,
-    template: HashMap<K, Template>
+    template: HashMap<K, Template>,
 }
 
-impl <K: Eq + Hash + Display> MiniTemplate<K> {
-
+impl<K: Eq + Hash + Display> MiniTemplate<K> {
     pub fn new() -> Self {
         MiniTemplate {
             modifier: HashMap::new(),
-            template: HashMap::new()
+            template: HashMap::new(),
         }
     }
 
@@ -45,16 +43,15 @@ impl <K: Eq + Hash + Display> MiniTemplate<K> {
     pub fn render(&self, key: &K, data: &HashMap<String, Value>) -> error::Result<String> {
         let tpl = match self.template.get(key) {
             Some(t) => t,
-            None => return Err(error::ErrorKind::UnknownTemplate)
+            None => return Err(error::ErrorKind::UnknownTemplate),
         };
         render(tpl, &self.modifier, data)
     }
-
 }
 
 pub struct Template {
     tpl_str: String,
-    tpl: Vec<Statement>
+    tpl: Vec<Statement>,
 }
 
 #[derive(Debug)]
@@ -62,12 +59,12 @@ enum Statement {
     Literal(*const str),
     Calculated {
         var_name: *const str,
-        modifiers: Vec<(*const str, Vec<StorageMethod>)>
+        modifiers: Vec<(*const str, Vec<StorageMethod>)>,
     },
 }
 
 #[derive(Debug)]
 enum StorageMethod {
     Const(Value),
-    Variable(*const str)
+    Variable(*const str),
 }

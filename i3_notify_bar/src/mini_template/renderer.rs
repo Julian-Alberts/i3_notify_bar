@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
+use super::error::{ErrorKind, Result};
 use log::error;
-use super::error::{Result, ErrorKind};
 
-use super::{Statement, StorageMethod, Template, modifier::Modifier, value::Value};
+use super::{modifier::Modifier, value::Value, Statement, StorageMethod, Template};
 
-pub fn render<'a, 't>(tpl: &'t Template, modifier: &HashMap<String, &'a Modifier>, variables: &HashMap<String, Value>) -> Result<'t, String> {
+pub fn render<'a, 't>(
+    tpl: &'t Template,
+    modifier: &HashMap<String, &'a Modifier>,
+    variables: &HashMap<String, Value>,
+) -> Result<'t, String> {
     let tpl = &tpl.tpl;
     let mut tpl_string = String::new();
 
@@ -15,16 +19,21 @@ pub fn render<'a, 't>(tpl: &'t Template, modifier: &HashMap<String, &'a Modifier
                 // literal points to tpl.tpl_str and should never be null
                 tpl_string.push_str(literal.as_ref().unwrap())
             },
-            Statement::Calculated{var_name, modifiers} =>  {
+            Statement::Calculated {
+                var_name,
+                modifiers,
+            } => {
                 // var_name points to tpl.tpl_str and should never be null
-                let var_name = unsafe {var_name.as_ref().unwrap()};
+                let var_name = unsafe { var_name.as_ref().unwrap() };
                 let var = variables.get(var_name);
                 let mut var = var.ok_or(ErrorKind::UnknownVariable(var_name))?.to_owned();
 
                 for (modifier_name, args) in modifiers {
                     // modifier_name points to tpl.tpl_str and should never be null
-                    let modifier_name = unsafe {modifier_name.as_ref().unwrap()};
-                    let modifier = modifier.get(modifier_name).ok_or(ErrorKind::UnknownModifier(modifier_name))?;
+                    let modifier_name = unsafe { modifier_name.as_ref().unwrap() };
+                    let modifier = modifier
+                        .get(modifier_name)
+                        .ok_or(ErrorKind::UnknownModifier(modifier_name))?;
 
                     let args = storage_methods_to_values(args, variables)?;
 
@@ -46,9 +55,12 @@ pub fn render<'a, 't>(tpl: &'t Template, modifier: &HashMap<String, &'a Modifier
     Ok(tpl_string)
 }
 
-fn storage_methods_to_values<'a, 't>(args: &'a Vec<StorageMethod>, variables: &'a HashMap<String, Value>) -> Result<'t, Vec<&'a Value>> {
+fn storage_methods_to_values<'a, 't>(
+    args: &'a Vec<StorageMethod>,
+    variables: &'a HashMap<String, Value>,
+) -> Result<'t, Vec<&'a Value>> {
     let mut real_args = Vec::with_capacity(args.len());
-    
+
     for arg in args {
         let arg = match arg {
             StorageMethod::Const(value) => value,
@@ -56,29 +68,35 @@ fn storage_methods_to_values<'a, 't>(args: &'a Vec<StorageMethod>, variables: &'
                 // var points to tpl.tpl_str and should never be null
                 let var = var.as_ref().unwrap();
                 variables.get(var).ok_or(ErrorKind::UnknownVariable(var))?
-            }
+            },
         };
         real_args.push(arg);
     }
     Ok(real_args)
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{create_modifier, mini_template::{compiler::compile, modifier::Modifier, value::Value}};
+    use crate::{
+        create_modifier,
+        mini_template::{compiler::compile, modifier::Modifier, value::Value},
+    };
 
     use super::render;
 
-    create_modifier!(fn upper_case_modifier(data: String) -> String {
-        data.to_uppercase()
-    });
+    create_modifier!(
+        fn upper_case_modifier(data: String) -> String {
+            data.to_uppercase()
+        }
+    );
 
-    create_modifier!(fn args_modifier(data: String, other: String, num: i32) -> String {
-        format!("{}={}={}", data, other, num)
-    });
+    create_modifier!(
+        fn args_modifier(data: String, other: String, num: i32) -> String {
+            format!("{}={}={}", data, other, num)
+        }
+    );
 
     #[test]
     fn literal() {
@@ -95,14 +113,17 @@ mod tests {
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
         let rendered = render(&tpl, &HashMap::new(), &variables).unwrap();
-        assert_eq!(rendered, String::from("Simple my test value template string"));
+        assert_eq!(
+            rendered,
+            String::from("Simple my test value template string")
+        );
     }
 
     #[test]
     fn modifier() {
         let tpl = String::from("Simple {foo|upper} template string");
         let tpl = compile(tpl);
-        
+
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
 
@@ -110,14 +131,17 @@ mod tests {
         modifiers.insert("upper".to_owned(), &upper_case_modifier);
 
         let rendered = render(&tpl, &modifiers, &variables).unwrap();
-        assert_eq!(rendered, String::from("Simple MY TEST VALUE template string"));
+        assert_eq!(
+            rendered,
+            String::from("Simple MY TEST VALUE template string")
+        );
     }
 
     #[test]
     fn modifier_values() {
         let tpl = String::from(r#"Simple {foo|args:"BAR":42} template string"#);
         let tpl = compile(tpl);
-        
+
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
 
@@ -125,14 +149,17 @@ mod tests {
         modifiers.insert("args".to_owned(), &args_modifier);
 
         let rendered = render(&tpl, &modifiers, &variables).unwrap();
-        assert_eq!(rendered, String::from("Simple my test value=BAR=42 template string"));
+        assert_eq!(
+            rendered,
+            String::from("Simple my test value=BAR=42 template string")
+        );
     }
 
     #[test]
     fn modifier_list() {
         let tpl = String::from(r#"Simple {foo|upper|args:"bar":42} template string"#);
         let tpl = compile(tpl);
-        
+
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
 
@@ -141,8 +168,9 @@ mod tests {
         modifiers.insert("upper".to_owned(), &upper_case_modifier);
 
         let rendered = render(&tpl, &modifiers, &variables).unwrap();
-        assert_eq!(rendered, String::from("Simple MY TEST VALUE=bar=42 template string"));
+        assert_eq!(
+            rendered,
+            String::from("Simple MY TEST VALUE=bar=42 template string")
+        );
     }
-
-
 }

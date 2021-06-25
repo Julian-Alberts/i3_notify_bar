@@ -68,10 +68,12 @@ macro_rules! create_modifier {
 
 pub type Modifier = dyn Fn(&Value, Vec<&Value>) -> Result<Value>;
 
-create_modifier!(fn slice_modifier(input: String, start: usize, length: usize) -> String {
-    let chars = input.chars().skip(start);
-    chars.take(length).collect::<String>()
-});
+create_modifier!(
+    fn slice_modifier(input: String, start: usize, length: usize) -> String {
+        let chars = input.chars().skip(start);
+        chars.take(length).collect::<String>()
+    }
+);
 
 create_modifier!(fn match_modifier(input: String, regex: String, group: usize = 0) -> Result<String> {
     let regex = match Regex::new(&regex) {
@@ -115,27 +117,33 @@ create_modifier!(fn replace_regex_modifier(input: String, regex: String, to: Str
 pub mod error {
     use crate::mini_template::value::TypeError;
 
-
     pub type Result<T> = std::result::Result<T, ErrorKind>;
     #[derive(Debug, PartialEq)]
     pub enum ErrorKind {
-        MissingArgument{argument_name: &'static str},
-        TypeError{value: String, type_error: TypeError},
-        ModifierError(String)
+        MissingArgument {
+            argument_name: &'static str,
+        },
+        TypeError {
+            value: String,
+            type_error: TypeError,
+        },
+        ModifierError(String),
     }
 
     impl ToString for ErrorKind {
-
         fn to_string(&self) -> String {
             match self {
-                Self::MissingArgument{argument_name} => format!("Missing argument \"{}\"", argument_name),
-                Self::TypeError{value, type_error} => format!("Can not convert {} to type {} value of type {} found", value, type_error.expected_type, type_error.storage_type),
-                Self::ModifierError(e) => e.to_owned()
+                Self::MissingArgument { argument_name } => {
+                    format!("Missing argument \"{}\"", argument_name)
+                }
+                Self::TypeError { value, type_error } => format!(
+                    "Can not convert {} to type {} value of type {} found",
+                    value, type_error.expected_type, type_error.storage_type
+                ),
+                Self::ModifierError(e) => e.to_owned(),
             }
         }
-
     }
-
 }
 
 #[cfg(test)]
@@ -152,34 +160,29 @@ mod tests {
         let invalid_regex = Value::String(String::from(r#"(\d[a-z]+\d string"#));
         let full_match = Value::Number(0.0);
         let group = Value::Number(1.0);
-        let args = vec![
-            &regex,
-            &full_match
-        ];
+        let args = vec![&regex, &full_match];
 
         let result = super::match_modifier(&input, args);
         assert_eq!(result, Ok(Value::String(String::from("2test2 string"))));
 
-        let args = vec![
-            &regex,
-        ];
+        let args = vec![&regex];
 
         let result = super::match_modifier(&input, args);
         assert_eq!(result, Ok(Value::String(String::from("2test2 string"))));
 
-        let args = vec![
-            &regex,
-            &group
-        ];
+        let args = vec![&regex, &group];
         let result = super::match_modifier(&input, args);
         assert_eq!(result, Ok(Value::String(String::from("2test2"))));
 
-        let args = vec![
-            &invalid_regex,
-            &full_match
-        ];
+        let args = vec![&invalid_regex, &full_match];
         let result = super::match_modifier(&input, args);
-        assert_eq!(result, Err(ErrorKind::ModifierError("regex parse error:\n    (\\d[a-z]+\\d string\n    ^\nerror: unclosed group".to_owned())))
+        assert_eq!(
+            result,
+            Err(ErrorKind::ModifierError(
+                "regex parse error:\n    (\\d[a-z]+\\d string\n    ^\nerror: unclosed group"
+                    .to_owned()
+            ))
+        )
     }
 
     #[test]
@@ -189,18 +192,12 @@ mod tests {
         let start_out = Value::Number(14f64);
         let length_5 = Value::Number(5f64);
 
-        let args = vec![
-            &start_in,
-            &length_5
-        ];
+        let args = vec![&start_in, &length_5];
 
         let result = super::slice_modifier(&input, args);
         assert_eq!(result, Ok(Value::String(String::from("World"))));
 
-        let args = vec![
-            &start_out,
-            &length_5
-        ];
+        let args = vec![&start_out, &length_5];
 
         let result = super::slice_modifier(&input, args);
         assert_eq!(result, Ok(Value::String(String::from(""))))
@@ -212,7 +209,12 @@ mod tests {
         let args = vec![];
 
         let result = super::match_modifier(&input, args);
-        assert_eq!(result, Err(ErrorKind::MissingArgument{argument_name: "regex"}));
+        assert_eq!(
+            result,
+            Err(ErrorKind::MissingArgument {
+                argument_name: "regex"
+            })
+        );
     }
 
     #[test]
@@ -222,12 +224,18 @@ mod tests {
         let regex = Value::String(String::from(r#"(\d[a-z]+\d) string"#));
         let number = Value::String(String::from("test"));
 
-        let args = vec![
-            &regex,
-            &number
-        ];
+        let args = vec![&regex, &number];
 
         let result = super::match_modifier(&input, args);
-        assert_eq!(result, Err(ErrorKind::TypeError{type_error: TypeError{expected_type: "usize", storage_type: "Number"}, value: String::from("test")}));
+        assert_eq!(
+            result,
+            Err(ErrorKind::TypeError {
+                type_error: TypeError {
+                    expected_type: "usize",
+                    storage_type: "Number"
+                },
+                value: String::from("test")
+            })
+        );
     }
 }

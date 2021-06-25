@@ -9,20 +9,24 @@ pub enum Value {
 
 #[derive(Debug, PartialEq)]
 pub struct TypeError {
-    pub storage_type: &'static str, 
-    pub expected_type: &'static str
+    pub storage_type: &'static str,
+    pub expected_type: &'static str,
 }
 
 impl ToString for Value {
-    
     fn to_string(&self) -> String {
         match self {
             Self::String(s) => s.to_owned(),
             Self::Number(n) => n.to_string(),
-            Self::Bool(b) => if *b {String::from("true")}else{String::from("false")}
+            Self::Bool(b) => {
+                if *b {
+                    String::from("true")
+                } else {
+                    String::from("false")
+                }
+            }
         }
     }
-
 }
 
 macro_rules! value_impl {

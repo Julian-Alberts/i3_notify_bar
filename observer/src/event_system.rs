@@ -5,13 +5,13 @@ use std::sync::{Arc, Mutex};
 type Observer<E> = dyn ObserverTrait<E> + Sync + Send + 'static;
 
 pub struct EventSystem<E> {
-    wrapped_observers: Vec<Arc<Mutex<Observer<E>>>>
+    wrapped_observers: Vec<Arc<Mutex<Observer<E>>>>,
 }
 
-impl <E> EventSystem<E> {
+impl<E> EventSystem<E> {
     pub fn new() -> Self {
         Self {
-            wrapped_observers: Vec::new()
+            wrapped_observers: Vec::new(),
         }
     }
 
@@ -25,17 +25,16 @@ impl <E> EventSystem<E> {
     pub fn add_observer(&mut self, observer: Arc<Mutex<Observer<E>>>) {
         self.wrapped_observers.push(observer);
     }
-
 }
 
 pub struct SingleEventSystem<E> {
-    wrapped_observer: Option<Arc<Mutex<Observer<E>>>>
+    wrapped_observer: Option<Arc<Mutex<Observer<E>>>>,
 }
 
-impl <E> SingleEventSystem<E> {
+impl<E> SingleEventSystem<E> {
     pub fn new() -> Self {
         Self {
-            wrapped_observer: None
+            wrapped_observer: None,
         }
     }
 
@@ -44,7 +43,7 @@ impl <E> SingleEventSystem<E> {
             Some(wo) => {
                 let mut observer = wo.lock().unwrap();
                 observer.on_notify(event)
-            },
+            }
             None => {}
         }
     }
@@ -52,7 +51,6 @@ impl <E> SingleEventSystem<E> {
     pub fn set_observer(&mut self, observer: Arc<Mutex<Observer<E>>>) {
         self.wrapped_observer = Some(observer);
     }
-
 }
 
 #[cfg(test)]
@@ -63,13 +61,11 @@ mod tests {
     macro_rules! create_observer {
         ($name: ident, $t: ty, $expected: literal) => {
             struct $name {
-                pub value: Option<()>
+                pub value: Option<()>,
             }
             impl $name {
                 fn new() -> Self {
-                    Self {
-                        value: None
-                    }
+                    Self { value: None }
                 }
             }
             impl ObserverTrait<$t> for $name {
@@ -79,7 +75,7 @@ mod tests {
                 }
             }
             unsafe impl Send for $name {}
-            unsafe impl Sync for $name {} 
+            unsafe impl Sync for $name {}
         };
     }
 
@@ -121,5 +117,4 @@ mod tests {
         assert!(observer.lock().unwrap().value.is_some());
         assert!(observer2.lock().unwrap().value.is_some());
     }
-
 }
