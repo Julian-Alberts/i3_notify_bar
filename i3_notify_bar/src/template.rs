@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    mini_template::{value::Value, MiniTemplate},
     notification_bar::NotificationTemplateData,
 };
+
+use mini_template::{value::Value, MiniTemplate};
 
 static mut TEMPLATE_MANAGER: Option<MiniTemplate<u64>> = None;
 static mut NEXT_TEPLATE_ID: u64 = 0;

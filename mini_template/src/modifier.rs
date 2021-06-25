@@ -8,8 +8,8 @@ pub use error::*;
 macro_rules! create_modifier {
     (fn $modifier_name: ident ($first_name:ident: $first_t: ty $($(,$name: ident: $t: ty $(= $default: expr)?)+)?) -> Result<$return: ty> $b: block) => {
         #[allow(unused_variables)]
-        pub fn $modifier_name(value: &$crate::mini_template::value::Value, args: Vec<&$crate::mini_template::value::Value>) -> $crate::mini_template::modifier::error::Result<Value> {
-            use $crate::mini_template::{modifier::error::ErrorKind, prelude::*};
+        pub fn $modifier_name(value: &$crate::value::Value, args: Vec<&$crate::value::Value>) -> $crate::modifier::error::Result<Value> {
+            use $crate::{modifier::error::ErrorKind, prelude::*};
 
             let $first_name: $first_t = create_modifier!(try_into value: $first_t);
 
@@ -31,8 +31,8 @@ macro_rules! create_modifier {
     };
     (fn $modifier_name: ident ($first_name:ident: $first_t: ty $($(,$name: ident: $t: ty $(= $default: expr)?)+)?) -> $return: ty $b: block) => {
         #[allow(unused_variables)]
-        pub fn $modifier_name(value: &$crate::mini_template::value::Value, args: Vec<&$crate::mini_template::value::Value>) -> $crate::mini_template::modifier::error::Result<Value> {
-            use $crate::mini_template::{modifier::error::ErrorKind, prelude::*};
+        pub fn $modifier_name(value: &$crate::value::Value, args: Vec<&$crate::value::Value>) -> $crate::modifier::error::Result<crate::value::Value> {
+            use $crate::{modifier::error::ErrorKind, prelude::*};
 
             let $first_name: $first_t = create_modifier!(try_into value: $first_t);
 
@@ -115,7 +115,7 @@ create_modifier!(fn replace_regex_modifier(input: String, regex: String, to: Str
 });
 
 pub mod error {
-    use crate::mini_template::value::TypeError;
+    use crate::value::TypeError;
 
     pub type Result<T> = std::result::Result<T, ErrorKind>;
     #[derive(Debug, PartialEq)]
@@ -149,7 +149,7 @@ pub mod error {
 #[cfg(test)]
 mod tests {
 
-    use crate::mini_template::value::TypeError;
+    use crate::value::TypeError;
 
     use super::*;
 

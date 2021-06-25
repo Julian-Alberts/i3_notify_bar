@@ -115,8 +115,8 @@ impl Routes {
     }
 
     #[dbus_interface(signal)]
-    fn action_invoked(&self, id: u32, action: &str) -> zbus::Result<()>;
+    pub fn action_invoked(&self, id: u32, action: &str) -> zbus::Result<()>;
 
     #[dbus_interface(signal)]
-    fn notification_closed(&self, id: u32, reason: u32) -> zbus::Result<()>;
+    pub fn notification_closed(&self, id: u32, reason: u32) -> zbus::Result<()>;
 }

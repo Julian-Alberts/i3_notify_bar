@@ -1,7 +1,6 @@
 mod args;
 mod components;
 mod icons;
-mod mini_template;
 mod notification_bar;
 mod rule;
 mod template;

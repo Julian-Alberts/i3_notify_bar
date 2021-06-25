@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 i3_bar_components = { path = "../i3_bar_components"}
+mini_template = { path = "../mini_template" }
 notify_server = { path = "../notify_server" }
 serde = { version = "1.0", features = ["derive"] }
 simplelog = "0.10.0"
@@ -17,9 +18,9 @@ regex = "1.4.5"
 
 [features]
 fa_icons = []
-mini_template = []
-default = ["fa_icons", "mini_template"]
-all = ["fa_icons", "mini_template"]
+mini_template_render = []
+default = ["fa_icons", "mini_template_render"]
+all = ["fa_icons", "mini_template_render"]
 
 [profile.release]
 opt-level = 3

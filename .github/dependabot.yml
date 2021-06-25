@@ -21,3 +21,7 @@ updates:
     directory: "/observer" # Location of package manifests
     schedule:
       interval: "daily"
+  - package-ecosystem: "cargo" # See documentation for possible values
+    directory: "/mini_template" # Location of package manifests
+    schedule:
+      interval: "daily"

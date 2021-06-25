@@ -81,7 +81,7 @@ mod tests {
 
     use crate::{
         create_modifier,
-        mini_template::{compiler::compile, modifier::Modifier, value::Value},
+        compiler::compile, modifier::Modifier, value::Value,
     };
 
     use super::render;
