@@ -1,10 +1,8 @@
-use crate::{SingleObserver as SO, observer::ObserverTrait};
+use crate::observer::ObserverTrait;
 
 use std::sync::{Arc, Mutex};
 
 type Observer<E> = dyn ObserverTrait<E> + Sync + Send + 'static;
-type SingleObserver<E> = dyn SO<E> + Sync + Send + 'static;
-
 
 pub struct EventSystem<E> {
     wrapped_observers: Vec<Arc<Mutex<Observer<E>>>>
@@ -31,7 +29,7 @@ impl <E> EventSystem<E> {
 }
 
 pub struct SingleEventSystem<E> {
-    wrapped_observer: Option<Arc<Mutex<SingleObserver<E>>>>
+    wrapped_observer: Option<Arc<Mutex<Observer<E>>>>
 }
 
 impl <E> SingleEventSystem<E> {
@@ -41,7 +39,7 @@ impl <E> SingleEventSystem<E> {
         }
     }
 
-    pub fn notify(&self, event: E) {
+    pub fn notify(&self, event: &E) {
         match &self.wrapped_observer {
             Some(wo) => {
                 let mut observer = wo.lock().unwrap();
@@ -51,7 +49,7 @@ impl <E> SingleEventSystem<E> {
         }
     }
 
-    pub fn set_observer(&mut self, observer: Arc<Mutex<SingleObserver<E>>>) {
+    pub fn set_observer(&mut self, observer: Arc<Mutex<Observer<E>>>) {
         self.wrapped_observer = Some(observer);
     }
 
@@ -122,17 +120,6 @@ mod tests {
         es.notify(&String::from("test"));
         assert!(observer.lock().unwrap().value.is_some());
         assert!(observer2.lock().unwrap().value.is_some());
-    }
-
-    #[test]
-    fn single_event_system_create() {
-        SingleEventSystem::<()>::new();
-    }
-
-    #[test]
-    fn single_event_system_notify() {
-        let ses = SingleEventSystem::<()>::new();
-        ses.notify(());
     }
 
 }

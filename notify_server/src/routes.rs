@@ -54,7 +54,7 @@ impl Routes {
         let notification = self.create_new_notification(app_name, replaces_id, app_icon, summary, body, actions, hints, expire_timeout);
         let id = notification.id;
 
-        self.event_system.lock().unwrap().notify(Event::Notify(notification));
+        self.event_system.lock().unwrap().notify(&Event::Notify(notification));
         id
     }
 

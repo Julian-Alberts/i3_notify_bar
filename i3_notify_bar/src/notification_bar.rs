@@ -25,7 +25,7 @@ impl NotificationManager {
         }
     }
 
-    fn notify(&mut self, n: Notification) {
+    fn notify(&mut self, n: &Notification) {
         info!(r#"Got new notification app_name "{}" summary "{}" body "{}""#, n.app_name, n.summary, n.body);
         debug!("Notification: {:#?}", n);
 
@@ -119,7 +119,7 @@ impl NotificationManager {
 
 impl Observer<Event> for NotificationManager {
 
-    fn on_notify(&mut self, event: Event) {
+    fn on_notify(&mut self, event: &Event) {
         match event {
             Event::Notify(n) => self.notify(n)
         }

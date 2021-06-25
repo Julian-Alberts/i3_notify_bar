@@ -46,7 +46,7 @@ impl NotifyServer {
         }
     }
 
-    pub fn add_observer(&mut self, observer: Arc<Mutex<dyn observer::SingleObserver<Event> + Send + Sync + 'static>>) {
+    pub fn add_observer(&mut self, observer: Arc<Mutex<dyn observer::Observer<Event> + Send + Sync + 'static>>) {
         let mut event_system = self.event_system.lock().unwrap();
         event_system.set_observer(observer);
     }
