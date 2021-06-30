@@ -42,7 +42,7 @@ pub fn render<'a, 't>(
                         Err(e) => {
                             let error = e.to_string();
                             error!("{}", error);
-                            Err(ErrorKind::ModifierError(e))?
+                            return Err(ErrorKind::ModifierError(e))
                         }
                     };
                 }
@@ -56,7 +56,7 @@ pub fn render<'a, 't>(
 }
 
 fn storage_methods_to_values<'a, 't>(
-    args: &'a Vec<StorageMethod>,
+    args: &'a [StorageMethod],
     variables: &'a HashMap<String, Value>,
 ) -> Result<'t, Vec<&'a Value>> {
     let mut real_args = Vec::with_capacity(args.len());

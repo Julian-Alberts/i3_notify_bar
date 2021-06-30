@@ -53,7 +53,7 @@ macro_rules! create_modifier {
         }
     };
     (default_value $arg_name: ident) => {
-        Err(ErrorKind::MissingArgument{argument_name: stringify!($arg_name)})?
+        return Err(ErrorKind::MissingArgument{argument_name: stringify!($arg_name)})
     };
     (default_value $arg_name: ident $default: tt) => {
         $default
@@ -61,7 +61,7 @@ macro_rules! create_modifier {
     (try_into $value: ident: $type: ty) => {
         match $value.try_into() {
             Ok(inner) => inner,
-            Err(e) => Err(ErrorKind::TypeError{value: $value.to_string(), type_error: e})?
+            Err(e) => return Err(ErrorKind::TypeError{value: $value.to_string(), type_error: e})
         }
     }
 }
@@ -80,7 +80,7 @@ create_modifier!(fn match_modifier(input: String, regex: String, group: usize = 
         Ok(r) => r,
         Err(r) => {
             error!("{}", r.to_string());
-            Err(r.to_string())?
+            return Err(r.to_string())
         }
     };
     let c = match regex.captures(&input[..]) {

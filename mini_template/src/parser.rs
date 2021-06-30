@@ -2,6 +2,7 @@ use pest::{error::LineColLocation, iterators::Pair, Parser};
 
 use crate::{value::Value, Statement, StorageMethod, Template};
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Parser)]
 #[grammar = "template.pest"]
 pub struct TemplateParser;
@@ -36,20 +37,20 @@ pub fn parse(input: String) -> Result<Template, ParseError> {
 fn parse_template_item(item: Pair<Rule>) -> Option<Statement> {
     match item.as_rule() {
         Rule::literal => Some(Statement::Literal(item.as_str())),
-        Rule::calculated => parse_calculated(item),
+        Rule::calculated => Some(parse_calculated(item)),
         Rule::EOI => None,
         _ => unreachable!(),
     }
 }
 
-fn parse_calculated(calculated: Pair<Rule>) -> Option<Statement> {
+fn parse_calculated(calculated: Pair<Rule>) -> Statement {
     let mut inner = calculated.into_inner();
     let var = inner.next().unwrap().as_str();
     let modifiers = inner.into_iter().map(parse_modifier).collect::<Vec<_>>();
-    Some(Statement::Calculated {
+    Statement::Calculated {
         var_name: var,
         modifiers,
-    })
+    }
 }
 
 fn parse_modifier(item: Pair<Rule>) -> (*const str, Vec<StorageMethod>) {
@@ -128,8 +129,6 @@ mod tests {
         assert!(item.is_some());
         let item = item.unwrap();
         let statement = parse_calculated(item);
-        assert!(statement.is_some());
-        let statement = statement.unwrap();
         assert_eq!(
             statement,
             Statement::Calculated {

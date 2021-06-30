@@ -17,12 +17,14 @@ use renderer::render;
 use std::{collections::HashMap, fmt::Display, hash::Hash};
 use value::Value;
 
+#[derive(Default)]
 pub struct MiniTemplate<K: Eq + Hash + Display> {
     modifier: HashMap<String, &'static Modifier>,
     template: HashMap<K, Template>,
 }
 
 impl<K: Eq + Hash + Display> MiniTemplate<K> {
+    #[deprecated]
     pub fn new() -> Self {
         MiniTemplate {
             modifier: HashMap::new(),
