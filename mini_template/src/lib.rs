@@ -1,12 +1,18 @@
 mod compiler;
 mod error;
 mod modifier;
+mod parser;
 mod prelude;
 mod renderer;
 pub mod value;
 
-use compiler::compile;
+#[macro_use]
+extern crate pest_derive;
+#[macro_use]
+extern crate log;
+
 use modifier::Modifier;
+use parser::{parse, ParseError};
 use renderer::render;
 use std::{collections::HashMap, fmt::Display, hash::Hash};
 use value::Value;
@@ -36,8 +42,9 @@ impl<K: Eq + Hash + Display> MiniTemplate<K> {
         self.modifier.insert(key, modifier);
     }
 
-    pub fn add_template(&mut self, key: K, tpl: String) {
-        self.template.insert(key, compile(tpl));
+    pub fn add_template(&mut self, key: K, tpl: String) -> Result<Option<Template>, ParseError> {
+        let tpl = parse(tpl)?;
+        Ok(self.template.insert(key, tpl))
     }
 
     pub fn render(&self, key: &K, data: &HashMap<String, Value>) -> error::Result<String> {
@@ -49,6 +56,7 @@ impl<K: Eq + Hash + Display> MiniTemplate<K> {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Template {
     tpl_str: String,
     tpl: Vec<Statement>,
@@ -63,7 +71,7 @@ enum Statement {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum StorageMethod {
     Const(Value),
     Variable(*const str),

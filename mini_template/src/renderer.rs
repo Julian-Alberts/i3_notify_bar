@@ -79,10 +79,7 @@ fn storage_methods_to_values<'a, 't>(
 mod tests {
     use std::collections::HashMap;
 
-    use crate::{
-        create_modifier,
-        compiler::compile, modifier::Modifier, value::Value,
-    };
+    use crate::{create_modifier, modifier::Modifier, parser::parse, value::Value};
 
     use super::render;
 
@@ -101,7 +98,7 @@ mod tests {
     #[test]
     fn literal() {
         let tpl = String::from("Simple template string");
-        let tpl = compile(tpl);
+        let tpl = parse(tpl).unwrap();
         let rendered = render(&tpl, &HashMap::new(), &HashMap::new()).unwrap();
         assert_eq!(rendered, tpl.tpl_str);
     }
@@ -109,7 +106,7 @@ mod tests {
     #[test]
     fn replace_variables() {
         let tpl = String::from("Simple {foo} template string");
-        let tpl = compile(tpl);
+        let tpl = parse(tpl).unwrap();
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
         let rendered = render(&tpl, &HashMap::new(), &variables).unwrap();
@@ -122,7 +119,7 @@ mod tests {
     #[test]
     fn modifier() {
         let tpl = String::from("Simple {foo|upper} template string");
-        let tpl = compile(tpl);
+        let tpl = parse(tpl).unwrap();
 
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
@@ -140,7 +137,7 @@ mod tests {
     #[test]
     fn modifier_values() {
         let tpl = String::from(r#"Simple {foo|args:"BAR":42} template string"#);
-        let tpl = compile(tpl);
+        let tpl = parse(tpl).unwrap();
 
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
@@ -158,7 +155,7 @@ mod tests {
     #[test]
     fn modifier_list() {
         let tpl = String::from(r#"Simple {foo|upper|args:"bar":42} template string"#);
-        let tpl = compile(tpl);
+        let tpl = parse(tpl).unwrap();
 
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
