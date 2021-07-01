@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use log::*;
 use serde::{Deserialize, Serialize};
