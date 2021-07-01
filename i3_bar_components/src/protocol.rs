@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use log::*;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +25,23 @@ macro_rules! create_setter {
         )?
 
     };
+}
+
+static mut NEXT_COMPONENT_ID: Option<Mutex<u128>> = None;
+
+fn get_next_component_id() -> u128 {
+    match unsafe { &mut NEXT_COMPONENT_ID } {
+        Some(nci) => {
+            let id = nci.get_mut().unwrap();
+            let id2 = *id;
+            *id += 1;
+            id2
+        }
+        None => {
+            unsafe { NEXT_COMPONENT_ID = Some(Mutex::new(2)) };
+            1
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -93,7 +112,7 @@ impl Default for Block {
 
 impl Block {
     pub fn new() -> Self {
-        let instance = format!("{}", rand::random::<u128>());
+        let instance = get_next_component_id().to_string();
 
         debug!(r#"Created block with id "{}""#, instance);
 
