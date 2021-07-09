@@ -122,7 +122,7 @@ fn fold_blocks<'a>(
     target
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct Definition {
     pub rules: Vec<Rule>,
     pub actions: Vec<Action>,
@@ -135,7 +135,7 @@ impl Definition {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Action {
     Ignore,
     Set(SetProperty),
@@ -156,7 +156,7 @@ impl TryFrom<&str> for Action {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SetProperty {
     Icon(char),
     Id(String),

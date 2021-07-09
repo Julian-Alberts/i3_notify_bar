@@ -1,0 +1,61 @@
+WHITESPACE = _{ " "|"\t" }
+
+config = {SOI ~ NEWLINE* ~ (definition ~ NEWLINE*)* ~ EOI}
+
+definition = {
+    "def" ~ NEWLINE ~
+        (section ~ NEWLINE )* ~
+    "enddef"
+}
+
+section = {rule_section|action_section|style_section}
+
+rule_section = { 
+    "rule" ~ NEWLINE ~
+        (rule ~ NEWLINE)* ~
+    "endrule"
+}
+rule = { number_rule|string_rule }
+string_rule = { string_rule_key ~ compare ~ eol }
+string_rule_key = { app_name|app_icon|summary|body|urgency }
+
+number_rule = { number_rule_key ~ compare_eq ~ eol }
+number_rule_key = { expire_timeout }
+
+action_section = { 
+    "action" ~ NEWLINE ~
+        (action ~ NEWLINE)* ~
+    "endaction"
+}
+action = { stop_action|ignore_action|set_action }
+stop_action = { "stop" }
+ignore_action = { "ignore" }
+set_action = { "set" ~ set_action_key ~ eol}
+set_action_key = { app_icon|message_id|text|expire_timeout }
+
+style_section = {
+    "style" ~ NEWLINE ~
+        (style ~ NEWLINE)* ~
+    "endstyle"
+}
+
+style = {background_style|text_style}
+background_style = {"background" ~ color}
+text_style = {"text" ~ color}
+
+color = @{"#" ~ (ASCII_HEX_DIGIT{3}){1,2}}
+
+app_name = { "app_name" }
+app_icon = { "app_icon" }
+summary = { "summary" }
+body = { "body" }
+urgency = { "urgency" }
+expire_timeout = { "expire_timeout" }
+message_id = {"id"}
+text = {"text"}
+
+eol = {(!NEWLINE ~ ANY)+}
+
+compare_eq = { "=" }
+compare_match = { "match" }
+compare = { compare_eq|compare_match }

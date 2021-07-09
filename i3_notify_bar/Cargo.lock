@@ -377,6 +377,8 @@ dependencies = [
  "log",
  "mini_template",
  "notify_server",
+ "pest",
+ "pest_derive",
  "regex",
  "serde",
  "simplelog",

@@ -1,5 +1,6 @@
 mod args;
 mod components;
+mod config_parser;
 mod icons;
 mod notification_bar;
 mod rule;
@@ -16,6 +17,9 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+
+#[macro_use]
+extern crate pest_derive;
 
 fn main() {
     let args: Args = Args::parse();

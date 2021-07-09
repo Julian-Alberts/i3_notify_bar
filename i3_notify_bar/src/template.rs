@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
-    notification_bar::NotificationTemplateData,
-};
+use crate::notification_bar::NotificationTemplateData;
 
 use mini_template::{value::Value, MiniTemplate};
 
@@ -58,9 +56,9 @@ pub fn add_template(template: String) -> Result<u64, ()> {
             Ok(Some(_)) => {
                 NEXT_TEMPLATE_ID += 1;
                 Ok(NEXT_TEMPLATE_ID - 1)
-            },
+            }
             Ok(None) => Ok(NEXT_TEMPLATE_ID),
-            Err(_) => Err(()) // TODO return better error
+            Err(_) => Err(()), // TODO return better error
         }
     }
 }
