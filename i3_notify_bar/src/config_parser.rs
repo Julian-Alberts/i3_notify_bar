@@ -1,8 +1,11 @@
-use std::io::{BufRead, Result as IOResult};
+use std::fmt::{Display, Formatter};
+use std::io::BufRead;
+use std::error::Error;
 
 use log::info;
+use pest::error::LineColLocation;
 use pest::{
-    iterators::{Pair, Pairs},
+    iterators::Pair,
     Parser,
 };
 use regex::Regex;
@@ -17,7 +20,7 @@ use crate::{
 #[grammar = "config.pest"]
 struct ConfigParser;
 
-pub fn parse_config(config: &mut dyn BufRead) -> Vec<Definition> {
+pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<Vec<Definition>> {
     info!("Reading rules");
     let config = config
         .lines()
@@ -31,7 +34,9 @@ pub fn parse_config(config: &mut dyn BufRead) -> Vec<Definition> {
     let config = ConfigParser::parse(Rule::config, &config);
     let config = match config {
         Ok(config) => config,
-        Err(e) => panic!("{:#?}", e),
+        Err(e) => {
+            return Err(ParseError::from(e.line_col))
+        },
     }
     .next()
     .unwrap();
@@ -41,7 +46,8 @@ pub fn parse_config(config: &mut dyn BufRead) -> Vec<Definition> {
         Rule::EOI => false,
         rule => panic!("Unexpected rule: {:#?}", rule),
     });
-    definitions.map(parse_definition).collect::<Vec<_>>()
+
+    Ok(definitions.map(parse_definition).collect::<Vec<_>>())
 }
 
 fn parse_definition(definition: Pair<Rule>) -> Definition {
@@ -169,6 +175,34 @@ fn parse_style(style: Pair<Rule>) -> Style {
         _ => panic!(),
     }
 }
+
+
+pub type ParseResult<T> = Result<T, ParseError>;
+
+#[derive(Debug)]
+pub struct ParseError {
+    line_col_location: LineColLocation
+}
+
+impl From<LineColLocation> for ParseError {
+
+    fn from(loc: LineColLocation) -> Self {
+        Self {
+            line_col_location: loc
+        }
+    }
+
+}
+
+impl Display for ParseError {
+    
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?}", self.line_col_location)
+    }
+
+}
+
+impl Error for ParseError {}
 
 #[cfg(test)]
 mod tests {
@@ -300,7 +334,7 @@ mod tests {
         enddef"#;
         let config = parse_config(&mut config.as_bytes());
         assert_eq!(
-            config,
+            config.unwrap(),
             vec![Definition {
                 rules: vec![Condition::AppName("Thunderbird".to_owned())],
                 actions: vec![Action::Set(SetProperty::ExpireTimeout(-1))],
@@ -312,7 +346,7 @@ mod tests {
     #[test]
     fn parse_empty_config() {
         let config = "   \n ";
-        let config = parse_config(&mut config.as_bytes());
+        let config = parse_config(&mut config.as_bytes()).unwrap();
         assert_eq!(config, vec![])
     }
 
@@ -333,7 +367,7 @@ def
         background #ff00ff
     endstyle
 enddef"#;
-        let config = parse_config(&mut config.as_bytes());
+        let config = parse_config(&mut config.as_bytes()).unwrap();
         assert_eq!(
             config,
             vec![
