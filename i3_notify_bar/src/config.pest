@@ -8,19 +8,20 @@ definition = {
     "enddef"
 }
 
-section = {rule_section|action_section|style_section}
+section = {condition_section|action_section|style_section}
 
-rule_section = { 
-    "rule" ~ NEWLINE ~
-        (rule ~ NEWLINE)* ~
-    "endrule"
+condition_section = { 
+    PUSH("rule"|"condition") ~ NEWLINE ~
+        (condition ~ NEWLINE)* ~
+    condition_section_end
 }
-rule = { number_rule|string_rule }
-string_rule = { string_rule_key ~ compare ~ eol }
-string_rule_key = { app_name|app_icon|summary|body|urgency }
+condition_section_end = _{ "end" ~ POP }
+condition = { number_condition|string_condition }
+string_condition = { string_condition_key ~ compare ~ eol }
+string_condition_key = { app_name|app_icon|summary|body|urgency }
 
-number_rule = { number_rule_key ~ compare_eq ~ eol }
-number_rule_key = { expire_timeout }
+number_condition = { number_condition_key ~ compare_eq ~ eol }
+number_condition_key = { expire_timeout }
 
 action_section = { 
     "action" ~ NEWLINE ~

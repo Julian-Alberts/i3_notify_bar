@@ -12,7 +12,7 @@ use regex::Regex;
 
 use crate::{
     icons,
-    rule::{Action, Definition, Rule as Condition, RuleTypeString, SetProperty, Style},
+    rule::{Action, Definition, Conditions as Condition, ConditionTypeString, SetProperty, Style},
     template,
 };
 
@@ -21,7 +21,7 @@ use crate::{
 struct ConfigParser;
 
 pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<Vec<Definition>> {
-    info!("Reading rules");
+    info!("Reading conditions");
     let config = config
         .lines()
         .map(Result::unwrap)
@@ -56,7 +56,7 @@ fn parse_definition(definition: Pair<Rule>) -> Definition {
     groups.for_each(|section| {
         let section = section.into_inner().next().unwrap();
         match section.as_rule() {
-            Rule::rule_section => parse_condition_section(section, &mut def.rules),
+            Rule::condition_section => parse_condition_section(section, &mut def.conditions),
             Rule::style_section => def.style = parse_style_section(section),
             Rule::action_section => def.actions = parse_action_section(section),
             _ => panic!(),
@@ -111,8 +111,8 @@ fn parse_condition_section(condition_section: Pair<Rule>, conditions: &mut Vec<C
 fn parse_condition(condition: Pair<Rule>) -> Condition {
     let condition = condition.into_inner().next().unwrap();
     match condition.as_rule() {
-        Rule::number_rule => parse_number_condition(condition),
-        Rule::string_rule => parse_string_condition(condition),
+        Rule::number_condition => parse_number_condition(condition),
+        Rule::string_condition => parse_string_condition(condition),
         _ => unimplemented!(),
     }
 }
@@ -138,13 +138,13 @@ fn parse_string_condition(string_condition: Pair<Rule>) -> Condition {
     match (name, eq) {
         (Rule::app_name, Rule::compare_eq) => Condition::AppName(value),
         (Rule::app_icon, Rule::compare_eq) => Condition::AppIcon(value),
-        (Rule::summary, Rule::compare_eq) => Condition::Summary(RuleTypeString::Literal(value)),
+        (Rule::summary, Rule::compare_eq) => Condition::Summary(ConditionTypeString::Literal(value)),
         (Rule::summary, Rule::compare_match) => {
-            Condition::Summary(RuleTypeString::Regex(Regex::new(&value).unwrap()))
+            Condition::Summary(ConditionTypeString::Regex(Regex::new(&value).unwrap()))
         }
-        (Rule::body, Rule::compare_eq) => Condition::Body(RuleTypeString::Literal(value)),
+        (Rule::body, Rule::compare_eq) => Condition::Body(ConditionTypeString::Literal(value)),
         (Rule::body, Rule::compare_match) => {
-            Condition::Body(RuleTypeString::Regex(Regex::new(&value).unwrap()))
+            Condition::Body(ConditionTypeString::Regex(Regex::new(&value).unwrap()))
         }
         (Rule::urgency, Rule::compare_eq) => Condition::Urgency(value),
         (rule, compare) => panic!(
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn parse_string_condition_app_name() {
-        let condition = ConfigParser::parse(Rule::string_rule, "app_name = test")
+        let condition = ConfigParser::parse(Rule::string_condition, "app_name = test")
             .unwrap()
             .next()
             .unwrap();
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn parse_number_condition_expire_timeout() {
-        let condition = ConfigParser::parse(Rule::number_rule, "expire_timeout = 42")
+        let condition = ConfigParser::parse(Rule::number_condition, "expire_timeout = 42")
             .unwrap()
             .next()
             .unwrap();
@@ -273,7 +273,7 @@ mod tests {
     #[test]
     fn parse_condition_section_conditions() {
         let condition_section = ConfigParser::parse(
-            Rule::rule_section,
+            Rule::condition_section,
             r#"rule
             app_name = Thunderbird
             expire_timeout = 10
@@ -290,7 +290,7 @@ mod tests {
             vec![
                 Condition::AppName(String::from("Thunderbird")),
                 Condition::ExpireTimeout(10),
-                Condition::Body(RuleTypeString::Regex(Regex::new("new").unwrap()))
+                Condition::Body(ConditionTypeString::Regex(Regex::new("new").unwrap()))
             ]
         );
     }
@@ -336,7 +336,7 @@ mod tests {
         assert_eq!(
             config.unwrap(),
             vec![Definition {
-                rules: vec![Condition::AppName("Thunderbird".to_owned())],
+                conditions: vec![Condition::AppName("Thunderbird".to_owned())],
                 actions: vec![Action::Set(SetProperty::ExpireTimeout(-1))],
                 style: vec![Style::Background("#ff00ff".to_owned())]
             }]
@@ -372,7 +372,7 @@ enddef"#;
             config,
             vec![
                 Definition {
-                    rules: vec![Condition::AppName("Thunderbird".to_owned())],
+                    conditions: vec![Condition::AppName("Thunderbird".to_owned())],
                     ..Default::default()
                 },
                 Definition {
@@ -398,7 +398,7 @@ mod pest_tests {
     macro_rules! rule_test {
         ($rule: ident, $key: literal $compare: literal $value: literal) => {
             let line = format!("{} {} {}\n", $key, $compare, $value);
-            let parsed_rule = ConfigParser::parse(Rule::rule, &line);
+            let parsed_rule = ConfigParser::parse(Rule::condition, &line);
             assert!(parsed_rule.is_ok());
             let parsed_rule = parsed_rule.unwrap().next();
             assert!(parsed_rule.is_some());
@@ -453,12 +453,33 @@ mod pest_tests {
     #[test]
     fn rule_section() {
         let parsed = ConfigParser::parse(
-            Rule::rule_section,
+            Rule::condition_section,
             r#"rule
             app_name match aname
             body = test value
             expire_timeout = 10
             endrule"#,
+        );
+
+        assert!(parsed.is_ok(), "{:#?}", parsed);
+        let mut parsed = parsed.unwrap();
+
+        let rule_section = parsed.next().unwrap();
+        let mut rules = rule_section.into_inner();
+        assert_eq!(rules.next().unwrap().as_str(), "app_name match aname");
+        assert_eq!(rules.next().unwrap().as_str(), "body = test value");
+        assert_eq!(rules.next().unwrap().as_str(), "expire_timeout = 10");
+    }
+
+    #[test]
+    fn condition_section() {
+        let parsed = ConfigParser::parse(
+            Rule::condition_section,
+            r#"condition
+            app_name match aname
+            body = test value
+            expire_timeout = 10
+            endcondition"#,
         );
 
         assert!(parsed.is_ok(), "{:#?}", parsed);

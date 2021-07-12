@@ -25,12 +25,12 @@ fn main() {
     let args: Args = Args::parse();
     logger::init(args.log_level(), args.log_file());
 
-    let rules;
-    match args.rule_file() {
+    let config;
+    match args.config_file() {
         Some(path) => {
             let config_file = std::fs::File::open(path).unwrap();
             let mut config_file = BufReader::new(config_file);
-            rules = match rule::parse_config(&mut config_file) {
+            config = match rule::parse_config(&mut config_file) {
                 Ok(r) => r,
                 Err(e) => {
                     error!("{}", e.to_string());
@@ -38,14 +38,14 @@ fn main() {
                 }
             };
         }
-        None => rules = Vec::new(),
+        None => config = Vec::new(),
     }
 
     let mut notify_server = notify_server::NotifyServer::start();
     let mut manager = ComponentManagerBuilder::new()
         .with_click_events(true)
         .build();
-    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(rules)));
+    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(config)));
     notify_server.add_observer(notification_manager.clone());
 
     loop {

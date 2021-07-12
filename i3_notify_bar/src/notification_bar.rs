@@ -7,20 +7,20 @@ use log::{debug, info};
 use notify_server::{notification::Notification, Event, Observer};
 use serde::Serialize;
 
-use crate::rule::{Definition as RuleDefinition, Style};
+use crate::rule::{Definition, Style};
 
 pub struct NotificationManager {
     notifications: Vec<Arc<RwLock<NotificationData>>>,
     events: Vec<NotificationEvent>,
-    rules: Vec<RuleDefinition>,
+    definitions: Vec<Definition>,
 }
 
 impl NotificationManager {
-    pub fn new(rules: Vec<RuleDefinition>) -> Self {
+    pub fn new(definitions: Vec<Definition>) -> Self {
         Self {
             notifications: Vec::new(),
             events: Vec::new(),
-            rules,
+            definitions,
         }
     }
 
@@ -53,21 +53,21 @@ impl NotificationManager {
             notification_template_data
         );
 
-        let mut last_rule_id = 0;
-        let mut read_next_rule = true;
+        let mut last_definition_id = 0;
+        let mut read_next_definition = true;
 
-        while read_next_rule {
-            let rule = self.rules[last_rule_id..]
+        while read_next_definition {
+            let definition = self.definitions[last_definition_id..]
                 .iter()
                 .enumerate()
                 .find(|(_, r)| r.matches(&n));
 
-            match rule {
-                Some((index, rule)) => {
-                    debug!("Matched rule {} {:#?}", last_rule_id + index, rule.rules);
-                    last_rule_id += index + 1;
+            match definition {
+                Some((index, definition)) => {
+                    debug!("Matched definition {} {:#?}", last_definition_id + index, definition.conditions);
+                    last_definition_id += index + 1;
 
-                    for action in &rule.actions {
+                    for action in &definition.actions {
                         match action {
                             Action::Ignore => {
                                 debug!("Ignore Message");
@@ -75,17 +75,17 @@ impl NotificationManager {
                             }
                             Action::Set(set_property) => set_property
                                 .set(&mut notification_data, &notification_template_data),
-                            Action::Stop => read_next_rule = false,
+                            Action::Stop => read_next_definition = false,
                         }
                     }
 
-                    notification_data.style.extend(rule.style.clone());
+                    notification_data.style.extend(definition.style.clone());
                 }
-                None => read_next_rule = false,
+                None => read_next_definition = false,
             }
         }
 
-        debug!("Finished rules");
+        debug!("Finished definitions");
         debug!("Final notification_data {:#?}", notification_data);
 
         let notification_position = self

@@ -33,7 +33,7 @@ pub struct Args {
         about = "How fast the text is animated"
     )]
     animation_chars_per_second: usize,
-    rule_file: Option<String>,
+    config_file: Option<String>,
 }
 
 impl Args {
@@ -45,8 +45,8 @@ impl Args {
         &self.log_file
     }
 
-    pub fn rule_file(&self) -> &Option<String> {
-        &self.rule_file
+    pub fn config_file(&self) -> &Option<String> {
+        &self.config_file
     }
 
     pub fn refresh_rate(&self) -> u64 {
