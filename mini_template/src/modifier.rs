@@ -52,6 +52,27 @@ macro_rules! create_modifier {
             Ok(result.into())
         }
     };
+    (fn $modifier_name: ident ($first_name:ident: $first_t: ty $($(,$name: ident: $t: ty $(= $default: expr)?)+)?) -> $return: ty => $func: path) => {
+        #[allow(unused_variables)]
+        pub fn $modifier_name(value: &$crate::value::Value, args: Vec<&$crate::value::Value>) -> $crate::modifier::error::Result<crate::value::Value> {
+            use $crate::{modifier::error::ErrorKind, prelude::*};
+
+            let $first_name: $first_t = create_modifier!(try_into value: $first_t);
+
+            $(
+                let mut args = args.into_iter();
+                $(
+                    let $name: $t = match args.next() {
+                        Some($name) => create_modifier!(try_into $name: $t),
+                        None => create_modifier!(default_value $name $($default)?)
+                    };
+                )+
+            )?
+
+            let result = $func($first_name $($(,$name)+)?);
+            Ok(result.into())
+        }
+    };
     (default_value $arg_name: ident) => {
         return Err(ErrorKind::MissingArgument{argument_name: stringify!($arg_name)})
     };
@@ -113,6 +134,10 @@ create_modifier!(fn replace_regex_modifier(input: String, regex: String, to: Str
 
     Ok(regex.replacen(&input, count, to).to_string())
 });
+
+create_modifier!(fn upper(input: &str) -> String => str::to_uppercase);
+
+create_modifier!(fn lower(input: &str) -> String => str::to_lowercase);
 
 pub mod error {
     use crate::value::TypeError;
@@ -237,5 +262,21 @@ mod tests {
                 value: String::from("test")
             })
         );
+    }
+
+    #[test]
+    fn lower_modifier() {
+        let input = Value::String(String::from("Hello World!"));
+        let output = lower(&input, vec![]);
+
+        assert_eq!(output, Ok(Value::String(String::from("hello world!"))));
+    }
+
+    #[test]
+    fn upper_modifier() {
+        let input = Value::String(String::from("Hello World!"));
+        let output = upper(&input, vec![]);
+
+        assert_eq!(output, Ok(Value::String(String::from("HELLO WORLD!"))));
     }
 }
