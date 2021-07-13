@@ -15,10 +15,12 @@ condition_section = {
         (condition ~ NEWLINE)* ~
     condition_section_end
 }
-condition_section_end = _{ "end" ~ POP }
-condition = { number_condition|string_condition }
+condition_section_end = @{ "end" ~ POP }
+condition = { number_condition|string_condition|legacy_condition }
+legacy_condition = { legacy_condition_key ~ compare_eq ~ eol }
+legacy_condition_key = { app_icon|app_name|urgency }
 string_condition = { string_condition_key ~ compare ~ eol }
-string_condition_key = { app_name|app_icon|summary|body|urgency }
+string_condition_key = { summary|body }
 
 number_condition = { number_condition_key ~ compare_eq ~ eol }
 number_condition_key = { expire_timeout }

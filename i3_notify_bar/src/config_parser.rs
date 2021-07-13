@@ -101,6 +101,10 @@ fn parse_set_action(set_action: Pair<Rule>) -> Action {
 fn parse_condition_section(condition_section: Pair<Rule>, conditions: &mut Vec<Condition>) {
     condition_section
         .into_inner()
+        .filter(|condition| match condition.as_rule() {
+            Rule::condition => true,
+            _ => false
+        })
         .map(parse_condition)
         .fold(conditions, |list, condition| {
             list.push(condition);
@@ -109,10 +113,12 @@ fn parse_condition_section(condition_section: Pair<Rule>, conditions: &mut Vec<C
 }
 
 fn parse_condition(condition: Pair<Rule>) -> Condition {
+    println!("{:#?}", condition);
     let condition = condition.into_inner().next().unwrap();
     match condition.as_rule() {
         Rule::number_condition => parse_number_condition(condition),
         Rule::string_condition => parse_string_condition(condition),
+        Rule::legacy_condition => parse_legacy_condition(condition),
         _ => unimplemented!(),
     }
 }
@@ -133,24 +139,32 @@ fn parse_string_condition(string_condition: Pair<Rule>) -> Condition {
     let mut inner = string_condition.into_inner();
     let name = inner.next().unwrap().into_inner().next().unwrap().as_rule();
     let eq = inner.next().unwrap().into_inner().next().unwrap().as_rule();
+    let value = inner.next().unwrap().as_str();
+
+    let condition_type = match eq {
+        Rule::compare_eq => ConditionTypeString::Literal(value.to_owned()),
+        Rule::compare_match => ConditionTypeString::Regex(Regex::new(value).unwrap()),
+        _ => panic!()
+    };
+
+    match name {
+        Rule::summary => Condition::Summary(condition_type),
+        Rule::body => Condition::Body(condition_type),
+        _ => panic!(),
+    }
+}
+
+fn parse_legacy_condition(legacy_condition: Pair<Rule>) -> Condition {
+    let mut inner = legacy_condition.into_inner();
+    let name = inner.next().unwrap().into_inner().next().unwrap().as_rule();
+    let mut inner = inner.skip(1);
     let value = inner.next().unwrap().as_str().to_owned();
 
-    match (name, eq) {
-        (Rule::app_name, Rule::compare_eq) => Condition::AppName(value),
-        (Rule::app_icon, Rule::compare_eq) => Condition::AppIcon(value),
-        (Rule::summary, Rule::compare_eq) => Condition::Summary(ConditionTypeString::Literal(value)),
-        (Rule::summary, Rule::compare_match) => {
-            Condition::Summary(ConditionTypeString::Regex(Regex::new(&value).unwrap()))
-        }
-        (Rule::body, Rule::compare_eq) => Condition::Body(ConditionTypeString::Literal(value)),
-        (Rule::body, Rule::compare_match) => {
-            Condition::Body(ConditionTypeString::Regex(Regex::new(&value).unwrap()))
-        }
-        (Rule::urgency, Rule::compare_eq) => Condition::Urgency(value),
-        (rule, compare) => panic!(
-            r#"Got unexpected rule "{:#?}" compare "{:#?}" combination"#,
-            rule, compare
-        ),
+    match name {
+        Rule::app_icon => Condition::AppIcon(value),
+        Rule::app_name => Condition::AppName(value),
+        Rule::urgency => Condition::Urgency(value),
+        _ => panic!()
     }
 }
 
@@ -226,11 +240,11 @@ mod tests {
 
     #[test]
     fn parse_string_condition_app_name() {
-        let condition = ConfigParser::parse(Rule::string_condition, "app_name = test")
+        let condition = ConfigParser::parse(Rule::legacy_condition, "app_name = test")
             .unwrap()
             .next()
             .unwrap();
-        let condition = parse_string_condition(condition);
+        let condition = parse_legacy_condition(condition);
         assert_eq!(condition, Condition::AppName("test".to_owned()));
     }
 
@@ -455,8 +469,8 @@ mod pest_tests {
         let parsed = ConfigParser::parse(
             Rule::condition_section,
             r#"rule
-            app_name match aname
-            body = test value
+            app_name = aname
+            body match test value
             expire_timeout = 10
             endrule"#,
         );
@@ -466,8 +480,8 @@ mod pest_tests {
 
         let rule_section = parsed.next().unwrap();
         let mut rules = rule_section.into_inner();
-        assert_eq!(rules.next().unwrap().as_str(), "app_name match aname");
-        assert_eq!(rules.next().unwrap().as_str(), "body = test value");
+        assert_eq!(rules.next().unwrap().as_str(), "app_name = aname");
+        assert_eq!(rules.next().unwrap().as_str(), "body match test value");
         assert_eq!(rules.next().unwrap().as_str(), "expire_timeout = 10");
     }
 
@@ -476,8 +490,8 @@ mod pest_tests {
         let parsed = ConfigParser::parse(
             Rule::condition_section,
             r#"condition
-            app_name match aname
-            body = test value
+            app_name = aname
+            body match test value
             expire_timeout = 10
             endcondition"#,
         );
@@ -487,9 +501,23 @@ mod pest_tests {
 
         let rule_section = parsed.next().unwrap();
         let mut rules = rule_section.into_inner();
-        assert_eq!(rules.next().unwrap().as_str(), "app_name match aname");
-        assert_eq!(rules.next().unwrap().as_str(), "body = test value");
+        assert_eq!(rules.next().unwrap().as_str(), "app_name = aname");
+        assert_eq!(rules.next().unwrap().as_str(), "body match test value");
         assert_eq!(rules.next().unwrap().as_str(), "expire_timeout = 10");
+    }
+
+    #[test]
+    fn rule_section_space_in_closing_tag() {
+        let parsed = ConfigParser::parse(
+            Rule::condition_section,
+            r#"rule
+            app_name = aname
+            body match test value
+            expire_timeout = 10
+            end rule"#,
+        );
+
+        assert!(parsed.is_err(), "{:#?}", parsed);
     }
 
     #[test]
