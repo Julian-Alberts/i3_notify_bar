@@ -39,7 +39,12 @@ impl<K: Eq + Hash + Display> MiniTemplate<K> {
         self.add_modifier("replace".to_owned(), &replace_modifier);
         self.add_modifier("replace_regex".to_owned(), &replace_regex_modifier);
         self.add_modifier("upper".to_owned(), &upper);
-        self.add_modifier("lower".to_owned(), &lower)
+        self.add_modifier("lower".to_owned(), &lower);
+
+        self.add_modifier("add".to_owned(), &add);
+        self.add_modifier("sub".to_owned(), &sub);
+        self.add_modifier("mul".to_owned(), &mul);
+        self.add_modifier("div".to_owned(), &div);
     }
 
     pub fn add_modifier(&mut self, key: String, modifier: &'static Modifier) {

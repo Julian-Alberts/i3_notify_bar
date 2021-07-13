@@ -139,6 +139,22 @@ create_modifier!(fn upper(input: &str) -> String => str::to_uppercase);
 
 create_modifier!(fn lower(input: &str) -> String => str::to_lowercase);
 
+create_modifier!(fn add(a: f64, b: f64) -> f64 {
+    a + b
+});
+
+create_modifier!(fn sub(a: f64, b: f64) -> f64 {
+    a - b
+});
+
+create_modifier!(fn mul(a: f64, b: f64) -> f64 {
+    a * b
+});
+
+create_modifier!(fn div(a: f64, b: f64) -> f64 {
+    a / b
+});
+
 pub mod error {
     use crate::value::TypeError;
 
