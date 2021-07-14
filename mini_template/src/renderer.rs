@@ -7,7 +7,7 @@ use super::{modifier::Modifier, value::Value, Statement, StorageMethod, Template
 
 pub fn render<'a, 't>(
     tpl: &'t Template,
-    modifier: &HashMap<String, &'a Modifier>,
+    modifier: &HashMap<&'static str, &'a Modifier>,
     variables: &HashMap<String, Value>,
 ) -> Result<'t, String> {
     let tpl = &tpl.tpl;
@@ -124,8 +124,8 @@ mod tests {
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
 
-        let mut modifiers: HashMap<String, &Modifier> = HashMap::new();
-        modifiers.insert("upper".to_owned(), &upper_case_modifier);
+        let mut modifiers: HashMap<&'static str, &Modifier> = HashMap::new();
+        modifiers.insert("upper", &upper_case_modifier);
 
         let rendered = render(&tpl, &modifiers, &variables).unwrap();
         assert_eq!(
@@ -142,8 +142,8 @@ mod tests {
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
 
-        let mut modifiers: HashMap<String, &Modifier> = HashMap::new();
-        modifiers.insert("args".to_owned(), &args_modifier);
+        let mut modifiers: HashMap<&'static str, &Modifier> = HashMap::new();
+        modifiers.insert("args", &args_modifier);
 
         let rendered = render(&tpl, &modifiers, &variables).unwrap();
         assert_eq!(
@@ -160,9 +160,9 @@ mod tests {
         let mut variables = HashMap::new();
         variables.insert("foo".to_owned(), Value::String("my test value".to_owned()));
 
-        let mut modifiers: HashMap<String, &Modifier> = HashMap::new();
-        modifiers.insert("args".to_owned(), &args_modifier);
-        modifiers.insert("upper".to_owned(), &upper_case_modifier);
+        let mut modifiers: HashMap<&str, &Modifier> = HashMap::new();
+        modifiers.insert("args", &args_modifier);
+        modifiers.insert("upper", &upper_case_modifier);
 
         let rendered = render(&tpl, &modifiers, &variables).unwrap();
         assert_eq!(

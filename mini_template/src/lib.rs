@@ -19,7 +19,7 @@ use value::Value;
 
 #[derive(Default)]
 pub struct MiniTemplate<K: Eq + Hash + Display> {
-    modifier: HashMap<String, &'static Modifier>,
+    modifier: HashMap<&'static str, &'static Modifier>,
     template: HashMap<K, Template>,
 }
 
@@ -34,20 +34,20 @@ impl<K: Eq + Hash + Display> MiniTemplate<K> {
 
     pub fn add_default_modifiers(&mut self) {
         use modifier::*;
-        self.add_modifier("slice".to_owned(), &slice_modifier);
-        self.add_modifier("regex".to_owned(), &match_modifier);
-        self.add_modifier("replace".to_owned(), &replace_modifier);
-        self.add_modifier("replace_regex".to_owned(), &replace_regex_modifier);
-        self.add_modifier("upper".to_owned(), &upper);
-        self.add_modifier("lower".to_owned(), &lower);
+        self.add_modifier("slice", &slice_modifier);
+        self.add_modifier("regex", &match_modifier);
+        self.add_modifier("replace", &replace_modifier);
+        self.add_modifier("replace_regex", &replace_regex_modifier);
+        self.add_modifier("upper", &upper);
+        self.add_modifier("lower", &lower);
 
-        self.add_modifier("add".to_owned(), &add);
-        self.add_modifier("sub".to_owned(), &sub);
-        self.add_modifier("mul".to_owned(), &mul);
-        self.add_modifier("div".to_owned(), &div);
+        self.add_modifier("add", &add);
+        self.add_modifier("sub", &sub);
+        self.add_modifier("mul", &mul);
+        self.add_modifier("div", &div);
     }
 
-    pub fn add_modifier(&mut self, key: String, modifier: &'static Modifier) {
+    pub fn add_modifier(&mut self, key: &'static str, modifier: &'static Modifier) {
         self.modifier.insert(key, modifier);
     }
 
