@@ -56,13 +56,11 @@ fn parse_calculated(calculated: Pair<Rule>) -> Statement {
 fn parse_modifier(item: Pair<Rule>) -> (*const str, Vec<StorageMethod>) {
     let mut items = item.into_inner();
     let name = items.next().unwrap().as_str();
-    println!("{:#?}", name);
     (name, items.map(parse_argument).collect())
 }
 
 fn parse_argument(item: Pair<Rule>) -> StorageMethod {
     let item = item.into_inner().next().unwrap();
-    println!("{:#?}", item);
     match item.as_rule() {
         Rule::identifyer => StorageMethod::Variable(item.as_str()),
         Rule::number => StorageMethod::Const(Value::Number(item.as_str().parse().unwrap())),
