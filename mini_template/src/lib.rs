@@ -40,6 +40,7 @@ impl<K: Eq + Hash + Display> MiniTemplate<K> {
         self.add_modifier("replace_regex", &replace_regex_modifier);
         self.add_modifier("upper", &upper);
         self.add_modifier("lower", &lower);
+        self.add_modifier("repeat", &repeat);
 
         self.add_modifier("add", &add);
         self.add_modifier("sub", &sub);

@@ -155,6 +155,8 @@ create_modifier!(fn div(a: f64, b: f64) -> f64 {
     a / b
 });
 
+create_modifier!(fn repeat(input: &str, n: usize) -> String => str::repeat);
+
 pub mod error {
     use crate::value::TypeError;
 
