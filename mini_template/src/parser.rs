@@ -363,10 +363,10 @@ mod legacy_tests {
 
     #[test]
     fn variable_value() {
-        let tpl = parse("Simple {var} template {foo}".to_owned()).unwrap();
+        let tpl = parse("Simple more {var} template {foo}".to_owned()).unwrap();
         assert_eq!(
             vec![
-                Statement::Literal("Simple " as *const _),
+                Statement::Literal("Simple more " as *const _),
                 Statement::Calculated {
                     value: StorageMethod::Variable("var"),
                     modifiers: vec![]
