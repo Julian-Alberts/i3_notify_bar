@@ -76,13 +76,25 @@ pub struct Template {
 enum Statement {
     Literal(*const str),
     Calculated {
-        var_name: *const str,
+        value: StorageMethod,
         modifiers: Vec<(*const str, Vec<StorageMethod>)>,
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 enum StorageMethod {
     Const(Value),
     Variable(*const str),
+}
+
+impl PartialEq for StorageMethod {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (StorageMethod::Const(s), StorageMethod::Const(o)) => s == o,
+            (StorageMethod::Variable(s), StorageMethod::Variable(o)) => unsafe {
+                s.as_ref() == o.as_ref()
+            },
+            _ => false,
+        }
+    }
 }

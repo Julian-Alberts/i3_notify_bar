@@ -45,12 +45,9 @@ fn parse_template_item(item: Pair<Rule>) -> Option<Statement> {
 
 fn parse_calculated(calculated: Pair<Rule>) -> Statement {
     let mut inner = calculated.into_inner();
-    let var = inner.next().unwrap().as_str();
+    let value = parse_argument(inner.next().unwrap());
     let modifiers = inner.into_iter().map(parse_modifier).collect::<Vec<_>>();
-    Statement::Calculated {
-        var_name: var,
-        modifiers,
-    }
+    Statement::Calculated { value, modifiers }
 }
 
 fn parse_modifier(item: Pair<Rule>) -> (*const str, Vec<StorageMethod>) {
@@ -131,7 +128,7 @@ mod tests {
             statement,
             Statement::Calculated {
                 modifiers: Vec::new(),
-                var_name: "var"
+                value: StorageMethod::Variable("var"),
             }
         )
     }
@@ -147,7 +144,7 @@ mod tests {
             Template {
                 tpl: vec![Statement::Calculated {
                     modifiers: vec![],
-                    var_name: "var"
+                    value: StorageMethod::Variable("var"),
                 }],
                 tpl_str: String::from("{var}")
             }
@@ -165,7 +162,7 @@ mod tests {
             Template {
                 tpl_str: String::from("{var|modifier}"),
                 tpl: vec![Statement::Calculated {
-                    var_name: "var",
+                    value: StorageMethod::Variable("var"),
                     modifiers: vec![("modifier", vec![])]
                 }]
             }
@@ -183,7 +180,7 @@ mod tests {
             Template {
                 tpl_str: String::from("{var|modifier1|modifier2}"),
                 tpl: vec![Statement::Calculated {
-                    var_name: "var",
+                    value: StorageMethod::Variable("var"),
                     modifiers: vec![("modifier1", vec![]), ("modifier2", vec![])]
                 }]
             }
@@ -201,7 +198,7 @@ mod tests {
             Template {
                 tpl_str: String::from("{var|modifier:var2}"),
                 tpl: vec![Statement::Calculated {
-                    var_name: "var",
+                    value: StorageMethod::Variable("var"),
                     modifiers: vec![("modifier", vec![StorageMethod::Variable("var2")])]
                 }]
             }
@@ -219,7 +216,28 @@ mod tests {
             Template {
                 tpl_str: String::from(r#"{var|modifier:-32.09}"#),
                 tpl: vec![Statement::Calculated {
-                    var_name: "var",
+                    value: StorageMethod::Variable("var"),
+                    modifiers: vec![(
+                        "modifier",
+                        vec![StorageMethod::Const(Value::Number(-32.09))]
+                    )]
+                }]
+            }
+        )
+    }
+
+    #[test]
+    fn parse_template_single_computed_literal_before_modifier() {
+        let template = String::from(r#"{10|modifier:-32.09}"#);
+        let template = parse(template);
+        assert!(template.is_ok());
+        let template = template.unwrap();
+        assert_eq!(
+            template,
+            Template {
+                tpl_str: String::from(r#"{10|modifier:-32.09}"#),
+                tpl: vec![Statement::Calculated {
+                    value: StorageMethod::Const(Value::Number(10.0)),
                     modifiers: vec![(
                         "modifier",
                         vec![StorageMethod::Const(Value::Number(-32.09))]
@@ -240,7 +258,7 @@ mod tests {
             Template {
                 tpl_str: String::from(r#"{var|modifier:-32.09:"argument":var2:true}"#),
                 tpl: vec![Statement::Calculated {
-                    var_name: "var",
+                    value: StorageMethod::Variable("var"),
                     modifiers: vec![(
                         "modifier",
                         vec![
@@ -312,6 +330,11 @@ mod pest_tests {
         test_cases(&cases, Rule::string)
     }
 
+    #[test]
+    fn string_before_modifier() {
+        test_cases(&[r#"{"test"|modifier:arg}"#], Rule::calculated)
+    }
+
     fn test_cases(cases: &[&str], rule: Rule) {
         cases.iter().for_each(|input| {
             let parsed = TemplateParser::parse(rule, input);
@@ -345,12 +368,12 @@ mod legacy_tests {
             vec![
                 Statement::Literal("Simple " as *const _),
                 Statement::Calculated {
-                    var_name: "var" as *const _,
+                    value: StorageMethod::Variable("var"),
                     modifiers: vec![]
                 },
                 Statement::Literal(" template " as *const _),
                 Statement::Calculated {
-                    var_name: "foo",
+                    value: StorageMethod::Variable("foo"),
                     modifiers: vec![]
                 }
             ],
@@ -365,7 +388,7 @@ mod legacy_tests {
             vec![
                 Statement::Literal("Simple " as *const _),
                 Statement::Calculated {
-                    var_name: "var" as *const _,
+                    value: StorageMethod::Variable("var"),
                     modifiers: vec![("test" as *const _, vec![])]
                 },
                 Statement::Literal(" template" as *const _)
@@ -381,7 +404,7 @@ mod legacy_tests {
             vec![
                 Statement::Literal("Simple " as *const _),
                 Statement::Calculated {
-                    var_name: "var" as *const _,
+                    value: StorageMethod::Variable("var"),
                     modifiers: vec![(
                         "test" as *const _,
                         vec![StorageMethod::Const(Value::String(
@@ -402,7 +425,7 @@ mod legacy_tests {
             vec![
                 Statement::Literal("Simple " as *const _),
                 Statement::Calculated {
-                    var_name: "var" as *const _,
+                    value: StorageMethod::Variable("var"),
                     modifiers: vec![(
                         "test" as *const _,
                         vec![StorageMethod::Const(Value::Number(42_f64))]
@@ -421,7 +444,7 @@ mod legacy_tests {
             vec![
                 Statement::Literal("Simple " as *const _),
                 Statement::Calculated {
-                    var_name: "var" as *const _,
+                    value: StorageMethod::Variable("var"),
                     modifiers: vec![("test" as *const _, vec![StorageMethod::Variable("foobar")])]
                 },
                 Statement::Literal(" template" as *const _)

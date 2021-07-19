@@ -29,19 +29,20 @@ impl ToString for Value {
     }
 }
 
-impl <'a> TryFrom<&'a Value> for &'a str {
-
+impl<'a> TryFrom<&'a Value> for &'a str {
     type Error = TypeError;
     fn try_from(value: &'a Value) -> Result<Self, Self::Error> {
         match value {
             Value::String(s) => {
                 let s = &s[..];
                 Ok(s)
-            },
-            _ => Err(TypeError{ expected_type: stringify!(&str), storage_type: stringify!(String)})
+            }
+            _ => Err(TypeError {
+                expected_type: stringify!(&str),
+                storage_type: stringify!(String),
+            }),
         }
     }
-
 }
 
 macro_rules! value_impl {

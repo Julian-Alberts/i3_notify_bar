@@ -19,14 +19,16 @@ pub fn render<'a, 't>(
                 // literal points to tpl.tpl_str and should never be null
                 tpl_string.push_str(literal.as_ref().unwrap())
             },
-            Statement::Calculated {
-                var_name,
-                modifiers,
-            } => {
-                // var_name points to tpl.tpl_str and should never be null
-                let var_name = unsafe { var_name.as_ref().unwrap() };
-                let var = variables.get(var_name);
-                let mut var = var.ok_or(ErrorKind::UnknownVariable(var_name))?.to_owned();
+            Statement::Calculated { value, modifiers } => {
+                let mut var = match value {
+                    StorageMethod::Const(var) => var.to_owned(),
+                    StorageMethod::Variable(var_name) => {
+                        // var_name points to tpl.tpl_str and should never be null
+                        let var_name = unsafe { var_name.as_ref().unwrap() };
+                        let var = variables.get(var_name);
+                        var.ok_or(ErrorKind::UnknownVariable(var_name))?.to_owned()
+                    }
+                };
 
                 for (modifier_name, args) in modifiers {
                     // modifier_name points to tpl.tpl_str and should never be null
@@ -42,7 +44,7 @@ pub fn render<'a, 't>(
                         Err(e) => {
                             let error = e.to_string();
                             error!("{}", error);
-                            return Err(ErrorKind::ModifierError(e))
+                            return Err(ErrorKind::ModifierError(e));
                         }
                     };
                 }

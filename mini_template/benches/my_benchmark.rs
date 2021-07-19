@@ -1,10 +1,9 @@
 use std::collections::HashMap;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use mini_template::{MiniTemplate, value::Value};
+use mini_template::{value::Value, MiniTemplate};
 
 fn criterion_benchmark(c: &mut Criterion) {
-    
     c.bench_function("simple template", |b| b.iter(|| {
         let mut mini = MiniTemplate::default();
         mini.add_template(black_box("test_template"), black_box(String::from("Hello {var|upper}! \n {var2|repeat:10}")))
