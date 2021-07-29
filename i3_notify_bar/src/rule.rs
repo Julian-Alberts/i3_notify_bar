@@ -1,8 +1,9 @@
+pub use crate::config_parser::parse_config;
 use notify_server::notification::Notification;
 use regex::Regex;
-pub use crate::config_parser::parse_config;
 
 use crate::{
+    emoji,
     notification_bar::{NotificationData, NotificationTemplateData},
     template,
 };
@@ -39,7 +40,9 @@ impl SetProperty {
     pub fn set(&self, nd: &mut NotificationData, n: &NotificationTemplateData) {
         match self {
             Self::Icon(i) => nd.icon = *i,
-            Self::Text(i) => nd.text = template::render_template(i, n),
+            Self::Text(i) => {
+                nd.text = emoji::handle(template::render_template(i, n), &nd.emoji_mode)
+            }
             Self::ExpireTimeout(i) => nd.expire_timeout = *i,
             Self::Id(i) => nd.id = i.clone(),
         }
@@ -149,7 +152,8 @@ mod tests {
 
         #[test]
         fn summary_literal() {
-            let condition = Conditions::Summary(ConditionTypeString::Literal(String::from("summary")));
+            let condition =
+                Conditions::Summary(ConditionTypeString::Literal(String::from("summary")));
             let mut n = new_notification();
             n.summary = String::from("summary");
             assert!(condition.is_match(&n));
@@ -159,7 +163,8 @@ mod tests {
 
         #[test]
         fn summary_regex() {
-            let condition = Conditions::Summary(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
+            let condition =
+                Conditions::Summary(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
             let mut n = new_notification();
             n.summary = String::from("summary");
             assert!(condition.is_match(&n));
@@ -179,7 +184,8 @@ mod tests {
 
         #[test]
         fn body_regex() {
-            let condition = Conditions::Body(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
+            let condition =
+                Conditions::Body(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
             let mut n = new_notification();
             n.body = String::from("body");
             assert!(condition.is_match(&n));

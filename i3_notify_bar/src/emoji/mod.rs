@@ -1,32 +1,35 @@
+use std::str::FromStr;
+
 mod ignore;
 #[cfg(feature = "emoji_mode_remove")]
 mod remove;
 #[cfg(feature = "emoji_mode_replace")]
 mod replace;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum EmojiMode {
     Ignore,
-    #[cfg(feature = "emoji_mode_remove")]
     Remove,
-    #[cfg(feature = "emoji_mode_replace")]
-    Replace
+    Replace,
 }
 
-impl Default for EmojiMode {
+impl FromStr for EmojiMode {
+    type Err = String;
 
-    fn default() -> Self {
-        EmojiMode::Ignore
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "remove" => EmojiMode::Remove,
+            "replace" => EmojiMode::Replace,
+            "ignore" => EmojiMode::Ignore,
+            _ => return Err(format!("Unknown emoji mode {}", s)),
+        })
     }
-
 }
 
-pub fn handle(text: String, mode: EmojiMode) -> String {
+pub fn handle(text: String, mode: &EmojiMode) -> String {
     match mode {
         EmojiMode::Ignore => ignore::handle(text),
-        #[cfg(feature = "emoji_mode_remove")]
         EmojiMode::Remove => remove::handle(text),
-        #[cfg(feature = "emoji_mode_replace")]
-        EmojiMode::Replace => replace::handle(text)
+        EmojiMode::Replace => replace::handle(text),
     }
 }

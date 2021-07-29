@@ -1,9 +1,17 @@
 use clap::Clap;
 use log::LevelFilter;
 
+use crate::emoji::EmojiMode;
+
 #[derive(Clap, Debug)]
 #[clap(version = include_str!("../version.txt"), author = "Julian Alberts")]
 pub struct Args {
+    #[clap(
+        long,
+        default_value = "ignore",
+        about = r#"Allowed values: "ignore", "remove", "replace""#
+    )]
+    emoji_mode: EmojiMode,
     #[clap(
         long,
         default_value = "off",
@@ -59,5 +67,8 @@ impl Args {
 
     pub fn animation_chars_per_second(&self) -> usize {
         self.animation_chars_per_second
+    }
+    pub fn emoji_mode(&self) -> EmojiMode {
+        self.emoji_mode.clone()
     }
 }

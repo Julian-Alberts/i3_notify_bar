@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::sync::RwLock;
 use std::time::SystemTime;
 
+use crate::emoji::EmojiMode;
 use crate::{icons, rule::Action};
 use log::{debug, info};
 use notify_server::{notification::Notification, Event, Observer};
@@ -13,14 +14,16 @@ pub struct NotificationManager {
     notifications: Vec<Arc<RwLock<NotificationData>>>,
     events: Vec<NotificationEvent>,
     definitions: Vec<Definition>,
+    default_emoji_mode: EmojiMode,
 }
 
 impl NotificationManager {
-    pub fn new(definitions: Vec<Definition>) -> Self {
+    pub fn new(definitions: Vec<Definition>, default_emoji_mode: EmojiMode) -> Self {
         Self {
             notifications: Vec::new(),
             events: Vec::new(),
             definitions,
+            default_emoji_mode,
         }
     }
 
@@ -37,6 +40,7 @@ impl NotificationManager {
             id: n.id.to_string(),
             style: Vec::new(),
             text: n.summary.clone(),
+            emoji_mode: self.default_emoji_mode.clone(),
         };
         debug!("Notification Data: {:#?}", notification_data);
 
@@ -64,7 +68,11 @@ impl NotificationManager {
 
             match definition {
                 Some((index, definition)) => {
-                    debug!("Matched definition {} {:#?}", last_definition_id + index, definition.conditions);
+                    debug!(
+                        "Matched definition {} {:#?}",
+                        last_definition_id + index,
+                        definition.conditions
+                    );
                     last_definition_id += index + 1;
 
                     for action in &definition.actions {
@@ -147,6 +155,7 @@ pub struct NotificationData {
     pub icon: char,
     pub text: String,
     pub style: Vec<Style>,
+    pub emoji_mode: EmojiMode,
 }
 
 #[derive(Debug, Serialize)]

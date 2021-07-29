@@ -20,5 +20,4 @@ mod tests {
     fn text_with_multi_char_emoji() {
         unimplemented!()
     }
-
 }

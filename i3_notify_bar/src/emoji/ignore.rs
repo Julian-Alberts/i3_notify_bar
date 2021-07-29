@@ -10,5 +10,4 @@ mod tests {
         let text = String::from("Hello world!");
         assert_eq!(super::handle(text), String::from("Hello world!"));
     }
-
 }

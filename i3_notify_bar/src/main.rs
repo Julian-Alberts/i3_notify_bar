@@ -46,7 +46,10 @@ fn main() {
     let mut manager = ComponentManagerBuilder::new()
         .with_click_events(true)
         .build();
-    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(config)));
+    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(
+        config,
+        args.emoji_mode(),
+    )));
     notify_server.add_observer(notification_manager.clone());
 
     loop {

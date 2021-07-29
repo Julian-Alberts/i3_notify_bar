@@ -1,18 +1,15 @@
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::io::BufRead;
-use std::error::Error;
 
 use log::info;
 use pest::error::LineColLocation;
-use pest::{
-    iterators::Pair,
-    Parser,
-};
+use pest::{iterators::Pair, Parser};
 use regex::Regex;
 
 use crate::{
     icons,
-    rule::{Action, Definition, Conditions as Condition, ConditionTypeString, SetProperty, Style},
+    rule::{Action, ConditionTypeString, Conditions as Condition, Definition, SetProperty, Style},
     template,
 };
 
@@ -34,9 +31,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<Vec<Definition>> {
     let config = ConfigParser::parse(Rule::config, &config);
     let config = match config {
         Ok(config) => config,
-        Err(e) => {
-            return Err(ParseError::from(e.line_col))
-        },
+        Err(e) => return Err(ParseError::from(e.line_col)),
     }
     .next()
     .unwrap();
@@ -103,7 +98,7 @@ fn parse_condition_section(condition_section: Pair<Rule>, conditions: &mut Vec<C
         .into_inner()
         .filter(|condition| match condition.as_rule() {
             Rule::condition => true,
-            _ => false
+            _ => false,
         })
         .map(parse_condition)
         .fold(conditions, |list, condition| {
@@ -144,7 +139,7 @@ fn parse_string_condition(string_condition: Pair<Rule>) -> Condition {
     let condition_type = match eq {
         Rule::compare_eq => ConditionTypeString::Literal(value.to_owned()),
         Rule::compare_match => ConditionTypeString::Regex(Regex::new(value).unwrap()),
-        _ => panic!()
+        _ => panic!(),
     };
 
     match name {
@@ -164,7 +159,7 @@ fn parse_legacy_condition(legacy_condition: Pair<Rule>) -> Condition {
         Rule::app_icon => Condition::AppIcon(value),
         Rule::app_name => Condition::AppName(value),
         Rule::urgency => Condition::Urgency(value),
-        _ => panic!()
+        _ => panic!(),
     }
 }
 
@@ -190,30 +185,25 @@ fn parse_style(style: Pair<Rule>) -> Style {
     }
 }
 
-
 pub type ParseResult<T> = Result<T, ParseError>;
 
 #[derive(Debug)]
 pub struct ParseError {
-    line_col_location: LineColLocation
+    line_col_location: LineColLocation,
 }
 
 impl From<LineColLocation> for ParseError {
-
     fn from(loc: LineColLocation) -> Self {
         Self {
-            line_col_location: loc
+            line_col_location: loc,
         }
     }
-
 }
 
 impl Display for ParseError {
-    
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:#?}", self.line_col_location)
     }
-
 }
 
 impl Error for ParseError {}
