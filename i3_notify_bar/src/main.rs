@@ -1,6 +1,7 @@
 mod args;
 mod components;
 mod config_parser;
+mod emoji;
 mod icons;
 mod notification_bar;
 mod rule;

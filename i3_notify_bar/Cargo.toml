@@ -22,8 +22,10 @@ pest_derive = "2.0"
 [features]
 fa_icons = []
 mini_template_render = []
-default = ["fa_icons", "mini_template_render"]
-all = ["fa_icons", "mini_template_render"]
+emoji_mode_replace = []
+emoji_mode_remove = []
+emoji_modes = ["emoji_mode_remove", "emoji_mode_replace"]
+default = ["fa_icons", "mini_template_render", "emoji_modes"]
 
 [profile.release]
 opt-level = 3
