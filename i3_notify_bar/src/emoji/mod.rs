@@ -10,6 +10,7 @@ mod replace;
 pub enum EmojiMode {
     Ignore,
     Remove,
+    #[allow(dead_code)]
     Replace,
 }
 
@@ -19,6 +20,7 @@ impl FromStr for EmojiMode {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "remove" => EmojiMode::Remove,
+            #[cfg(emoji_mode_replace)]
             "replace" => EmojiMode::Replace,
             "ignore" => EmojiMode::Ignore,
             _ => return Err(format!("Unknown emoji mode {}", s)),

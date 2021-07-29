@@ -1,4 +1,4 @@
-pub fn handle(mut text: String) -> String {
+pub fn handle(text: String) -> String {
     text
 }
 
