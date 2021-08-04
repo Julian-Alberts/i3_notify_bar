@@ -374,6 +374,7 @@ version = "1.6.0"
 dependencies = [
  "clap",
  "i3_bar_components",
+ "lazy_static",
  "log",
  "mini_template",
  "notify_server",

@@ -22,6 +22,9 @@ use std::{
 #[macro_use]
 extern crate pest_derive;
 
+#[macro_use]
+extern crate lazy_static;
+
 fn main() {
     let args: Args = Args::parse();
     logger::init(args.log_level(), args.log_file());

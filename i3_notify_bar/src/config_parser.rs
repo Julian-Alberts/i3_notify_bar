@@ -108,7 +108,6 @@ fn parse_condition_section(condition_section: Pair<Rule>, conditions: &mut Vec<C
 }
 
 fn parse_condition(condition: Pair<Rule>) -> Condition {
-    println!("{:#?}", condition);
     let condition = condition.into_inner().next().unwrap();
     match condition.as_rule() {
         Rule::number_condition => parse_number_condition(condition),
