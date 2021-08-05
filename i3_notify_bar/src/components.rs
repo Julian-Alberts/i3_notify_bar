@@ -74,7 +74,7 @@ impl NotificationComponent {
         Self {
             close_type,
             label,
-            id: format!("{}", nd.id),
+            id: nd.id.to_owned(),
             notification_manager,
             padding_r,
             icon: nd.icon,
@@ -175,17 +175,11 @@ enum CloseType {
 
 impl CloseType {
     fn is_button(&self) -> bool {
-        match self {
-            Self::Button(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Button(_))
     }
 
     fn is_timer(&self) -> bool {
-        match self {
-            Self::Timer(_) => true,
-            _ => false,
-        }
+        matches!(self, Self::Timer(_))
     }
 
     fn is_finished(&self) -> bool {
@@ -318,7 +312,7 @@ impl ToString for AnimatedText {
 
         format!(
             "{text: <width$}",
-            text = chars.into_iter().collect::<String>(),
+            text = chars.iter().collect::<String>(),
             width = self.max_width
         )
     }

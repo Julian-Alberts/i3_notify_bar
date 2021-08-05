@@ -1,3 +1,4 @@
+/// simply returns string
 pub fn handle(text: String) -> String {
     text
 }

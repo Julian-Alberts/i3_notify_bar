@@ -21,12 +21,16 @@ pub fn handle(text: String) -> String {
     new_text
 }
 
+/// Store and find emoji based on chars
 #[derive(Debug, Default)]
 struct EmojiTree {
     branches: HashMap<u32, EmojitreeEntry>,
 }
 
 impl EmojiTree {
+    /// Insert new emoji replacement.
+    /// Path should be an iterator of u32 which each represend a single char in a given emoji.
+    /// Returns old replacement if a replacement has allready been defined at a given path.
     pub fn insert(&mut self, mut path: impl Iterator<Item = u32>, value: String) -> Option<String> {
         let key = path.next().unwrap();
 
@@ -41,7 +45,9 @@ impl EmojiTree {
         .insert(path, value)
     }
 
-    pub fn find_emoji<'slice, 'name>(
+    /// Iterates over iterator until the end of an emoji has been found.
+    /// Returns Option::None if char iterator does not start with a emoji or iterator is empty
+    pub fn find_emoji<'name>(
         &'name self,
         chars: &mut Peekable<impl Iterator<Item = char>>,
     ) -> Option<&'name str> {
@@ -58,6 +64,12 @@ impl EmojiTree {
 
 impl FromStr for EmojiTree {
     type Err = String;
+    /// Generate emoji tree from String
+    /// Returns with error if a single line coud not be read.
+    ///
+    /// Each line will be interpreted as a entry. Empty lines will rais errors.
+    /// each line start with the utf8 code of an emoji as a hexadecimal number.
+    /// If an emoji consists of more than one char they sould be sperated by a '_'
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut tree = EmojiTree {
             branches: HashMap::default(),

@@ -96,10 +96,7 @@ fn parse_set_action(set_action: Pair<Rule>) -> Action {
 fn parse_condition_section(condition_section: Pair<Rule>, conditions: &mut Vec<Condition>) {
     condition_section
         .into_inner()
-        .filter(|condition| match condition.as_rule() {
-            Rule::condition => true,
-            _ => false,
-        })
+        .filter(|condition| matches!(condition.as_rule(), Rule::condition))
         .map(parse_condition)
         .fold(conditions, |list, condition| {
             list.push(condition);
