@@ -6,10 +6,18 @@ use crate::emoji::EmojiMode;
 #[derive(Clap, Debug)]
 #[clap(version = include_str!("../version.txt"), author = "Julian Alberts")]
 pub struct Args {
+    #[cfg(emoji_mode_replace)]
     #[clap(
         long,
         default_value = "ignore",
         about = r#"Allowed values: "ignore", "remove", "replace""#
+    )]
+    emoji_mode: EmojiMode,
+    #[cfg(not(emoji_mode_replace))]
+    #[clap(
+        long,
+        default_value = "ignore",
+        about = r#"Allowed values: "ignore", "remove""#
     )]
     emoji_mode: EmojiMode,
     #[clap(

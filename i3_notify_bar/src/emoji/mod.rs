@@ -1,16 +1,15 @@
 use std::str::FromStr;
 
 mod ignore;
-#[cfg(feature = "emoji_mode_remove")]
 mod remove;
-#[cfg(feature = "emoji_mode_replace")]
+#[cfg(emoji_mode_replace)]
 mod replace;
 
 #[derive(Debug, Clone)]
 pub enum EmojiMode {
     Ignore,
     Remove,
-    #[allow(dead_code)]
+    #[cfg(emoji_mode_replace)]
     Replace,
 }
 
@@ -32,6 +31,7 @@ pub fn handle(text: String, mode: &EmojiMode) -> String {
     match mode {
         EmojiMode::Ignore => ignore::handle(text),
         EmojiMode::Remove => remove::handle(text),
+        #[cfg(emoji_mode_replace)]
         EmojiMode::Replace => replace::handle(text),
     }
 }

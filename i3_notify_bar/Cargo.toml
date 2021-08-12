@@ -24,9 +24,7 @@ lazy_static = "1.4.0"
 fa_icons = []
 mini_template_render = []
 emoji_mode_replace = []
-emoji_mode_remove = []
-emoji_modes = ["emoji_mode_remove", "emoji_mode_replace"]
-default = ["fa_icons", "mini_template_render", "emoji_modes"]
+default = ["fa_icons", "mini_template_render", "emoji_mode_replace"]
 
 [profile.release]
 opt-level = 3
