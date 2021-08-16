@@ -4,6 +4,7 @@ mod config_parser;
 mod emoji;
 mod icons;
 mod notification_bar;
+mod path_manager;
 mod rule;
 mod template;
 
@@ -13,6 +14,7 @@ use components::NotificationComponent;
 use i3_bar_components::{components::Label, ComponentManagerBuilder};
 use log::error;
 use notification_bar::{NotificationEvent, NotificationManager};
+use path_manager::PathManager;
 use std::{
     io::BufReader,
     sync::{Arc, Mutex},
@@ -27,33 +29,36 @@ extern crate pest_derive;
 extern crate lazy_static;
 
 fn main() {
-    let args: Args = Args::parse();
-    logger::init(args.log_level(), args.log_file());
+    let mut path_manager = PathManager::default();
+    let Args {
+        emoji_mode,
+        log_level,
+        log_file,
+        refresh_rate,
+        max_text_length,
+        animation_chars_per_second,
+        config_file,
+    } = Args::parse();
 
-    let config;
-    match args.config_file() {
-        Some(path) => {
-            let config_file = std::fs::File::open(path).unwrap();
-            let mut config_file = BufReader::new(config_file);
-            config = match rule::parse_config(&mut config_file) {
-                Ok(r) => r,
-                Err(e) => {
-                    error!("{}", e.to_string());
-                    print_error(e.to_string());
-                }
-            };
-        }
-        None => config = Vec::new(),
+    if let Some(file) = config_file {
+        path_manager.set_config_file(file)
     }
+
+    if let Some(file) = log_file {
+        path_manager.set_log_file(file);
+    }
+
+    logger::init(log_level, path_manager.log_file());
+
+    let config = read_config(path_manager.config_file());
+
+    drop(path_manager);
 
     let mut notify_server = notify_server::NotifyServer::start();
     let mut manager = ComponentManagerBuilder::new()
         .with_click_events(true)
         .build();
-    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(
-        config,
-        args.emoji_mode(),
-    )));
+    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(config, emoji_mode)));
     notify_server.add_observer(notification_manager.clone());
 
     loop {
@@ -69,8 +74,8 @@ fn main() {
                     Some(c) => c.update_notification(&n),
                     None => manager.add_component(Box::new(NotificationComponent::new(
                         &n,
-                        args.max_text_length(),
-                        args.animation_chars_per_second(),
+                        max_text_length,
+                        animation_chars_per_second,
                         Arc::clone(&notification_manager),
                     ))),
                 }
@@ -79,7 +84,30 @@ fn main() {
         });
 
         manager.update();
-        std::thread::sleep(Duration::from_millis(args.refresh_rate()));
+        std::thread::sleep(Duration::from_millis(refresh_rate));
+    }
+}
+
+fn read_config(config_file: &Option<String>) -> Vec<crate::rule::Definition> {
+    match config_file {
+        Some(path) => {
+            let config_file = match std::fs::File::open(path) {
+                Ok(f) => f,
+                Err(e) => {
+                    error!("Could not open file {} error: {:#?}", path, e);
+                    return Vec::new();
+                }
+            };
+            let mut config_file = BufReader::new(config_file);
+            match rule::parse_config(&mut config_file) {
+                Ok(r) => r,
+                Err(e) => {
+                    error!("{}", e.to_string());
+                    print_error(e.to_string());
+                }
+            }
+        }
+        None => Vec::new(),
     }
 }
 
@@ -100,19 +128,37 @@ fn print_error(data: String) -> ! {
 }
 
 mod logger {
-    use std::fs::OpenOptions;
+    use std::{fs::OpenOptions, path::Path};
 
     use log::LevelFilter;
     use simplelog::{ColorChoice, CombinedLogger, Config, SharedLogger, TermLogger, WriteLogger};
 
-    pub fn init(level_filer: &LevelFilter, log_file: &Option<String>) {
+    pub fn init(level_filter: LevelFilter, log_file: &Option<String>) {
         let logger: Box<dyn SharedLogger> = match &log_file {
             Some(path) => {
+                let path = Path::new(path);
+                if let Some(parent) = path.parent() {
+                    match std::fs::create_dir_all(parent) {
+                        Ok(()) => {}
+                        Err(e) => {
+                            log::error!(
+                                "Failed to create folder {} Error: {}",
+                                parent.to_str().unwrap(),
+                                e
+                            );
+                            super::print_error(format!(
+                                "Error trying to create config folder at {} Error: {}",
+                                parent.to_str().unwrap(),
+                                e
+                            ))
+                        }
+                    }
+                }
                 let file = OpenOptions::new().create(true).append(true).open(path);
                 match file {
-                    Ok(file) => WriteLogger::new(level_filer.to_owned(), Config::default(), file),
+                    Ok(file) => WriteLogger::new(level_filter, Config::default(), file),
                     Err(_) => TermLogger::new(
-                        level_filer.to_owned(),
+                        level_filter,
                         Config::default(),
                         simplelog::TerminalMode::Stderr,
                         ColorChoice::Auto,
@@ -120,7 +166,7 @@ mod logger {
                 }
             }
             None => TermLogger::new(
-                level_filer.to_owned(),
+                level_filter,
                 Config::default(),
                 simplelog::TerminalMode::Stderr,
                 ColorChoice::Auto,
