@@ -10,7 +10,7 @@ static mut NEXT_TEMPLATE_ID: u64 = 0;
 pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> String {
     let mut data = HashMap::with_capacity(5);
 
-    data.insert(
+    data.insert( 
         "app_name".to_string(),
         Value::String(context.app_name.to_owned()),
     );

@@ -24,7 +24,7 @@ use std::{
 #[macro_use]
 extern crate pest_derive;
 
-#[cfg(emoji_mode_replace)]
+#[cfg(feature = "emoji_mode_replace")]
 #[macro_use]
 extern crate lazy_static;
 

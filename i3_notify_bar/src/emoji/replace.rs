@@ -97,16 +97,7 @@ impl FromStr for EmojiTree {
                     .unwrap_or_else(|_| panic!("Can not parse {} as u32", hex))
             });
 
-            let mut name = name
-                .chars()
-                .map(|c| if c.is_alphanumeric() { c } else { '_' })
-                .fold(String::from(':'), |mut s, c| {
-                    s.push(c);
-                    s
-                });
-            name.push(':');
-            name = name.replace("__", "_");
-            tree.insert(chars_iter, name);
+            tree.insert(chars_iter, name.to_owned());
         }
 
         Ok(tree)
@@ -205,7 +196,7 @@ mod tests {
     #[test]
     fn create_emoji_tree_from_string() {
         use std::str::FromStr;
-        let tree = super::EmojiTree::from_str(r#"ff00_fffff_1234 test value"#);
+        let tree = super::EmojiTree::from_str(r#"ff00_fffff_1234 :test_value:"#);
         assert!(tree.is_ok(), "{:#?}", tree);
         let tree = tree.unwrap();
         let tree_entry = tree.branches.get(&0xff00);
