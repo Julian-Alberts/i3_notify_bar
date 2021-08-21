@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 use zvariant::Value;
 
 #[derive(Debug, Clone, Serialize)]
@@ -52,6 +52,21 @@ pub enum Urgency {
     Low,
     Normal,
     Critical,
+}
+
+impl FromStr for Urgency {
+
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "low" => Urgency::Low,
+            "normal" => Urgency::Normal,
+            "critical" => Urgency::Critical,
+            _ => return Err(format!("Can not convert {} to urgency", s))
+        })
+    }
+
 }
 
 fn get_urgency(value: Value) -> Urgency {

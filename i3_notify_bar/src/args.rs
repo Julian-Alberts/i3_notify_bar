@@ -1,5 +1,6 @@
 use clap::Clap;
 use log::LevelFilter;
+use notify_server::notification::Urgency;
 
 use crate::emoji::EmojiMode;
 
@@ -50,4 +51,30 @@ pub struct Args {
     )]
     pub animation_chars_per_second: usize,
     pub config_file: Option<String>,
+    #[clap(subcommand)]
+    pub command: Option<Command>
+}
+
+#[derive(Clap, Debug)]
+pub enum Command {
+    DebugConfig(DebugConfig),
+    Run
+}
+
+#[derive(Clap, Debug)]
+pub struct DebugConfig {
+    #[clap(long, default_value = "")]
+    pub app_name: String,
+    #[clap(long, default_value = "0")]
+    pub id: u32,
+    #[clap(long, default_value = "")]
+    pub app_icon: String,
+    #[clap(long, default_value = "")]
+    pub summary: String,
+    #[clap(long, default_value = "")]
+    pub body: String,
+    #[clap(long, default_value = "normal")]
+    pub urgency: Urgency,
+    #[clap(long, default_value = "0")]
+    pub expire_timeout: i32,
 }

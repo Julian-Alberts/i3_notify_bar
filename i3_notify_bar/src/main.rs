@@ -1,6 +1,7 @@
 mod args;
 mod components;
 mod config_parser;
+mod debug_config;
 mod emoji;
 mod icons;
 mod notification_bar;
@@ -11,10 +12,12 @@ mod template;
 use args::Args;
 use clap::Clap;
 use components::NotificationComponent;
+use emoji::EmojiMode;
 use i3_bar_components::{components::Label, ComponentManagerBuilder};
 use log::error;
 use notification_bar::{NotificationEvent, NotificationManager};
 use path_manager::PathManager;
+use rule::Definition;
 use std::{
     io::BufReader,
     sync::{Arc, Mutex},
@@ -38,6 +41,7 @@ fn main() {
         max_text_length,
         animation_chars_per_second,
         config_file,
+        command
     } = Args::parse();
 
     if let Some(file) = config_file {
@@ -54,6 +58,20 @@ fn main() {
 
     drop(path_manager);
 
+    match command {
+        Some(args::Command::Run) | None => run(config, emoji_mode, max_text_length, animation_chars_per_second, refresh_rate),
+        Some(args::Command::DebugConfig(dc)) => debug_config::debug_config(config, emoji_mode, dc)
+    }
+    
+}
+
+fn run(
+    config: Vec<Definition>, 
+    emoji_mode: EmojiMode, 
+    max_text_length: usize, 
+    animation_chars_per_second: usize, 
+    refresh_rate: u64
+) -> ! {
     let mut notify_server = notify_server::NotifyServer::start();
     let mut manager = ComponentManagerBuilder::new()
         .with_click_events(true)

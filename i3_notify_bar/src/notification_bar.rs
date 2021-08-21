@@ -142,6 +142,7 @@ impl Observer<Event> for NotificationManager {
     }
 }
 
+#[derive(Debug)]
 pub enum NotificationEvent {
     Remove(String),
     Add(Arc<RwLock<NotificationData>>),
