@@ -1,13 +1,13 @@
 use notify_server::notification::Notification;
 
-use crate::{args::DebugConfig, emoji::EmojiMode, notification_bar::{NotificationEvent, NotificationManager}, rule::Definition};
+use crate::{
+    args::DebugConfig,
+    emoji::EmojiMode,
+    notification_bar::{execute_rules, NotificationData, NotificationTemplateData},
+    rule::Definition,
+};
 
-pub fn debug_config(config: Vec<Definition>, emoji_mode: EmojiMode, debug_config: DebugConfig) {
-    use notify_server::Observer;
-    use notify_server::Event;
-
-    let mut nm = NotificationManager::new(config, emoji_mode);
-
+pub fn debug_config(config: &Vec<Definition>, emoji_mode: EmojiMode, debug_config: DebugConfig) {
     let DebugConfig {
         app_icon,
         app_name,
@@ -15,30 +15,41 @@ pub fn debug_config(config: Vec<Definition>, emoji_mode: EmojiMode, debug_config
         expire_timeout,
         id,
         summary,
-        urgency: _
+        urgency: _,
     } = debug_config;
 
-    nm.on_notify(
-        &Event::Notify(
-            Notification::new(
-                app_name, id, app_icon, summary, body, Vec::new(), std::collections::HashMap::new(), expire_timeout
-            )
-        )
+    let notification = Notification::new(
+        app_name,
+        id,
+        app_icon,
+        summary,
+        body,
+        Vec::new(),
+        std::collections::HashMap::new(),
+        expire_timeout,
     );
 
-    nm.get_events().into_iter().for_each(|e| {
-        let e = if let NotificationEvent::Add(e) = e {
-            e
-        } else {
-            unreachable!()
-        };
+    let mut notification_data = NotificationData::new(&notification, emoji_mode);
 
-        let e = e.read().unwrap();
+    let notification_template_data = NotificationTemplateData::from(&notification);
 
-        println!(
-            "id: {}\nexpire_timeout: {}\nicon: {}\ntext: {}\nstyle: {:#?}\nemoji_mode: {:#?}", 
-            e.id, e.expire_timeout, e.icon, e.text, e.style, e.emoji_mode
-        );
+    let matched_rules = execute_rules(
+        config,
+        &notification,
+        notification_template_data,
+        &mut notification_data,
+    );
 
-    });
+    println!("##### Matched Rules #####");
+    matched_rules.iter().for_each(|r| println!("{}", r));
+
+    println!(
+        "##### Notification #####\nid: {}\nexpire_timeout: {}\nicon: {}\ntext: {}\nstyle: {:#?}\nemoji_mode: {:#?}",
+        notification_data.id,
+        notification_data.expire_timeout,
+        notification_data.icon,
+        notification_data.text,
+        notification_data.style,
+        notification_data.emoji_mode
+    );
 }

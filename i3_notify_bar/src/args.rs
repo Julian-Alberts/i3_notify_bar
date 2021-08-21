@@ -52,13 +52,13 @@ pub struct Args {
     pub animation_chars_per_second: usize,
     pub config_file: Option<String>,
     #[clap(subcommand)]
-    pub command: Option<Command>
+    pub command: Option<Command>,
 }
 
 #[derive(Clap, Debug)]
 pub enum Command {
     DebugConfig(DebugConfig),
-    Run
+    Run,
 }
 
 #[derive(Clap, Debug)]

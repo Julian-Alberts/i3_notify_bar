@@ -27,29 +27,23 @@ impl NotificationManager {
         }
     }
 
-    fn notify(&mut self, n: &Notification) {
+    fn notify(&mut self, notification: &Notification) {
         info!(
             r#"Got new notification app_name "{}" summary "{}" body "{}""#,
-            n.app_name, n.summary, n.body
+            notification.app_name, notification.summary, notification.body
         );
-        debug!("Notification: {:#?}", n);
+        debug!("Notification: {:#?}", notification);
 
-        let mut notification_data = NotificationData {
-            expire_timeout: n.expire_timeout,
-            icon: icons::get_icon(&n.app_name).unwrap_or(' '),
-            id: n.id.to_string(),
-            style: Vec::new(),
-            text: n.summary.clone(),
-            emoji_mode: self.default_emoji_mode.clone(),
-        };
+        let mut notification_data =
+            NotificationData::new(&notification, self.default_emoji_mode.clone());
         debug!("Notification Data: {:#?}", notification_data);
 
         let notification_template_data = NotificationTemplateData {
-            app_name: n.app_name.clone(),
-            icon: n.app_icon.clone(),
-            summary: n.summary.clone(),
-            body: n.body.clone(),
-            expire_timeout: n.expire_timeout,
+            app_name: notification.app_name.clone(),
+            icon: notification.app_icon.clone(),
+            summary: notification.summary.clone(),
+            body: notification.body.clone(),
+            expire_timeout: notification.expire_timeout,
             time: SystemTime::now(),
         };
         debug!(
@@ -57,41 +51,12 @@ impl NotificationManager {
             notification_template_data
         );
 
-        let mut last_definition_id = 0;
-        let mut read_next_definition = true;
-
-        while read_next_definition {
-            let definition = self.definitions[last_definition_id..]
-                .iter()
-                .enumerate()
-                .find(|(_, r)| r.matches(&n));
-
-            match definition {
-                Some((index, definition)) => {
-                    debug!(
-                        "Matched definition {} {:#?}",
-                        last_definition_id + index,
-                        definition.conditions
-                    );
-                    last_definition_id += index + 1;
-
-                    for action in &definition.actions {
-                        match action {
-                            Action::Ignore => {
-                                debug!("Ignore Message");
-                                return;
-                            }
-                            Action::Set(set_property) => set_property
-                                .set(&mut notification_data, &notification_template_data),
-                            Action::Stop => read_next_definition = false,
-                        }
-                    }
-
-                    notification_data.style.extend(definition.style.clone());
-                }
-                None => read_next_definition = false,
-            }
-        }
+        execute_rules(
+            &self.definitions,
+            notification,
+            notification_template_data,
+            &mut notification_data,
+        );
 
         debug!("Finished definitions");
         debug!("Final notification_data {:#?}", notification_data);
@@ -142,6 +107,54 @@ impl Observer<Event> for NotificationManager {
     }
 }
 
+pub fn execute_rules(
+    definitions: &Vec<Definition>,
+    n: &Notification,
+    notification_template_data: NotificationTemplateData,
+    notification_data: &mut NotificationData,
+) -> Vec<usize> {
+    let mut matched_rules = Vec::new();
+    let mut last_definition_id = 0;
+    let mut read_next_definition = true;
+
+    while read_next_definition {
+        let definition = definitions[last_definition_id..]
+            .iter()
+            .enumerate()
+            .find(|(_, r)| r.matches(&n));
+
+        match definition {
+            Some((index, definition)) => {
+                debug!(
+                    "Matched definition {} {:#?}",
+                    last_definition_id + index,
+                    definition.conditions
+                );
+                last_definition_id += index + 1;
+                matched_rules.push(last_definition_id);
+
+                for action in &definition.actions {
+                    match action {
+                        Action::Ignore => {
+                            debug!("Ignore Message");
+                            return matched_rules;
+                        }
+                        Action::Set(set_property) => {
+                            set_property.set(notification_data, &notification_template_data)
+                        }
+                        Action::Stop => read_next_definition = false,
+                    }
+                }
+
+                notification_data.style.extend(definition.style.clone());
+            }
+            None => read_next_definition = false,
+        }
+    }
+
+    matched_rules
+}
+
 #[derive(Debug)]
 pub enum NotificationEvent {
     Remove(String),
@@ -159,6 +172,19 @@ pub struct NotificationData {
     pub emoji_mode: EmojiMode,
 }
 
+impl NotificationData {
+    pub fn new(notification: &Notification, emoji_mode: EmojiMode) -> Self {
+        Self {
+            expire_timeout: notification.expire_timeout,
+            icon: icons::get_icon(&notification.app_name).unwrap_or(' '),
+            id: notification.id.to_string(),
+            style: Vec::new(),
+            text: notification.summary.clone(),
+            emoji_mode: emoji_mode,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct NotificationTemplateData {
     pub app_name: String,
@@ -167,4 +193,17 @@ pub struct NotificationTemplateData {
     pub body: String,
     pub expire_timeout: i32,
     pub time: SystemTime,
+}
+
+impl From<&Notification> for NotificationTemplateData {
+    fn from(notification: &Notification) -> Self {
+        Self {
+            app_name: notification.app_name.clone(),
+            icon: notification.app_icon.clone(),
+            summary: notification.summary.clone(),
+            body: notification.body.clone(),
+            expire_timeout: notification.expire_timeout,
+            time: SystemTime::now(),
+        }
+    }
 }
