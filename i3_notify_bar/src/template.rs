@@ -53,11 +53,11 @@ pub fn add_template(template: String) -> Result<u64, ()> {
         .add_template(NEXT_TEMPLATE_ID, template);
 
         match old_template {
-            Ok(Some(_)) => {
+            Ok(None) => {
                 NEXT_TEMPLATE_ID += 1;
                 Ok(NEXT_TEMPLATE_ID - 1)
             }
-            Ok(None) => Ok(NEXT_TEMPLATE_ID),
+            Ok(Some(_)) => unreachable!(),
             Err(_) => Err(()), // TODO return better error
         }
     }
