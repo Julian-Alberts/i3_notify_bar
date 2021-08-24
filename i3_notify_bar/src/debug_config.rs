@@ -7,7 +7,7 @@ use crate::{
     rule::Definition,
 };
 
-pub fn debug_config(config: &Vec<Definition>, emoji_mode: EmojiMode, debug_config: DebugConfig) {
+pub fn debug_config(config: &[Definition], emoji_mode: EmojiMode, debug_config: DebugConfig) {
     let DebugConfig {
         app_icon,
         app_name,

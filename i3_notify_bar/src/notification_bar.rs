@@ -35,7 +35,7 @@ impl NotificationManager {
         debug!("Notification: {:#?}", notification);
 
         let mut notification_data =
-            NotificationData::new(&notification, self.default_emoji_mode.clone());
+            NotificationData::new(notification, self.default_emoji_mode.clone());
         debug!("Notification Data: {:#?}", notification_data);
 
         let notification_template_data = NotificationTemplateData {
@@ -57,6 +57,10 @@ impl NotificationManager {
             notification_template_data,
             &mut notification_data,
         );
+
+        if notification_data.ignore {
+            return;
+        }
 
         debug!("Finished definitions");
         debug!("Final notification_data {:#?}", notification_data);
@@ -83,7 +87,7 @@ impl NotificationManager {
     }
 
     pub fn get_events(&mut self) -> Vec<NotificationEvent> {
-        std::mem::replace(&mut self.events, Vec::new())
+        std::mem::take(&mut self.events)
     }
 
     pub fn remove(&mut self, id: &str) {
@@ -108,7 +112,7 @@ impl Observer<Event> for NotificationManager {
 }
 
 pub fn execute_rules(
-    definitions: &Vec<Definition>,
+    definitions: &[Definition],
     n: &Notification,
     notification_template_data: NotificationTemplateData,
     notification_data: &mut NotificationData,
@@ -121,7 +125,7 @@ pub fn execute_rules(
         let definition = definitions[last_definition_id..]
             .iter()
             .enumerate()
-            .find(|(_, r)| r.matches(&n));
+            .find(|(_, r)| r.matches(n));
 
         match definition {
             Some((index, definition)) => {
@@ -137,6 +141,7 @@ pub fn execute_rules(
                     match action {
                         Action::Ignore => {
                             debug!("Ignore Message");
+                            notification_data.ignore = true;
                             return matched_rules;
                         }
                         Action::Set(set_property) => {
@@ -170,6 +175,7 @@ pub struct NotificationData {
     pub text: String,
     pub style: Vec<Style>,
     pub emoji_mode: EmojiMode,
+    pub ignore: bool,
 }
 
 impl NotificationData {
@@ -180,7 +186,8 @@ impl NotificationData {
             id: notification.id.to_string(),
             style: Vec::new(),
             text: notification.summary.clone(),
-            emoji_mode: emoji_mode,
+            emoji_mode,
+            ignore: false,
         }
     }
 }
