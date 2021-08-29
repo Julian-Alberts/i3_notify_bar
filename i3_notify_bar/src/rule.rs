@@ -3,7 +3,7 @@ use notify_server::notification::Notification;
 use regex::Regex;
 
 use crate::{
-    emoji,
+    emoji::{self, EmojiMode},
     notification_bar::{NotificationData, NotificationTemplateData},
     template,
 };
@@ -34,6 +34,7 @@ pub enum SetProperty {
     Id(String),
     Text(u64),
     ExpireTimeout(i32),
+    EmojiMode(EmojiMode),
 }
 
 impl SetProperty {
@@ -45,6 +46,7 @@ impl SetProperty {
             }
             Self::ExpireTimeout(i) => nd.expire_timeout = *i,
             Self::Id(i) => nd.id = i.clone(),
+            Self::EmojiMode(em) => nd.emoji_mode = em.clone(),
         }
     }
 }

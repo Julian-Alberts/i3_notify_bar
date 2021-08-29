@@ -5,7 +5,7 @@ mod remove;
 #[cfg(feature = "emoji_mode_replace")]
 mod replace;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum EmojiMode {
     Ignore,
     Remove,

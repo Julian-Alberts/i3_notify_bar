@@ -1,12 +1,14 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::io::BufRead;
+use std::str::FromStr;
 
 use log::info;
 use pest::error::LineColLocation;
 use pest::{iterators::Pair, Parser};
 use regex::Regex;
 
+use crate::emoji::EmojiMode;
 use crate::{
     icons,
     rule::{Action, ConditionTypeString, Conditions as Condition, Definition, SetProperty, Style},
@@ -89,6 +91,9 @@ fn parse_set_action(set_action: Pair<Rule>) -> Action {
             template::add_template(value.to_owned()).unwrap(),
         )),
         Rule::expire_timeout => Action::Set(SetProperty::ExpireTimeout(value.parse().unwrap())),
+        Rule::emoji_mode => {
+            Action::Set(SetProperty::EmojiMode(EmojiMode::from_str(value).unwrap()))
+        }
         _ => panic!(),
     }
 }
