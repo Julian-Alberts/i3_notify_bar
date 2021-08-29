@@ -1,7 +1,47 @@
-use std::{collections::HashMap, iter::Peekable, str::FromStr};
+use std::{
+    collections::HashMap,
+    fs::OpenOptions,
+    io::{prelude::*, BufReader},
+    iter::Peekable,
+    path::Path,
+    str::FromStr,
+    sync::Mutex,
+};
+
+use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref EMOJI_TREE: EmojiTree = EmojiTree::from_str(include_str!("../../emojis")).unwrap();
+    static ref EMOJI_TREE: Mutex<EmojiTree> = Mutex::default();
+}
+
+pub fn load_emoji_file(path: &Path) {
+    let file = match OpenOptions::new().read(true).open(path) {
+        Ok(f) => f,
+        Err(err) => {
+            match err.kind() {
+                std::io::ErrorKind::NotFound => {
+                    log::error!("File not found \"{}\"", path.to_string_lossy())
+                }
+                std::io::ErrorKind::PermissionDenied => {
+                    log::error!("Permission denied \"{}\"", path.to_string_lossy())
+                }
+                _ => log::error!("Unexpected error \"{}\"", path.to_string_lossy()),
+            }
+            return;
+        }
+    };
+
+    let mut text = String::new();
+    match BufReader::new(file).read_to_string(&mut text) {
+        Ok(_) => {}
+        Err(_) => {
+            log::error!("Invalid UTF-8 \"{}\"", path.to_string_lossy());
+            return;
+        }
+    };
+
+    let mut et = EMOJI_TREE.lock().unwrap();
+    *et = EmojiTree::from_str(&text).unwrap();
 }
 
 pub fn handle(text: String) -> String {
@@ -9,8 +49,12 @@ pub fn handle(text: String) -> String {
     let mut has_more_chars = chars.peek().is_some();
 
     let mut new_text = String::with_capacity(text.capacity());
+    let emoji_tree = match EMOJI_TREE.lock() {
+        Ok(et) => et,
+        Err(_) => return text,
+    };
     while has_more_chars {
-        if let Some(emoji_name) = EMOJI_TREE.find_emoji(&mut chars) {
+        if let Some(emoji_name) = emoji_tree.find_emoji(&mut chars) {
             new_text.push_str(emoji_name);
         } else {
             new_text.push(chars.next().unwrap());
@@ -162,21 +206,25 @@ impl EmojitreeEntry {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
 
     #[test]
     fn text_without_emojis() {
+        super::load_emoji_file(Path::new("emojis"));
         let text = String::from("Hello world!");
         assert_eq!(super::handle(text), String::from("Hello world!"));
     }
 
     #[test]
     fn text_with_umlaut() {
+        super::load_emoji_file(Path::new("emojis"));
         let text = String::from("Geht nach Brüssel");
         assert_eq!(&super::handle(text)[..], "Geht nach Brüssel");
     }
 
     #[test]
     fn text_with_single_char_emoji() {
+        super::load_emoji_file(Path::new("emojis"));
         let text = String::from("Hello \u{1F609} world!");
         assert_eq!(
             super::handle(text),
@@ -186,6 +234,7 @@ mod tests {
 
     #[test]
     fn text_with_multi_char_emoji() {
+        super::load_emoji_file(Path::new("emojis"));
         let text = String::from("Hello \u{1F468}\u{200D}\u{2764}\u{FE0F}\u{200D}\u{1F468} world!");
         assert_eq!(
             super::handle(text),
@@ -196,6 +245,7 @@ mod tests {
     #[test]
     fn create_emoji_tree_from_string() {
         use std::str::FromStr;
+        super::load_emoji_file(Path::new("emojis"));
         let tree = super::EmojiTree::from_str(r#"ff00_fffff_1234 :test_value:"#);
         assert!(tree.is_ok(), "{:#?}", tree);
         let tree = tree.unwrap();

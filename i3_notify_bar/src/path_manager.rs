@@ -15,6 +15,7 @@ fn home_dir() -> Option<String> {
 pub struct PathManager {
     log_file: Option<String>,
     config_file: Option<String>,
+    emoji_file: Option<String>,
 }
 
 impl Default for PathManager {
@@ -25,18 +26,23 @@ impl Default for PathManager {
                 return PathManager {
                     config_file: None,
                     log_file: None,
+                    emoji_file: None,
                 }
             }
         };
         let mut log_file = PathBuf::from(home_dir.clone());
         log_file.push(".config/i3_notify_bar/log");
 
-        let mut config_file = PathBuf::from(home_dir);
+        let mut config_file = PathBuf::from(home_dir.clone());
         config_file.push(".config/i3_notify_bar/config");
+
+        let mut emoji_file = PathBuf::from(home_dir);
+        emoji_file.push("./i3_notify_bar/emojis");
 
         PathManager {
             log_file: log_file.to_str().map(str::to_owned),
             config_file: config_file.to_str().map(str::to_owned),
+            emoji_file: emoji_file.to_str().map(str::to_owned),
         }
     }
 }
@@ -56,5 +62,13 @@ impl PathManager {
 
     pub fn config_file(&self) -> &Option<String> {
         &self.config_file
+    }
+
+    pub fn set_emoji_file(&mut self, file: String) {
+        self.emoji_file = Some(file)
+    }
+
+    pub fn emoji_file(&self) -> &Option<String> {
+        &self.emoji_file
     }
 }

@@ -20,6 +20,7 @@ use path_manager::PathManager;
 use rule::Definition;
 use std::{
     io::BufReader,
+    path::Path,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -27,14 +28,11 @@ use std::{
 #[macro_use]
 extern crate pest_derive;
 
-#[cfg(feature = "emoji_mode_replace")]
-#[macro_use]
-extern crate lazy_static;
-
 fn main() {
     let mut path_manager = PathManager::default();
     let Args {
         emoji_mode,
+        emoji_file,
         log_level,
         log_file,
         refresh_rate,
@@ -52,9 +50,14 @@ fn main() {
         path_manager.set_log_file(file);
     }
 
+    if let Some(file) = emoji_file {
+        path_manager.set_emoji_file(file);
+    }
+
     logger::init(log_level, path_manager.log_file());
 
     let config = read_config(path_manager.config_file());
+    crate::emoji::init(path_manager.emoji_file().as_ref().map(Path::new));
 
     drop(path_manager);
 

@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{path::Path, str::FromStr};
 
 mod ignore;
 mod remove;
@@ -33,5 +33,11 @@ pub fn handle(text: String, mode: &EmojiMode) -> String {
         EmojiMode::Remove => remove::handle(text),
         #[cfg(feature = "emoji_mode_replace")]
         EmojiMode::Replace => replace::handle(text),
+    }
+}
+
+pub fn init(emoji_file: Option<&Path>) {
+    if let Some(ef) = emoji_file {
+        replace::load_emoji_file(ef)
     }
 }

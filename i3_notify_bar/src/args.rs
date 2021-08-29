@@ -29,6 +29,8 @@ pub struct Args {
     pub log_level: LevelFilter,
     #[clap(long, about = "log file location")]
     pub log_file: Option<String>,
+    #[clap(long, about = "override default emoji file")]
+    pub emoji_file: Option<String>,
     #[clap(
         short,
         long,
