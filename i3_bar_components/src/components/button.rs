@@ -8,7 +8,7 @@ use super::{prelude::*, BaseComponent};
 pub struct Button {
     base_component: BaseComponent,
     component_manager: Option<ComponentManagerMessenger>,
-    on_click: &'static dyn Fn(&mut Self, &ClickEvent),
+    on_click: fn(&mut Self, &ClickEvent),
 }
 
 impl Button {
@@ -19,11 +19,11 @@ impl Button {
         Button {
             base_component: BaseComponent::from(block),
             component_manager: None,
-            on_click: &|_, _| {},
+            on_click: |_, _| {},
         }
     }
 
-    pub fn set_on_click(&mut self, on_click: &'static dyn Fn(&mut Self, &ClickEvent)) {
+    pub fn set_on_click(&mut self, on_click: fn(&mut Self, &ClickEvent)) {
         self.on_click = on_click;
     }
 }
@@ -76,3 +76,35 @@ impl Widget for Button {
 
 impl Seperator for Button {}
 impl SeperatorWidth for Button {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn on_button_click() {
+        let mut button = Button::new(String::from("test"));
+        button.set_on_click(|btn, _| {
+            btn.get_base_component_mut().get_block_mut().set_instance(String::from("clicked"));
+        });
+
+        let ce: ClickEvent = serde_json::from_str(r#"
+        {
+            "button": 0,
+            "x": 0,
+            "y": 0,
+            "relative_x": 0,
+            "relative_y": 0,
+            "output_x": 0,
+            "output_y": 0,
+            "width": 0,
+            "height": 0
+        }
+        "#).unwrap();
+
+        button.event(&ce);
+        assert_eq!(&button.get_base_component_mut().get_block_mut().get_id(), &"clicked")
+
+    }
+
+}
