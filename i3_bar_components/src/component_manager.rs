@@ -20,6 +20,7 @@ pub struct ComponentManager {
     message_tx: Sender<Message>,
     message_rx: Receiver<Message>,
     last_update: SystemTime,
+    next_instance_id: u128,
 }
 
 impl ComponentManager {
@@ -65,10 +66,9 @@ impl ComponentManager {
                                 }
                             });
 
-                    match index {
-                        Some(i) => self.components.remove(i),
-                        None => return,
-                    };
+                    if let Some(i) = index {
+                        self.components.remove(i);
+                    }
                 }
             }
         });
@@ -104,6 +104,16 @@ impl ComponentManager {
     }
 
     pub fn add_component(&mut self, mut comp: Box<dyn Component>) {
+        let mut base_components = Vec::new();
+        comp.collect_base_components_mut(&mut base_components);
+
+        base_components.iter_mut().for_each(|component| {
+            component
+                .get_block_mut()
+                .set_instance(self.next_instance_id.to_string());
+            self.next_instance_id += 1;
+        });
+
         let comp_ref = comp.as_mut();
         comp_ref.add_component_manager_messenger(ComponentManagerMessenger::new(
             String::from(comp_ref.get_id()),
@@ -235,11 +245,12 @@ impl ComponentManagerBuilder {
         ComponentManager {
             components: Vec::new(),
             event_reader: rx,
-            out_writer: out_writer,
+            out_writer,
             render_last_block_count: 0,
             message_rx,
             message_tx,
             last_update: SystemTime::now(),
+            next_instance_id: 1,
         }
     }
 }

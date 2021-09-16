@@ -1,6 +1,3 @@
-use std::sync::Mutex;
-
-use log::*;
 use serde::{Deserialize, Serialize};
 
 macro_rules! create_setter {
@@ -25,23 +22,6 @@ macro_rules! create_setter {
         )?
 
     };
-}
-
-static mut NEXT_COMPONENT_ID: Option<Mutex<u128>> = None;
-
-fn get_next_component_id() -> u128 {
-    match unsafe { &mut NEXT_COMPONENT_ID } {
-        Some(nci) => {
-            let id = nci.get_mut().unwrap();
-            let id2 = *id;
-            *id += 1;
-            id2
-        }
-        None => {
-            unsafe { NEXT_COMPONENT_ID = Some(Mutex::new(2)) };
-            1
-        }
-    }
 }
 
 #[derive(Serialize)]
@@ -93,7 +73,7 @@ pub struct Block {
     align: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
-    instance: String,
+    instance: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     urgent: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -112,10 +92,6 @@ impl Default for Block {
 
 impl Block {
     pub fn new() -> Self {
-        let instance = get_next_component_id().to_string();
-
-        debug!(r#"Created block with id "{}""#, instance);
-
         Block {
             full_text: String::new(),
             short_text: None,
@@ -129,7 +105,7 @@ impl Block {
             min_width: None,
             align: None,
             name: None,
-            instance,
+            instance: None,
             urgent: None,
             separator: None,
             separator_block_width: None,
@@ -185,11 +161,15 @@ impl Block {
             Markup::None => String::from("none"),
         });
     }
+
+    pub fn set_instance(&mut self, instance: String) {
+        self.instance = Some(instance)
+    }
 }
 
 impl Block {
     pub fn get_id(&self) -> &str {
-        &self.instance
+        self.instance.as_ref().unwrap()
     }
 }
 

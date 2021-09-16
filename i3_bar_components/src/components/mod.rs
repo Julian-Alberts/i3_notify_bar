@@ -22,13 +22,22 @@ pub struct BaseComponent {
     serialized: Vec<u8>,
 }
 
-impl BaseComponent {
-    pub fn new() -> Self {
+impl Default for BaseComponent {
+
+    fn default() -> Self {
         Self {
             block: Block::new(),
             is_dirty: true,
-            serialized: Vec::new(),
+            serialized: Vec::new()
         }
+    }
+
+}
+
+impl BaseComponent {
+
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn serialize_cache(&mut self) -> &[u8] {
@@ -43,7 +52,7 @@ impl BaseComponent {
         &self.serialized
     }
 
-    fn get_block_mut(&mut self) -> &mut Block {
+    pub fn get_block_mut(&mut self) -> &mut Block {
         self.is_dirty = true;
         &mut self.block
     }
