@@ -52,6 +52,8 @@ impl BaseComponent {
         &self.serialized
     }
 
+    /// Returns a mutable reference to the inner block
+    /// Try to limit calls to this method. Calling this method marks the block as dirty and forces serialization even if no value has been changed.
     pub fn get_block_mut(&mut self) -> &mut Block {
         self.is_dirty = true;
         &mut self.block

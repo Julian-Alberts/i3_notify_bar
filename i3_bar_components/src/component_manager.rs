@@ -16,7 +16,6 @@ pub struct ComponentManager {
     components: Vec<Box<dyn Component>>,
     event_reader: Receiver<ClickEvent>,
     out_writer: Stdout,
-    render_last_block_count: usize,
     message_tx: Sender<Message>,
     message_rx: Receiver<Message>,
     last_update: SystemTime,
@@ -27,6 +26,19 @@ impl ComponentManager {
     pub fn update(&mut self) {
         let dt = self.last_update.elapsed().unwrap().as_secs_f64();
         self.last_update = SystemTime::now();
+        
+        self.handle_events();
+        self.update_components(dt);
+        self.handle_messages();
+        let blocks = self.build_json();
+
+        debug!("{:#?}", String::from_utf8(blocks.clone()));
+
+        self.out_writer.write_all(&blocks).unwrap();
+        self.out_writer.flush().unwrap();
+    }
+
+    fn handle_events(&mut self) {
         let events = self.event_reader.try_iter().collect::<Vec<ClickEvent>>();
 
         events.iter().for_each(|event| {
@@ -41,14 +53,18 @@ impl ComponentManager {
                 comp.event(event);
             }
         });
+    }
 
+    fn update_components(&mut self, dt: f64) {
         self.components.iter_mut().for_each(|c| c.update(dt));
+    }
 
+    fn handle_messages(&mut self) {
         let messages = self
-            .message_rx
-            .try_recv()
-            .into_iter()
-            .collect::<Vec<Message>>();
+        .message_rx
+        .try_recv()
+        .into_iter()
+        .collect::<Vec<Message>>();
 
         messages.iter().for_each(|m| {
             let id = m.get_id();
@@ -72,14 +88,14 @@ impl ComponentManager {
                 }
             }
         });
+    }
 
-        drop(messages);
-
+    fn build_json(&mut self) -> Vec<u8> {
         let mut blocks = self
             .components
             .iter_mut()
             .fold(
-                Vec::with_capacity(self.render_last_block_count),
+                Vec::new(),
                 |mut blocks, c| {
                     c.collect_base_components_mut(&mut blocks);
                     blocks
@@ -97,10 +113,7 @@ impl ComponentManager {
         blocks.push(b']');
         blocks.push(b',');
         blocks.push(10);
-
-        self.render_last_block_count = blocks.len();
-        self.out_writer.write_all(&blocks).unwrap();
-        self.out_writer.flush().unwrap();
+        blocks
     }
 
     pub fn add_component(&mut self, mut comp: Box<dyn Component>) {
@@ -246,7 +259,6 @@ impl ComponentManagerBuilder {
             components: Vec::new(),
             event_reader: rx,
             out_writer,
-            render_last_block_count: 0,
             message_rx,
             message_tx,
             last_update: SystemTime::now(),
