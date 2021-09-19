@@ -1,3 +1,4 @@
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 macro_rules! create_setter {
@@ -24,7 +25,7 @@ macro_rules! create_setter {
     };
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Header {
     version: u8,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -169,7 +170,13 @@ impl Block {
 
 impl Block {
     pub fn get_id(&self) -> &str {
-        self.instance.as_ref().unwrap()
+        match self.instance.as_ref() {
+            Some(i) => i,
+            None => {
+                debug!("Instance not set");
+                ""
+            }
+        }
     }
 }
 

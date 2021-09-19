@@ -22,7 +22,13 @@ impl ProgressBar {
     }
 
     pub fn is_finished(&self) -> bool {
-        self.current.elapsed().unwrap().as_secs() >= self.max
+        match self.current.elapsed() {
+            Ok(e) => e,
+            Err(_) => {
+                log::error!("I will mess with time!");
+                return false
+            }
+        }.as_secs() >= self.max
     }
 }
 
@@ -77,6 +83,7 @@ impl Component for ProgressBar {
     fn get_id(&self) -> &str {
         self.get_base_component().get_id()
     }
+    
 }
 
 impl Widget for ProgressBar {

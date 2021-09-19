@@ -4,6 +4,7 @@ pub mod prelude;
 mod progress_bar;
 pub use button::Button;
 pub use label::Label;
+use log::debug;
 pub use progress_bar::ProgressBar;
 
 use crate::protocol::Block;
@@ -23,27 +24,29 @@ pub struct BaseComponent {
 }
 
 impl Default for BaseComponent {
-
     fn default() -> Self {
         Self {
             block: Block::new(),
             is_dirty: true,
-            serialized: Vec::new()
+            serialized: Vec::new(),
         }
     }
-
 }
 
 impl BaseComponent {
-
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn serialize_cache(&mut self) -> &[u8] {
         if self.is_dirty {
-            self.serialized = serde_json::to_string(&self.block)
-                .unwrap()
+            self.serialized = match serde_json::to_string(&self.block) {
+                Ok(b) => b,
+                Err(_) => {
+                    debug!("Could not serialize block {:#?}", self.block);
+                    todo!("return error")
+                }
+            }
                 .as_bytes()
                 .to_vec();
             self.is_dirty = false;

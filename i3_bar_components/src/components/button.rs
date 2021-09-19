@@ -85,10 +85,13 @@ mod tests {
     fn on_button_click() {
         let mut button = Button::new(String::from("test"));
         button.set_on_click(|btn, _| {
-            btn.get_base_component_mut().get_block_mut().set_instance(String::from("clicked"));
+            btn.get_base_component_mut()
+                .get_block_mut()
+                .set_instance(String::from("clicked"));
         });
 
-        let ce: ClickEvent = serde_json::from_str(r#"
+        let ce: ClickEvent = serde_json::from_str(
+            r#"
         {
             "button": 0,
             "x": 0,
@@ -100,11 +103,14 @@ mod tests {
             "width": 0,
             "height": 0
         }
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         button.event(&ce);
-        assert_eq!(&button.get_base_component_mut().get_block_mut().get_id(), &"clicked")
-
+        assert_eq!(
+            &button.get_base_component_mut().get_block_mut().get_id(),
+            &"clicked"
+        )
     }
-
 }

@@ -24,9 +24,15 @@ pub struct ComponentManager {
 
 impl ComponentManager {
     pub fn update(&mut self) {
-        let dt = self.last_update.elapsed().unwrap().as_secs_f64();
+        let dt = match self.last_update.elapsed() {
+            Ok(elapsed) => elapsed.as_secs_f64(),
+            Err(_) => {
+                error!("Do not mess with time!");
+                0.0
+            }
+        };
         self.last_update = SystemTime::now();
-        
+
         self.handle_events();
         self.update_components(dt);
         self.handle_messages();
@@ -34,8 +40,13 @@ impl ComponentManager {
 
         debug!("{:#?}", String::from_utf8(blocks.clone()));
 
-        self.out_writer.write_all(&blocks).unwrap();
-        self.out_writer.flush().unwrap();
+        if let Err(_) = self.out_writer.write_all(&blocks) {
+            error!("Could not write bytes: {:#?}", blocks);
+            return;
+        }
+        if let Err(_) = self.out_writer.flush() {
+            error!("Error while flushing buffer");
+        }
     }
 
     fn handle_events(&mut self) {
@@ -61,10 +72,10 @@ impl ComponentManager {
 
     fn handle_messages(&mut self) {
         let messages = self
-        .message_rx
-        .try_recv()
-        .into_iter()
-        .collect::<Vec<Message>>();
+            .message_rx
+            .try_recv()
+            .into_iter()
+            .collect::<Vec<Message>>();
 
         messages.iter().for_each(|m| {
             let id = m.get_id();
@@ -94,13 +105,10 @@ impl ComponentManager {
         let mut blocks = self
             .components
             .iter_mut()
-            .fold(
-                Vec::new(),
-                |mut blocks, c| {
-                    c.collect_base_components_mut(&mut blocks);
-                    blocks
-                },
-            )
+            .fold(Vec::new(), |mut blocks, c| {
+                c.collect_base_components_mut(&mut blocks);
+                blocks
+            })
             .iter_mut()
             .enumerate()
             .fold(vec![b'['], |mut blocks, (index, block)| {
@@ -163,8 +171,10 @@ fn read_events(
 ) {
     let mut event = String::new();
 
-    reader.read_line(&mut event).unwrap();
-    debug!(r#"Received Event "{}""#, event);
+    if let Err(_) = reader.read_line(&mut event) {
+        error!("Could not read event from stdin");
+        return;
+    }
 
     let mut new_event_number = *event_number + 1;
 
@@ -179,8 +189,17 @@ fn read_events(
 
     std::mem::swap(event_number, &mut new_event_number);
 
-    let click_event = serde_json::from_str::<ClickEvent>(event).unwrap();
-    tx.send(click_event).unwrap();
+    let click_event = match serde_json::from_str::<ClickEvent>(event) {
+        Ok(ev) => ev,
+        Err(e) => {
+            error!("Invalid click event {}", e.to_string());
+            return;
+        }
+    };
+    if let Err(_) = tx.send(click_event) {
+        debug!("No event rx found");
+        return;
+    }
 }
 
 pub struct ComponentManagerBuilder {
@@ -235,11 +254,22 @@ impl ComponentManagerBuilder {
         let mut out_writer = std::io::stdout();
 
         let header = Header::new().with_click_events(self.click_events);
+        let header_buffer = match serde_json::to_vec(&header) {
+            Ok(hb) => hb,
+            Err(_) => {
+                debug!("Could not convert header to json {:#?}", header);
+                panic!("Could not convert header to json {:#?}", header)
+            }
+        };
+        if let Err(_) = out_writer.write_all(&header_buffer) {
+            debug!("Could not write header");
+            panic!("Could not write header")
+        }
 
-        out_writer
-            .write_all(&serde_json::to_vec(&header).unwrap())
-            .unwrap();
-        out_writer.write_all(&[10, b'[']).unwrap();
+        if let Err(_) = out_writer.write_all(&[10, b'[']) {
+            debug!("Could not write json start");
+            panic!("Could not write json start")
+        }
 
         let (tx, rx) = std::sync::mpsc::channel();
 
@@ -278,12 +308,12 @@ impl ComponentManagerMessenger {
     }
 
     pub fn remove(&self) {
-        self.tx
-            .send(Message {
-                id: self.id.clone(),
-                message_type: MessageType::Remove,
-            })
-            .unwrap();
+        if let Err(_) = self.tx.send(Message {
+            id: self.id.clone(),
+            message_type: MessageType::Remove,
+        }) {
+            debug!("Could not send remove message for id {}", self.id)
+        };
     }
 }
 
