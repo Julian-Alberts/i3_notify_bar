@@ -4,7 +4,6 @@ use std::io::BufRead;
 use std::str::FromStr;
 
 use log::{error, info};
-use pest::error::LineColLocation;
 use pest::{iterators::Pair, Parser};
 use regex::Regex;
 
@@ -33,7 +32,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<Vec<Definition>> {
     let config = ConfigParser::parse(Rule::config, &config);
     let config = match config {
         Ok(config) => config,
-        Err(e) => return Err(ParseError::from(e.line_col)),
+        Err(e) => return Err(ParseError::PestError(e)),
     }
     .next();
 
@@ -70,7 +69,7 @@ fn parse_definition(definition: Pair<Rule>) -> ParseResult<Definition> {
             .next()
             .ok_or(ParseError::UnexpectedEnd)?;
         match section.as_rule() {
-            Rule::condition_section => parse_condition_section(section, &mut def.conditions),
+            Rule::condition_section => parse_condition_section(section, &mut def.conditions)?,
             Rule::style_section => def.style = parse_style_section(section)?,
             Rule::action_section => def.actions = parse_action_section(section)?,
             _ => panic!(),
@@ -115,27 +114,34 @@ fn parse_set_action(set_action: Pair<Rule>) -> ParseResult<Action> {
         Rule::text => Action::Set(SetProperty::Text(
             match template::add_template(value.to_owned()) {
                 Ok(id) => id,
-                Err(_) => template::DEFAULT_TEMPLATE_ID
+                Err(_) => template::DEFAULT_TEMPLATE_ID,
             },
         )),
-        Rule::expire_timeout => Action::Set(SetProperty::ExpireTimeout(value.parse().or(Err(ParseError::NumParse(value.to_owned())))?)),
-        Rule::emoji_mode => {
-            Action::Set(SetProperty::EmojiMode(EmojiMode::from_str(value).unwrap()))
-        }
+        Rule::expire_timeout => Action::Set(SetProperty::ExpireTimeout(
+            value
+                .parse()
+                .or_else(|e| Err(ParseError::NumParse(e)))?,
+        )),
+        Rule::emoji_mode => Action::Set(SetProperty::EmojiMode(
+            EmojiMode::from_str(value).or_else(|e| Err(ParseError::EmojiMode(e)))?,
+        )),
         _ => panic!(),
     };
     Ok(action)
 }
 
-fn parse_condition_section(condition_section: Pair<Rule>, conditions: &mut Vec<Condition>) {
-    condition_section
+fn parse_condition_section(
+    condition_section: Pair<Rule>,
+    conditions: &mut Vec<Condition>,
+) -> ParseResult<()> {
+    let mut new_conditions = condition_section
         .into_inner()
         .filter(|condition| matches!(condition.as_rule(), Rule::condition))
         .map(parse_condition)
-        .fold(conditions, |list, condition| {
-            list.push(condition.unwrap());
-            list
-        });
+        .collect::<ParseResult<Vec<_>>>()?;
+
+    conditions.append(&mut new_conditions);
+    Ok(())
 }
 
 fn parse_condition(condition: Pair<Rule>) -> ParseResult<Condition> {
@@ -156,13 +162,11 @@ fn parse_number_condition(number_condition: Pair<Rule>) -> ParseResult<Condition
     let mut inner = number_condition.into_inner();
     let name = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
     let _ = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
-    let value = inner
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?
-        .as_str()
-        .parse()
-        .unwrap();
+    let number_string = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
 
+    let value = number_string
+        .parse()
+        .or_else(|e| Err(ParseError::NumParse(e)))?;
     match name {
         "expire_timeout" => Ok(Condition::ExpireTimeout(value)),
         _ => unimplemented!(),
@@ -189,7 +193,9 @@ fn parse_string_condition(string_condition: Pair<Rule>) -> ParseResult<Condition
 
     let condition_type = match eq {
         Rule::compare_eq => ConditionTypeString::Literal(value.to_owned()),
-        Rule::compare_match => ConditionTypeString::Regex(Regex::new(value).unwrap()),
+        Rule::compare_match => {
+            ConditionTypeString::Regex(Regex::new(value).or_else(|e| Err(ParseError::Regex(e)))?)
+        }
         _ => panic!(),
     };
 
@@ -257,24 +263,24 @@ pub type ParseResult<T> = Result<T, ParseError>;
 
 #[derive(Debug)]
 pub enum ParseError {
-    LineError(LineColLocation),
+    PestError(pest::error::Error<Rule>),
     UnexpectedEnd,
-    NumParse(String),
-}
-
-impl From<LineColLocation> for ParseError {
-    fn from(loc: LineColLocation) -> Self {
-        Self::LineError(loc)
-    }
+    NumParse(std::num::ParseIntError),
+    EmojiMode(super::emoji::EmojiModeError),
+    Regex(regex::Error),
 }
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::LineError(le) => write!(f, "{:#?}", le),
-            Self::UnexpectedEnd => write!(f, "Unexpected end ofconfig file"),
-            Self::NumParse(nan) => write!(f, r#"Can not parse "{}" as number"#, nan),
-        }
+        let e: &dyn Error = match self {
+            Self::PestError(e) => e,
+            Self::UnexpectedEnd => return write!(f, "Unexpected end of config file"),
+            Self::NumParse(e) => e,
+            Self::EmojiMode(e) => e,
+            Self::Regex(e) => e,
+        };
+
+        Display::fmt(e, f)
     }
 }
 
@@ -360,7 +366,7 @@ mod tests {
         .next()
         .unwrap();
         let mut conditions = Vec::new();
-        parse_condition_section(condition_section, &mut conditions);
+        parse_condition_section(condition_section, &mut conditions).unwrap();
         assert_eq!(
             conditions,
             vec![
