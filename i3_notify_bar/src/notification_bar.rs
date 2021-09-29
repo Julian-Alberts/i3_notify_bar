@@ -4,7 +4,7 @@ use std::time::SystemTime;
 
 use crate::emoji::EmojiMode;
 use crate::{icons, rule::Action};
-use log::{debug, info};
+use log::{debug, error, info};
 use notify_server::{notification::Notification, Event, Observer};
 use serde::Serialize;
 
@@ -65,13 +65,22 @@ impl NotificationManager {
         debug!("Finished definitions");
         debug!("Final notification_data {:#?}", notification_data);
 
-        let notification_position = self
-            .notifications
-            .iter()
-            .position(|n| n.read().unwrap().id == notification_data.id);
+        let notification_position = self.notifications.iter().position(|n| match n.read() {
+            Ok(n) => n.id == notification_data.id,
+            Err(_) => {
+                error!("Could not read notification data");
+                false
+            }
+        });
         match notification_position {
             Some(index) => {
-                let mut notification_data_storage = self.notifications[index].write().unwrap();
+                let mut notification_data_storage = match self.notifications[index].write() {
+                    Ok(nds) => nds,
+                    Err(_) => {
+                        error!("Could not lock notifications");
+                        return;
+                    }
+                };
                 *notification_data_storage = notification_data;
                 drop(notification_data_storage);
                 self.events.push(NotificationEvent::Update(Arc::clone(
@@ -95,7 +104,13 @@ impl NotificationManager {
         let filtered_notifications = self
             .notifications
             .iter()
-            .filter(|n| n.read().unwrap().id == id)
+            .filter(|n| match n.read() {
+                Ok(n) => n.id == id,
+                Err(_) => {
+                    error!("Could not read notification data");
+                    false
+                }
+            })
             .map(Arc::clone)
             .collect::<Vec<Arc<RwLock<NotificationData>>>>();
         self.notifications = filtered_notifications;

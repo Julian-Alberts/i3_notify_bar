@@ -79,7 +79,7 @@ fn run(
     max_text_length: usize,
     animation_chars_per_second: usize,
     refresh_rate: u64,
-) -> ! {
+) {
     let mut notify_server = notify_server::NotifyServer::start();
     let mut manager = ComponentManagerBuilder::new()
         .with_click_events(true)
@@ -89,13 +89,25 @@ fn run(
 
     loop {
         let mut nm_lock = notification_manager.lock();
-        let nm = nm_lock.as_mut().unwrap();
+        let nm = match nm_lock.as_mut() {
+            Ok(nm) => nm,
+            Err(_) => {
+                error!("Could not lock notification manager");
+                break;
+            }
+        };
         let events = nm.get_events();
         drop(nm_lock);
 
         events.iter().for_each(|event| match &event {
             &NotificationEvent::Add(n) | &NotificationEvent::Update(n) => {
-                let n = n.read().unwrap();
+                let n = match n.read() {
+                    Ok(n) => n,
+                    Err(_) => {
+                        error!("Could not lock notification data");
+                        return;
+                    }
+                };
                 match manager.get_component_mut::<NotificationComponent>(&n.id) {
                     Some(c) => c.update_notification(&n),
                     None => manager.add_component(Box::new(NotificationComponent::new(
@@ -156,7 +168,7 @@ fn print_error(data: String) -> ! {
 mod logger {
     use std::{fs::OpenOptions, path::Path};
 
-    use log::LevelFilter;
+    use log::{error, LevelFilter};
     use simplelog::{ColorChoice, CombinedLogger, Config, SharedLogger, TermLogger, WriteLogger};
 
     pub fn init(level_filter: LevelFilter, log_file: &Option<String>) {
@@ -169,12 +181,16 @@ mod logger {
                         Err(e) => {
                             log::error!(
                                 "Failed to create folder {} Error: {}",
-                                parent.to_str().unwrap(),
+                                parent
+                                    .to_str()
+                                    .unwrap_or(r#""File name is not valid UTF-8""#),
                                 e
                             );
                             super::print_error(format!(
                                 "Error trying to create config folder at {} Error: {}",
-                                parent.to_str().unwrap(),
+                                parent
+                                    .to_str()
+                                    .unwrap_or(r#""File name is not valid UTF-8""#),
                                 e
                             ))
                         }
@@ -199,6 +215,8 @@ mod logger {
             ),
         };
 
-        CombinedLogger::init(vec![logger]).unwrap();
+        if let Err(_) = CombinedLogger::init(vec![logger]) {
+            error!("Could not init logger")
+        }
     }
 }

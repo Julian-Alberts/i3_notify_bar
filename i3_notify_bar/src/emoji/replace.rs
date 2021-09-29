@@ -9,6 +9,7 @@ use std::{
 };
 
 use lazy_static::lazy_static;
+use log::error;
 
 lazy_static! {
     static ref EMOJI_TREE: Mutex<EmojiTree> = Mutex::default();
@@ -40,8 +41,19 @@ pub fn load_emoji_file(path: &Path) {
         }
     };
 
-    let mut et = EMOJI_TREE.lock().unwrap();
-    *et = EmojiTree::from_str(&text).unwrap();
+    let mut et = match EMOJI_TREE.lock() {
+        Ok(et) => et,
+        Err(e) => {
+            error!("Could not lock emoji tree {}", e);
+            return;
+        }
+    };
+    match EmojiTree::from_str(&text) {
+        Ok(emoji_tree) => *et = emoji_tree,
+        Err(e) => {
+            error!("Could not parse emoji file {}", e)
+        }
+    };
 }
 
 pub fn handle(text: String) -> String {
@@ -57,6 +69,7 @@ pub fn handle(text: String) -> String {
         if let Some(emoji_name) = emoji_tree.find_emoji(&mut chars) {
             new_text.push_str(emoji_name);
         } else {
+            // has_more_chars makes sure that chars has a next item
             new_text.push(chars.next().unwrap());
         }
         has_more_chars = chars.peek().is_some();
@@ -76,14 +89,14 @@ impl EmojiTree {
     /// Path should be an iterator of u32 which each represend a single char in a given emoji.
     /// Returns old replacement if a replacement has allready been defined at a given path.
     pub fn insert(&mut self, mut path: impl Iterator<Item = u32>, value: String) -> Option<String> {
-        let key = path.next().unwrap();
+        let key = path.next()?;
 
         match self.branches.get_mut(&key) {
             Some(entry) => entry,
             None => {
                 let entry = EmojitreeEntry::default();
                 self.branches.insert(key, entry);
-                self.branches.get_mut(&key).unwrap()
+                self.branches.get_mut(&key)?
             }
         }
         .insert(path, value)
@@ -166,7 +179,7 @@ impl EmojitreeEntry {
             None => {
                 let branch = EmojiTree::default();
                 self.branch = Some(branch);
-                self.branch.as_mut().unwrap()
+                self.branch.as_mut()?
             }
         };
 
@@ -175,7 +188,7 @@ impl EmojitreeEntry {
             None => {
                 let entry = EmojitreeEntry::default();
                 branch.branches.insert(key, entry);
-                branch.branches.get_mut(&key).unwrap()
+                branch.branches.get_mut(&key)?
             }
         }
         .insert(path, value)

@@ -6,6 +6,8 @@ use i3_bar_components::{
     ComponentManagerMessenger,
 };
 
+use log::debug;
+
 use crate::icons;
 use crate::notification_bar::{NotificationData, NotificationManager};
 
@@ -142,13 +144,27 @@ impl Component for NotificationComponent {
             && ce.get_button() == 1
             && ce.get_id() == self.close_type.get_id()
         {
-            self.notification_manager.lock().unwrap().remove(&self.id);
+            match self.notification_manager.lock() {
+                Ok(nm) => nm,
+                Err(_) => {
+                    debug!("Could not lock notification manager");
+                    return;
+                }
+            }
+            .remove(&self.id);
         }
     }
 
     fn update(&mut self, dt: f64) {
         if self.close_type.is_timer() && self.close_type.is_finished() {
-            self.notification_manager.lock().unwrap().remove(&self.id);
+            match self.notification_manager.lock() {
+                Ok(nm) => nm,
+                Err(_) => {
+                    debug!("Could not lock notification manager");
+                    return;
+                }
+            }
+            .remove(&self.id);
         }
 
         self.text.update(dt);

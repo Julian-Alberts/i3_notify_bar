@@ -30,7 +30,10 @@ pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> Stri
             Some(tm) => tm,
             None => {
                 TEMPLATE_MANAGER = Some(init_template_manager());
-                TEMPLATE_MANAGER.as_ref().unwrap()
+                match TEMPLATE_MANAGER.as_ref() {
+                    Some(tm) => tm,
+                    None => unreachable!(),
+                }
             }
         };
         let output = match tplm.render(tpl_id, &data) {
@@ -47,7 +50,10 @@ pub fn add_template(template: String) -> Result<u64, ()> {
             Some(tm) => tm,
             None => {
                 TEMPLATE_MANAGER = Some(init_template_manager());
-                TEMPLATE_MANAGER.as_mut().unwrap()
+                match TEMPLATE_MANAGER.as_mut() {
+                    Some(tm) => tm,
+                    None => unreachable!(),
+                }
             }
         }
         .add_template(NEXT_TEMPLATE_ID, template);
