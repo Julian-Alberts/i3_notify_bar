@@ -4,8 +4,10 @@ use crate::notification_bar::NotificationTemplateData;
 
 use mini_template::{value::Value, MiniTemplate};
 
+pub const DEFAULT_TEMPLATE_ID: u64 = 0;
+
 static mut TEMPLATE_MANAGER: Option<MiniTemplate<u64>> = None;
-static mut NEXT_TEMPLATE_ID: u64 = 0;
+static mut NEXT_TEMPLATE_ID: u64 = DEFAULT_TEMPLATE_ID + 1;
 
 pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> String {
     let mut data = HashMap::with_capacity(5);
@@ -72,5 +74,8 @@ pub fn add_template(template: String) -> Result<u64, ()> {
 fn init_template_manager() -> MiniTemplate<u64> {
     let mut tplm = MiniTemplate::default();
     tplm.add_default_modifiers();
+    if let Err(_) = tplm.add_template(0, "[{app_name}] {summary}: {body}".to_owned()) {
+        unreachable!("Invalid default template")
+    }
     tplm
 }

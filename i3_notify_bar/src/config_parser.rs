@@ -113,9 +113,12 @@ fn parse_set_action(set_action: Pair<Rule>) -> ParseResult<Action> {
         Rule::app_icon => Action::Set(SetProperty::Icon(icons::get_icon(value).unwrap_or('\u{0}'))),
         Rule::message_id => Action::Set(SetProperty::Id(value.to_owned())),
         Rule::text => Action::Set(SetProperty::Text(
-            template::add_template(value.to_owned()).unwrap(),
+            match template::add_template(value.to_owned()) {
+                Ok(id) => id,
+                Err(_) => template::DEFAULT_TEMPLATE_ID
+            },
         )),
-        Rule::expire_timeout => Action::Set(SetProperty::ExpireTimeout(value.parse().unwrap())),
+        Rule::expire_timeout => Action::Set(SetProperty::ExpireTimeout(value.parse().or(Err(ParseError::NumParse(value.to_owned())))?)),
         Rule::emoji_mode => {
             Action::Set(SetProperty::EmojiMode(EmojiMode::from_str(value).unwrap()))
         }
