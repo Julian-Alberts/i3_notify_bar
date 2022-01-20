@@ -13,12 +13,10 @@ use crate::notification_bar::{NotificationData, NotificationManager};
 
 pub struct NotificationComponent {
     close_type: CloseType,
-    label: Label,
+    label: AnimatedLabel,
     padding_r: Label,
     id: String,
     notification_manager: Arc<Mutex<NotificationManager>>,
-    text: AnimatedText,
-    icon: char,
 }
 
 impl NotificationComponent {
@@ -49,20 +47,18 @@ impl NotificationComponent {
             }
         };
 
-        let text = AnimatedText {
+        
+        let mut label = AnimatedLabel {
             max_width,
             move_chars_per_sec,
             start_offset: 0.0,
             text: nd.text.clone(),
             stop_animation_for_secs: 0.0,
+            label: Label::new(String::new()),
+            icon: nd.icon
         };
 
-        let mut label;
-        if nd.icon == ' ' {
-            label = Label::new(format!(" {} ", text.to_string()));
-        } else {
-            label = Label::new(format!(" {} {} ", nd.icon, text.to_string()));
-        }
+        
         label.set_seperator(false);
         label.set_separator_block_width(0);
 
@@ -79,17 +75,13 @@ impl NotificationComponent {
             id: nd.id.to_owned(),
             notification_manager,
             padding_r,
-            icon: nd.icon,
-            text,
         }
     }
 
     pub fn update_notification(&mut self, nd: &NotificationData) {
-        self.icon = nd.icon;
-        self.text.text = nd.text.to_string();
-
-        self.update_label_text();
-
+        self.label.icon = nd.icon;
+        self.label.text = nd.text.to_string();
+        self.label.update(0.);
         let close_type = match nd.expire_timeout {
             -1 => {
                 let mut b = Button::new(String::from(" X "));
@@ -113,14 +105,6 @@ impl NotificationComponent {
         self.close_type = close_type;
     }
 
-    fn update_label_text(&mut self) {
-        if self.icon == ' ' {
-            self.label.set_text(format!(" {} ", self.text.to_string()));
-        } else {
-            self.label
-                .set_text(format!(" {} {} ", self.icon, self.text.to_string()));
-        }
-    }
 }
 
 impl Component for NotificationComponent {
@@ -167,8 +151,6 @@ impl Component for NotificationComponent {
             .remove(&self.id);
         }
 
-        self.text.update(dt);
-        self.update_label_text();
         self.label.update(dt);
         self.close_type.update(dt);
     }
@@ -279,16 +261,18 @@ impl Widget for CloseType {
     }
 }
 
-struct AnimatedText {
+struct AnimatedLabel {
     start_offset: f64,
     max_width: usize,
     move_chars_per_sec: usize,
     text: String,
     stop_animation_for_secs: f64,
+    label: Label,
+    icon: char
 }
 
-impl AnimatedText {
-    fn update(&mut self, dt: f64) {
+impl AnimatedLabel {
+    fn update_offset(&mut self, dt: f64) {
         let text_len = self.text.chars().count();
 
         if text_len <= self.max_width {
@@ -309,7 +293,46 @@ impl AnimatedText {
     }
 }
 
-impl ToString for AnimatedText {
+impl Component for AnimatedLabel {
+
+    fn add_component_manager_messenger(&mut self, component_manager_messanger: ComponentManagerMessenger) {
+        self.label.add_component_manager_messenger(component_manager_messanger);
+    }
+    fn event(&mut self, event: &ClickEvent) {
+        self.label.event(event)
+    }
+    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
+        self.label.collect_base_components(base_components)
+    }
+    fn collect_base_components_mut<'a>(&'a mut self, base_components: &mut Vec<&'a mut BaseComponent>) {
+        self.label.collect_base_components_mut(base_components)
+    }
+    fn get_id(&self) -> &str {
+        self.label.get_id()
+    }
+    fn name(&self) -> &str {
+        self.label.name()
+    }
+    fn update(&mut self, dt: f64) {
+        self.update_offset(dt);
+        self.label.set_text(self.to_string());
+    }
+
+}
+
+impl Widget for AnimatedLabel {
+
+    fn get_base_component(&self) -> &BaseComponent {
+        self.label.get_base_component()
+    }
+
+    fn get_base_component_mut(&mut self) -> &mut BaseComponent {
+        self.label.get_base_component_mut()
+    }
+
+}
+
+impl ToString for AnimatedLabel {
     fn to_string(&self) -> String {
         let text_len = self.text.chars().count();
 
@@ -326,10 +349,19 @@ impl ToString for AnimatedText {
         let chars = self.text.chars().collect::<Vec<char>>();
         let chars = &chars[self.start_offset as usize..end];
 
-        format!(
+        let main_text = format!(
             "{text: <width$}",
             text = chars.iter().collect::<String>(),
             width = self.max_width
-        )
+        );
+
+        if self.icon == ' ' {
+            format!(" {} ", main_text)
+        } else {
+            format!(" {} {} ", self.icon, main_text)
+        }
     }
 }
+
+impl SeperatorWidth for AnimatedLabel {}
+impl Seperator for AnimatedLabel {}
