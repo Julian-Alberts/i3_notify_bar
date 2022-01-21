@@ -37,7 +37,7 @@ impl Default for PathManager {
         config_file.push(".config/i3_notify_bar/config");
 
         let mut emoji_file = PathBuf::from(home_dir);
-        emoji_file.push("./i3_notify_bar/emojis");
+        emoji_file.push(".config/i3_notify_bar/emojis");
 
         PathManager {
             log_file: log_file.to_str().map(str::to_owned),
