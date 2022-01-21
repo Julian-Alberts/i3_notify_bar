@@ -1,27 +1,23 @@
 use super::{prelude::*, BaseComponent};
 use crate::{
+    property::{Properties, Text},
     protocol::ClickEvent,
-    ComponentManagerMessenger, property::{Properties, Text},
 };
 
 pub struct Label {
     base_component: BaseComponent,
-    component_manager: Option<ComponentManagerMessenger>,
 }
 
 impl Label {
     pub fn new(text: String) -> Self {
         Self {
-            base_component: BaseComponent::from(
-                Properties {
-                    text: Text {
-                        full: text,
-                        ..Default::default()
-                    },
+            base_component: BaseComponent::from(Properties {
+                text: Text {
+                    full: text,
                     ..Default::default()
-                }
-            ),
-            component_manager: None,
+                },
+                ..Default::default()
+            }),
         }
     }
 
@@ -50,13 +46,6 @@ impl Component for Label {
             Some(name) => name,
             None => "",
         }
-    }
-
-    fn add_component_manager_messenger(
-        &mut self,
-        component_manager_messanger: ComponentManagerMessenger,
-    ) {
-        self.component_manager = Some(component_manager_messanger);
     }
 
     fn get_id(&self) -> &str {

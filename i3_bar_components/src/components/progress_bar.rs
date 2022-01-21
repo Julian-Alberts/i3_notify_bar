@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{protocol::ClickEvent, ComponentManagerMessenger};
+use crate::protocol::ClickEvent;
 
 use super::{prelude::*, BaseComponent};
 
@@ -8,7 +8,6 @@ pub struct ProgressBar {
     base_component: BaseComponent,
     current: SystemTime,
     max: u64,
-    component_manager: Option<ComponentManagerMessenger>,
 }
 
 impl ProgressBar {
@@ -17,7 +16,6 @@ impl ProgressBar {
             base_component: BaseComponent::new(),
             current: SystemTime::now(),
             max,
-            component_manager: None,
         }
     }
 
@@ -26,9 +24,11 @@ impl ProgressBar {
             Ok(e) => e,
             Err(_) => {
                 log::error!("I will mess with time!");
-                return false
+                return false;
             }
-        }.as_secs() >= self.max
+        }
+        .as_secs()
+            >= self.max
     }
 }
 
@@ -72,17 +72,9 @@ impl Component for ProgressBar {
         }
     }
 
-    fn add_component_manager_messenger(
-        &mut self,
-        component_manager_messanger: ComponentManagerMessenger,
-    ) {
-        self.component_manager = Some(component_manager_messanger);
-    }
-
     fn get_id(&self) -> &str {
         self.get_base_component().get_id()
     }
-    
 }
 
 impl Widget for ProgressBar {

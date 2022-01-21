@@ -3,7 +3,6 @@ use std::any::Any;
 use std::sync::mpsc::Receiver;
 use std::{
     io::{BufRead, Read, Stdout, Write},
-    sync::mpsc::Sender,
     time::SystemTime,
 };
 
@@ -16,8 +15,6 @@ pub struct ComponentManager {
     components: Vec<Box<dyn Component>>,
     event_reader: Receiver<ClickEvent>,
     out_writer: Stdout,
-    message_tx: Sender<Message>,
-    message_rx: Receiver<Message>,
     last_update: SystemTime,
     next_instance_id: u128,
 }
@@ -35,7 +32,6 @@ impl ComponentManager {
 
         self.handle_events();
         self.update_components(dt);
-        self.handle_messages();
         let blocks = self.build_json();
 
         debug!("{:#?}", String::from_utf8(blocks.clone()));
@@ -70,37 +66,6 @@ impl ComponentManager {
         self.components.iter_mut().for_each(|c| c.update(dt));
     }
 
-    fn handle_messages(&mut self) {
-        let messages = self
-            .message_rx
-            .try_recv()
-            .into_iter()
-            .collect::<Vec<Message>>();
-
-        messages.iter().for_each(|m| {
-            let id = m.get_id();
-            match m.get_message_type() {
-                MessageType::Remove => {
-                    let index =
-                        self.components
-                            .iter()
-                            .enumerate()
-                            .find_map(|(index, component)| {
-                                if component.get_id() == id {
-                                    Some(index)
-                                } else {
-                                    None
-                                }
-                            });
-
-                    if let Some(i) = index {
-                        self.components.remove(i);
-                    }
-                }
-            }
-        });
-    }
-
     fn build_json(&mut self) -> Vec<u8> {
         let mut blocks = self
             .components
@@ -129,16 +94,10 @@ impl ComponentManager {
         comp.collect_base_components_mut(&mut base_components);
 
         base_components.iter_mut().for_each(|component| {
-            component
-                .get_properties_mut().instance = Some(self.next_instance_id.to_string());
+            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
             self.next_instance_id += 1;
         });
 
-        let comp_ref = comp.as_mut();
-        comp_ref.add_component_manager_messenger(ComponentManagerMessenger::new(
-            String::from(comp_ref.get_id()),
-            self.message_tx.clone(),
-        ));
         self.components.push(comp);
     }
 
@@ -282,55 +241,12 @@ impl ComponentManagerBuilder {
             }
         });
 
-        let (message_tx, message_rx) = std::sync::mpsc::channel();
-
         ComponentManager {
             components: Vec::new(),
             event_reader: rx,
             out_writer,
-            message_rx,
-            message_tx,
             last_update: SystemTime::now(),
             next_instance_id: 1,
         }
     }
-}
-
-pub struct ComponentManagerMessenger {
-    id: String,
-    tx: Sender<Message>,
-}
-
-impl ComponentManagerMessenger {
-    fn new(id: String, tx: Sender<Message>) -> Self {
-        Self { id, tx }
-    }
-
-    pub fn remove(&self) {
-        if let Err(_) = self.tx.send(Message {
-            id: self.id.clone(),
-            message_type: MessageType::Remove,
-        }) {
-            debug!("Could not send remove message for id {}", self.id)
-        };
-    }
-}
-
-pub struct Message {
-    id: String,
-    message_type: MessageType,
-}
-
-impl Message {
-    pub fn get_id(&self) -> &str {
-        &self.id
-    }
-
-    pub fn get_message_type(&self) -> &MessageType {
-        &self.message_type
-    }
-}
-
-pub enum MessageType {
-    Remove,
 }

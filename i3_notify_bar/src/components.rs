@@ -3,7 +3,6 @@ use std::sync::{Arc, Mutex};
 use i3_bar_components::{
     components::{prelude::*, BaseComponent, Button, Label, ProgressBar},
     protocol::ClickEvent,
-    ComponentManagerMessenger,
 };
 
 use log::debug;
@@ -159,8 +158,6 @@ impl Component for NotificationComponent {
         &self.id
     }
 
-    fn add_component_manager_messenger(&mut self, _: ComponentManagerMessenger) {}
-
     fn get_id(&self) -> &str {
         &self.id
     }
@@ -193,16 +190,6 @@ impl Component for CloseType {
         match self {
             Self::Button(b) => b.update(dt),
             Self::Timer(t) => t.update(dt),
-        }
-    }
-
-    fn add_component_manager_messenger(
-        &mut self,
-        component_manager_messanger: ComponentManagerMessenger,
-    ) {
-        match self {
-            Self::Button(b) => b.add_component_manager_messenger(component_manager_messanger),
-            Self::Timer(t) => t.add_component_manager_messenger(component_manager_messanger),
         }
     }
 
@@ -295,9 +282,6 @@ impl AnimatedLabel {
 
 impl Component for AnimatedLabel {
 
-    fn add_component_manager_messenger(&mut self, component_manager_messanger: ComponentManagerMessenger) {
-        self.label.add_component_manager_messenger(component_manager_messanger);
-    }
     fn event(&mut self, event: &ClickEvent) {
         self.label.event(event)
     }

@@ -26,14 +26,15 @@ pub struct Properties {
 }
 
 impl serde::Serialize for Properties {
-
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where S: serde::Serializer {
+    where
+        S: serde::Serializer,
+    {
         let mut state = serializer.serialize_struct("Properties", 17)?;
-        
+
         state.serialize_field("full_text", &self.text.full)?;
         serialize_field!(self.text.short => "short_text", state);
-        
+
         serialize_field!(self.color.text => "color", state);
         serialize_field!(self.color.background => "background", state);
 
@@ -49,9 +50,9 @@ impl serde::Serialize for Properties {
         serialize_field!(self.min_width => "min_width", state);
 
         match self.align {
-            Align::Left => {},
+            Align::Left => {}
             Align::Center => state.serialize_field("align", "center")?,
-            Align::Right => state.serialize_field("align", "right")?
+            Align::Right => state.serialize_field("align", "right")?,
         }
 
         serialize_field!(self.name => "name", state);
@@ -66,31 +67,24 @@ impl serde::Serialize for Properties {
 
         state.end()
     }
-
 }
-
 
 #[derive(Default, Debug, PartialEq)]
 pub struct Text {
     pub full: String,
-    pub short: Option<String>
+    pub short: Option<String>,
 }
 
 impl From<String> for Text {
-
     fn from(full: String) -> Self {
-        Self {
-            full,
-            short: None
-        }
+        Self { full, short: None }
     }
-
 }
 
 #[derive(Default, Debug, PartialEq)]
 pub struct Color {
     pub text: Option<String>,
-    pub background: Option<String>
+    pub background: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq)]
@@ -99,7 +93,7 @@ pub struct Border {
     pub top: Option<usize>,
     pub right: Option<usize>,
     pub bottom: Option<usize>,
-    pub left: Option<usize>
+    pub left: Option<usize>,
 }
 
 impl From<(String, usize)> for Border {
@@ -129,34 +123,30 @@ impl From<usize> for Border {
 #[derive(Default, Debug, PartialEq)]
 pub struct Separator {
     pub show: bool,
-    pub block_width: Option<usize>
+    pub block_width: Option<usize>,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Align {
     Left,
     Center,
-    Right
+    Right,
 }
 
 impl Default for Align {
-
     fn default() -> Self {
         Self::Left
     }
-
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Markup {
     Pango,
-    None
+    None,
 }
 
 impl Default for Markup {
-
     fn default() -> Self {
         Self::None
     }
-
 }

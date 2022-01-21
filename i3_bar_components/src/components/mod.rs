@@ -28,7 +28,7 @@ impl BaseComponent {
     pub fn new() -> Self {
         Self::default()
     }
- 
+
     pub fn serialize_cache<'a>(&'a mut self) -> &'a [u8] {
         let properties = &self.properties;
         self.serialized.get_or_insert_with(|| {
@@ -39,10 +39,9 @@ impl BaseComponent {
                     todo!("return error")
                 }
             }
-                .as_bytes()
-                .to_vec()
+            .as_bytes()
+            .to_vec()
         })
-        
     }
 
     /// Returns a mutable reference to the properties
@@ -66,7 +65,6 @@ impl BaseComponent {
 }
 
 impl BaseComponent {
-
     #[deprecated]
     pub fn set_full_text(&mut self, full_text: String) {
         self.get_properties_mut().text.full = full_text;
@@ -76,7 +74,7 @@ impl BaseComponent {
     pub fn set_separator(&mut self, s: bool) {
         self.get_properties_mut().separator.show = s;
     }
-    
+
     #[deprecated]
     pub fn set_separator_block_width(&mut self, sbw: usize) {
         self.get_properties_mut().separator.block_width = Some(sbw);
