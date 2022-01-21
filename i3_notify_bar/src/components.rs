@@ -316,6 +316,7 @@ impl Component for AnimatedLabel {
     fn update(&mut self, dt: f64) {
         self.update_offset(dt);
         self.label.set_text(self.to_string());
+        self.label.update(dt);
     }
 
 }

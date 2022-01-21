@@ -1,7 +1,7 @@
 use super::{prelude::*, BaseComponent};
 use crate::{
-    protocol::{Block, ClickEvent},
-    ComponentManagerMessenger,
+    protocol::ClickEvent,
+    ComponentManagerMessenger, property::{Properties, Text},
 };
 
 pub struct Label {
@@ -11,9 +11,16 @@ pub struct Label {
 
 impl Label {
     pub fn new(text: String) -> Self {
-        let block = Block::new().with_full_text(text);
         Self {
-            base_component: BaseComponent::from(block),
+            base_component: BaseComponent::from(
+                Properties {
+                    text: Text {
+                        full: text,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            ),
             component_manager: None,
         }
     }

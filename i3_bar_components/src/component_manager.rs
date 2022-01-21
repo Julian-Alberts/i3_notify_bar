@@ -130,8 +130,7 @@ impl ComponentManager {
 
         base_components.iter_mut().for_each(|component| {
             component
-                .get_block_mut()
-                .set_instance(self.next_instance_id.to_string());
+                .get_properties_mut().instance = Some(self.next_instance_id.to_string());
             self.next_instance_id += 1;
         });
 

@@ -1,6 +1,6 @@
 use crate::{
-    protocol::{Block, ClickEvent},
-    ComponentManagerMessenger,
+    protocol::ClickEvent,
+    ComponentManagerMessenger, property::Properties,
 };
 
 use super::{prelude::*, BaseComponent};
@@ -13,11 +13,18 @@ pub struct Button {
 
 impl Button {
     pub fn new(text: String) -> Button {
-        let block = Block::new()
-            .with_border(String::from("#FFFFFF"))
-            .with_full_text(text);
         Button {
-            base_component: BaseComponent::from(block),
+            base_component: BaseComponent::from(Properties {
+                text: crate::property::Text { 
+                    full: text, 
+                    short: None 
+                },
+                border: crate::property::Border { 
+                    color: Some(String::from("#FFFFFF")),
+                    ..Default::default()
+                },
+                ..Default::default()
+            }),
             component_manager: None,
             on_click: |_, _| {},
         }
@@ -86,8 +93,7 @@ mod tests {
         let mut button = Button::new(String::from("test"));
         button.set_on_click(|btn, _| {
             btn.get_base_component_mut()
-                .get_block_mut()
-                .set_instance(String::from("clicked"));
+                .get_properties_mut().instance = Some(String::from("clicked"));
         });
 
         let ce: ClickEvent = serde_json::from_str(
@@ -109,8 +115,8 @@ mod tests {
 
         button.event(&ce);
         assert_eq!(
-            &button.get_base_component_mut().get_block_mut().get_id(),
-            &"clicked"
+            button.get_base_component_mut().get_properties_mut().instance,
+            Some(String::from("clicked"))
         )
     }
 }
