@@ -26,7 +26,7 @@ impl Label {
     }
 
     pub fn set_text(&mut self, s: String) {
-        self.base_component.set_full_text(s);
+        self.base_component.get_properties_mut().text.full = s;
     }
 }
 

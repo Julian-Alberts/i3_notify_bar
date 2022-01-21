@@ -157,7 +157,7 @@ fn print_error(data: String) -> ! {
     let mut label = Label::new(data);
     let mut base_components = Vec::new();
     label.collect_base_components_mut(&mut base_components);
-    base_components[0].set_urgent(true);
+    base_components[0].get_properties_mut().urgent = true;
     cm.add_component(Box::new(label));
     cm.update();
     loop {

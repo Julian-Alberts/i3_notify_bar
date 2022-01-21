@@ -105,8 +105,8 @@ pub enum Style {
 impl Style {
     pub fn apply(&self, base_component: &mut i3_bar_components::components::BaseComponent) {
         match self {
-            Style::Background(c) => base_component.set_background(c.to_owned()),
-            Style::Text(c) => base_component.set_color(c.to_owned()),
+            Style::Background(c) => base_component.get_properties_mut().color.background = Some(c.to_owned()),
+            Style::Text(c) => base_component.get_properties_mut().color.text = Some(c.to_owned()),
         }
     }
 }

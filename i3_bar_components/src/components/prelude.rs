@@ -25,12 +25,12 @@ pub trait Widget: Component {
 
 pub trait Seperator: Widget {
     fn set_seperator(&mut self, s: bool) {
-        self.get_base_component_mut().set_separator(s)
+        self.get_base_component_mut().get_properties_mut().separator.show = s;
     }
 }
 
 pub trait SeperatorWidth: Widget {
     fn set_separator_block_width(&mut self, sbw: usize) {
-        self.get_base_component_mut().set_separator_block_width(sbw);
+        self.get_base_component_mut().get_properties_mut().separator.block_width = Some(sbw);
     }
 }

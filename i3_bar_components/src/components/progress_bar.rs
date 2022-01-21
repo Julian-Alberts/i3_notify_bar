@@ -62,8 +62,7 @@ impl Component for ProgressBar {
             _ => ' ',
         };
 
-        self.base_component
-            .set_full_text([icon].iter().collect::<String>())
+        self.base_component.get_properties_mut().text.full = icon.to_string()
     }
 
     fn name(&self) -> &str {
