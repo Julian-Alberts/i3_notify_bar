@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub struct ComponentManager {
-    components: Vec<Box<dyn Component>>,
+    layers: Vec<Vec<Box<dyn Component>>>,
     event_reader: Receiver<ClickEvent>,
     out_writer: Stdout,
     last_update: SystemTime,
@@ -50,7 +50,7 @@ impl ComponentManager {
 
         events.iter().for_each(|event| {
             let element_id = event.get_id();
-            let comp = self.components.iter_mut().find(|comp| {
+            let comp = self.get_layer_mut().iter_mut().find(|comp| {
                 let mut blocks = Vec::new();
                 comp.collect_base_components(&mut blocks);
                 blocks.iter().any(|b| b.get_id() == element_id)
@@ -63,12 +63,12 @@ impl ComponentManager {
     }
 
     fn update_components(&mut self, dt: f64) {
-        self.components.iter_mut().for_each(|c| c.update(dt));
+        self.get_layer_mut().iter_mut().for_each(|c| c.update(dt));
     }
 
     fn build_json(&mut self) -> Vec<u8> {
         let mut blocks = self
-            .components
+            .get_layer_mut()
             .iter_mut()
             .fold(Vec::new(), |mut blocks, c| {
                 c.collect_base_components_mut(&mut blocks);
@@ -98,11 +98,11 @@ impl ComponentManager {
             self.next_instance_id += 1;
         });
 
-        self.components.push(comp);
+        self.get_layer_mut().push(comp);
     }
 
     pub fn get_component_mut<'a, T: Component>(&'a mut self, name: &str) -> Option<&'a mut T> {
-        self.components.iter_mut().find_map(|c| {
+        self.get_layer_mut().iter_mut().find_map(|c| {
             if c.name() == name {
                 let c: &mut dyn Any = c;
                 c.downcast_mut::<T>()
@@ -113,12 +113,30 @@ impl ComponentManager {
     }
 
     pub fn remove_by_name(&mut self, name: &str) {
-        let index = match self.components.iter().position(|c| c.name() == name) {
+        let index = match self.get_layer().iter().position(|c| c.name() == name) {
             Some(s) => s,
             None => return,
         };
 
-        self.components.remove(index);
+        self.get_layer_mut().remove(index);
+    }
+
+    fn get_layer(&self) -> &Vec<Box<dyn Component>> {
+        self.layers.last().unwrap()
+    }
+
+    fn get_layer_mut(&mut self) -> &mut Vec<Box<dyn Component>> {
+        self.layers.last_mut().unwrap()
+    }
+
+    pub fn new_layer(&mut self) {
+        self.layers.push(Vec::new())
+    }
+
+    pub fn pop_layer(&mut self) {
+        if self.layers.len() > 1 {
+            self.layers.pop();
+        }
     }
 }
 
@@ -242,7 +260,7 @@ impl ComponentManagerBuilder {
         });
 
         ComponentManager {
-            components: Vec::new(),
+            layers: vec![Vec::new()],
             event_reader: rx,
             out_writer,
             last_update: SystemTime::now(),
