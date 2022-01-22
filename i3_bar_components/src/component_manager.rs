@@ -17,6 +17,7 @@ pub struct ComponentManager {
     out_writer: Stdout,
     last_update: SystemTime,
     next_instance_id: u128,
+    global_event_listener: &'static dyn Fn(&mut Self, &ClickEvent)
 }
 
 impl ComponentManager {
@@ -49,6 +50,7 @@ impl ComponentManager {
         let events = self.event_reader.try_iter().collect::<Vec<ClickEvent>>();
 
         events.iter().for_each(|event| {
+            (self.global_event_listener)(self, event);
             let element_id = event.get_id();
             let comp = self.get_layer_mut().iter_mut().find(|comp| {
                 let mut blocks = Vec::new();
@@ -137,6 +139,10 @@ impl ComponentManager {
         if self.layers.len() > 1 {
             self.layers.pop();
         }
+    }
+
+    pub fn set_global_event_listener(&mut self, cb: &'static dyn Fn(&mut Self, &ClickEvent)) {
+        self.global_event_listener = cb;
     }
 }
 
@@ -265,6 +271,9 @@ impl ComponentManagerBuilder {
             out_writer,
             last_update: SystemTime::now(),
             next_instance_id: 1,
+            global_event_listener: &default_listener
         }
     }
 }
+
+fn default_listener(_: &mut ComponentManager, _: &ClickEvent) {}
