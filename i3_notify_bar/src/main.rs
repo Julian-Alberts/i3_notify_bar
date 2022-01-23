@@ -124,12 +124,12 @@ fn run(
                 };
                 match component_manager.get_component_mut::<NotificationComponent>(&n.id) {
                     Some(c) => c.update_notification(&n),
-                    None => component_manager.add_component_at(Box::new(NotificationComponent::new(
+                    None => component_manager.add_component_at_on_layer(Box::new(NotificationComponent::new(
                         &n,
                         max_text_length,
                         animation_chars_per_second,
                         Arc::clone(&notification_manager),
-                    )), -1),
+                    )), -1, 0),
                 }
             }
             &NotificationEvent::Remove(id) => component_manager.remove_by_name(id),

@@ -1,3 +1,5 @@
+use crate::components::prelude::Component;
+
 use super::ManageComponents;
 
 #[derive(Default)]
@@ -24,6 +26,10 @@ impl ManageComponents for ComponentManagerMassenger {
     }
 
     fn add_component_at(&mut self, comp: Box<dyn crate::components::prelude::Component>, pos: isize) {
+        unimplemented!()
+    }
+
+    fn add_component_at_on_layer(&mut self, mut comp: Box<dyn Component>, pos: isize, layer: usize) {
         unimplemented!()
     }
 
