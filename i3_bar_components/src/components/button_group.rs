@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{protocol::ClickEvent, component_manager::ManageComponents, property::Border};
+use crate::{protocol::ClickEvent, component_manager::ManageComponents, property::Color};
 
 use super::{prelude::{Component, Widget}, Button};
 
@@ -23,26 +23,12 @@ impl <K: Copy + PartialEq + 'static> ButtonGroup<K> {
     }
 
     pub fn select(&mut self, selected_key: K) {
+        let current_selected = *self.selected.lock().unwrap();
         self.buttons.iter_mut().for_each(|button| {
-            let button_key = button.key;
-            let border = &mut button.get_base_component_mut().get_properties_mut().border;
-                
-            if button_key == selected_key {
-                *border = Border {
-                    top: Some(2),
-                    left: Some(2),
-                    bottom: Some(2),
-                    right: Some(2),
-                    color: border.color.clone(),
-                }
-            } else {
-                *border = Border {
-                    top: Some(1),
-                    left: Some(1),
-                    bottom: Some(1),
-                    right: Some(1),
-                    color: border.color.clone(),
-                }
+            if button.key == selected_key {
+                button.select();
+            } else if button.key == current_selected {
+                button.deselect()
             }
         });
         match self.selected.lock() {
@@ -103,6 +89,24 @@ impl <K: Copy + PartialEq + 'static> GroupButton<K> {
             key,
             button
         }
+    }
+
+    fn deselect(&mut self) {
+        let properties = &mut self.button.get_base_component_mut().get_properties_mut();
+        let color = &mut properties.color;
+        *color = Color {
+            background: None,
+            text: color.background.clone()
+        };
+    }
+
+    fn select(&mut self) {
+        let properties = &mut self.button.get_base_component_mut().get_properties_mut();
+        let color = &mut properties.color;
+        *color = Color {
+            background: color.text.clone(),
+            text: Some(String::from("#333333"))
+        };
     }
 
 }

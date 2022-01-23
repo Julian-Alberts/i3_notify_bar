@@ -6,17 +6,17 @@ use notify_server::notification::Urgency;
 const BUTTON_CONFIG: [ButtonConfig; 3] = [
     ButtonConfig {
         color: "#00FF00",
-        text: "low",
+        text: " low ",
         key: Urgency::Low
     },
     ButtonConfig {
         color: "#F5E642",
-        text: "normal",
+        text: " normal ",
         key: Urgency::Normal
     },
     ButtonConfig {
         color: "#F5424B",
-        text: "critical",
+        text: " critical ",
         key: Urgency::Critical
     }
 ];
