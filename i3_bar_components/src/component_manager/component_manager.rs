@@ -168,6 +168,24 @@ impl ManageComponents for ComponentManager {
         self.get_layer_mut().push(comp);
     }
 
+    fn add_component_at(&mut self, mut comp: Box<dyn Component>, pos: isize) {
+        let mut base_components = Vec::new();
+        comp.collect_base_components_mut(&mut base_components);
+
+        base_components.iter_mut().for_each(|component| {
+            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
+            self.next_instance_id += 1;
+        });
+
+        let pos = if pos < 0 {
+            (self.get_layer().len() as isize + pos) as usize
+        } else {
+            pos as usize
+        };
+
+        self.get_layer_mut().splice(pos..pos, [comp]);
+    }
+
     fn remove_by_name(&mut self, name: &str) {
         let index = match self.get_layer().iter().position(|c| c.name() == name) {
             Some(s) => s,

@@ -23,6 +23,10 @@ impl ManageComponents for ComponentManagerMassenger {
         self.queue.push(Message::RemoveByName(name.to_string()));
     }
 
+    fn add_component_at(&mut self, comp: Box<dyn crate::components::prelude::Component>, pos: isize) {
+        unimplemented!()
+    }
+
 }
 
 impl ComponentManagerMassengerQueue for ComponentManagerMassenger {
