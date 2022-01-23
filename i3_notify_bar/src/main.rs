@@ -16,6 +16,7 @@ use emoji::EmojiMode;
 use i3_bar_components::{components::Label, component_manager::{ComponentManagerBuilder, ManageComponents}};
 use log::{error, debug};
 use notification_bar::{NotificationEvent, NotificationManager};
+use notify_server::notification::Urgency;
 use path_manager::PathManager;
 use rule::Definition;
 use std::{
@@ -84,11 +85,20 @@ fn run(
     let mut component_manager = ComponentManagerBuilder::new()
         .with_click_events(true)
         .build();
-    component_manager.add_component(Box::new(components::menu_button(false)));
+
+    let minimal_urgency = Arc::new(Mutex::new(Urgency::Low));
+
+    component_manager.add_component(
+        Box::new(
+            components::menu_button_open(
+                Arc::clone(&minimal_urgency)
+            )
+        )
+    );
     component_manager.set_global_event_listener(|_, ce| {
         debug!("{}", ce.get_button().to_string());
     });
-    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(config, emoji_mode)));
+    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(config, emoji_mode, minimal_urgency)));
     notify_server.add_observer(notification_manager.clone());
 
     loop {

@@ -1,20 +1,23 @@
+use std::sync::{Arc, Mutex};
+
 use crate::{protocol::ClickEvent, component_manager::ManageComponents, property::Border};
 
 use super::{prelude::{Component, Widget}, Button};
 
 pub struct ButtonGroup<K: Copy + PartialEq + 'static> {
     buttons: Vec<GroupButton<K>>,
-    selected: K
+    selected: Arc<Mutex<K>>
 }
 
 impl <K: Copy + PartialEq + 'static> ButtonGroup<K> {
 
-    pub fn new(mut buttons: Vec<GroupButton<K>>, selected: K) -> Self {
+    pub fn new(mut buttons: Vec<GroupButton<K>>, selected: Arc<Mutex<K>>) -> Self {
         buttons.sort_by(|a, b| a.pos.cmp(&b.pos));
         let mut button_group = Self {
             buttons,
             selected
         };
+        let selected = *button_group.selected.lock().unwrap();
         button_group.select(selected);
         button_group
     }
@@ -42,7 +45,10 @@ impl <K: Copy + PartialEq + 'static> ButtonGroup<K> {
                 }
             }
         });
-        self.selected = selected_key;
+        match self.selected.lock() {
+            Ok(mut s) => *s = selected_key,
+            Err(_) => {}
+        }
     }
 
 }

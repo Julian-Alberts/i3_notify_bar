@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use i3_bar_components::components::{Button, prelude::Widget, ButtonGroup, GroupButton};
 use notify_server::notification::Urgency;
 
@@ -20,7 +22,7 @@ const BUTTON_CONFIG: [ButtonConfig; 3] = [
 ];
 
 
-pub fn init() -> ButtonGroup<Urgency> {
+pub fn init(selected: Arc<Mutex<Urgency>>) -> ButtonGroup<Urgency> {
 
     let buttons = BUTTON_CONFIG.iter().fold(Vec::with_capacity(BUTTON_CONFIG.len()), |mut vec, config| {
         let button = Button::from(config);
@@ -28,7 +30,7 @@ pub fn init() -> ButtonGroup<Urgency> {
         vec
     });
 
-    ButtonGroup::new(buttons, Urgency::Low)
+    ButtonGroup::new(buttons, selected)
 }
 
 struct ButtonConfig<'a> {

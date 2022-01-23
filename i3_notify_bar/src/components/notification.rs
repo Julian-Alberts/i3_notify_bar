@@ -119,7 +119,7 @@ impl Component for NotificationComponent {
         self.padding_r.collect_base_components_mut(base_components);
     }
 
-    fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
+    fn event(&mut self, _: &mut dyn ManageComponents, ce: &ClickEvent) {
         if self.close_type.is_button()
             && ce.get_button() == 1
             && ce.get_id() == self.close_type.get_id()

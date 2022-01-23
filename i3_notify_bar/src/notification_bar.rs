@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::RwLock;
 use std::time::SystemTime;
 
@@ -16,17 +17,17 @@ pub struct NotificationManager {
     events: Vec<NotificationEvent>,
     definitions: Vec<Definition>,
     default_emoji_mode: EmojiMode,
-    minimum_urgency: Urgency
+    minimum_urgency: Arc<Mutex<Urgency>>
 }
 
 impl NotificationManager {
-    pub fn new(definitions: Vec<Definition>, default_emoji_mode: EmojiMode) -> Self {
+    pub fn new(definitions: Vec<Definition>, default_emoji_mode: EmojiMode, minimum_urgency: Arc<Mutex<Urgency>>) -> Self {
         Self {
             notifications: Vec::new(),
             events: Vec::new(),
             definitions,
             default_emoji_mode,
-            minimum_urgency: Urgency::Normal
+            minimum_urgency
         }
     }
 
@@ -54,7 +55,7 @@ impl NotificationManager {
             notification_template_data
         );
 
-        if notification.urgency < self.minimum_urgency {
+        if notification.urgency < self.minimum_urgency.lock().unwrap().clone() {
             return;
         }
 

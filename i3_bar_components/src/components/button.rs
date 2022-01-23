@@ -4,7 +4,7 @@ use super::{prelude::*, BaseComponent};
 
 pub struct Button {
     base_component: BaseComponent,
-    on_click: fn(&mut Self, mc: &mut dyn ManageComponents, &ClickEvent),
+    on_click: Box<dyn Fn(&mut Self, &mut dyn ManageComponents, &ClickEvent) + 'static>,
 }
 
 impl Button {
@@ -21,19 +21,23 @@ impl Button {
                 },
                 ..Default::default()
             }),
-            on_click: |_, _, _| {},
+            on_click: Box::new(|_, _, _| {}),
         }
     }
 
-    pub fn set_on_click(&mut self, on_click: fn(&mut Self, mc: &mut dyn ManageComponents, &ClickEvent)) {
-        self.on_click = on_click;
+    pub fn set_on_click<F: Fn(&mut Self, &mut dyn ManageComponents, &ClickEvent) + 'static>(&mut self, on_click: F) {
+        self.on_click = Box::new(on_click);
     }
 }
 
 impl Component for Button {
     fn update(&mut self, _: f64) {}
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
-        (self.on_click)(self, mc, ce);
+        let self_ptr: *mut _ = self;
+        let self_ref = unsafe {
+            self_ptr.as_mut().unwrap()
+        };
+        (self.on_click)(self_ref, mc, ce);
     }
 
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
