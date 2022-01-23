@@ -1,7 +1,10 @@
+mod button_group;
 mod button;
 mod label;
 pub mod prelude;
 mod progress_bar;
+
+pub use button_group::{ButtonGroup, GroupButton};
 pub use button::Button;
 pub use label::Label;
 use log::debug;

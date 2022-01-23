@@ -11,13 +11,17 @@ use crate::{
     protocol::{ClickEvent, Header},
 };
 
+use super::ManageComponents;
+use super::component_manager_messenger::{ComponentManagerMassenger, ComponentManagerMassengerQueue, Message};
+
 pub struct ComponentManager {
     layers: Vec<Vec<Box<dyn Component>>>,
     event_reader: Receiver<ClickEvent>,
     out_writer: Stdout,
     last_update: SystemTime,
     next_instance_id: u128,
-    global_event_listener: &'static dyn Fn(&mut Self, &ClickEvent)
+    global_event_listener: fn(&mut dyn ManageComponents, &ClickEvent),
+    component_manager_messenger: ComponentManagerMassenger
 }
 
 impl ComponentManager {
@@ -32,10 +36,9 @@ impl ComponentManager {
         self.last_update = SystemTime::now();
 
         self.handle_events();
+        self.handle_messenges();
         self.update_components(dt);
         let blocks = self.build_json();
-
-        debug!("{:#?}", String::from_utf8(blocks.clone()));
 
         if let Err(_) = self.out_writer.write_all(&blocks) {
             error!("Could not write bytes: {:#?}", blocks);
@@ -47,19 +50,23 @@ impl ComponentManager {
     }
 
     fn handle_events(&mut self) {
-        let events = self.event_reader.try_iter().collect::<Vec<ClickEvent>>();
+        let event_reader = &mut self.event_reader;
+        let events = event_reader.try_iter().collect::<Vec<ClickEvent>>();
+        let cmm = &mut self.component_manager_messenger;
+        let layer = self.layers.last_mut().unwrap();
+        let global_event_listener = &self.global_event_listener;
 
         events.iter().for_each(|event| {
-            (self.global_event_listener)(self, event);
+            (global_event_listener)(cmm, event);
             let element_id = event.get_id();
-            let comp = self.get_layer_mut().iter_mut().find(|comp| {
+            let comp = layer.iter_mut().find(|comp| {
                 let mut blocks = Vec::new();
                 comp.collect_base_components(&mut blocks);
                 blocks.iter().any(|b| b.get_id() == element_id)
             });
 
             if let Some(comp) = comp {
-                comp.event(event);
+                comp.event(cmm, event);
             }
         });
     }
@@ -91,18 +98,6 @@ impl ComponentManager {
         blocks
     }
 
-    pub fn add_component(&mut self, mut comp: Box<dyn Component>) {
-        let mut base_components = Vec::new();
-        comp.collect_base_components_mut(&mut base_components);
-
-        base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
-            self.next_instance_id += 1;
-        });
-
-        self.get_layer_mut().push(comp);
-    }
-
     pub fn get_component_mut<'a, T: Component>(&'a mut self, name: &str) -> Option<&'a mut T> {
         self.get_layer_mut().iter_mut().find_map(|c| {
             if c.name() == name {
@@ -114,15 +109,6 @@ impl ComponentManager {
         })
     }
 
-    pub fn remove_by_name(&mut self, name: &str) {
-        let index = match self.get_layer().iter().position(|c| c.name() == name) {
-            Some(s) => s,
-            None => return,
-        };
-
-        self.get_layer_mut().remove(index);
-    }
-
     fn get_layer(&self) -> &Vec<Box<dyn Component>> {
         self.layers.last().unwrap()
     }
@@ -131,19 +117,66 @@ impl ComponentManager {
         self.layers.last_mut().unwrap()
     }
 
-    pub fn new_layer(&mut self) {
+    pub fn set_global_event_listener(&mut self, cb: fn(&mut dyn ManageComponents, &ClickEvent)) {
+        self.global_event_listener = cb;
+    }
+
+    fn handle_messenges(&mut self) {
+        self.component_manager_messenger
+            .take_queue()
+            .into_iter()
+            .for_each(|message| {
+                match message {
+                    Message::AddComponent(component) => {
+                        self.add_component(component);
+                    }
+                    Message::RemoveByName(component) => {
+                        self.remove_by_name(component.as_str());
+                    }
+                    Message::NewLayer => {
+                        self.new_layer();
+                    }
+                    Message::PopLayer => {
+                        self.pop_layer();
+                    }
+                }
+            });
+    }
+}
+
+impl ManageComponents for ComponentManager {
+
+    fn new_layer(&mut self) {
         self.layers.push(Vec::new())
     }
 
-    pub fn pop_layer(&mut self) {
+    fn pop_layer(&mut self) {
         if self.layers.len() > 1 {
             self.layers.pop();
         }
     }
 
-    pub fn set_global_event_listener(&mut self, cb: &'static dyn Fn(&mut Self, &ClickEvent)) {
-        self.global_event_listener = cb;
+    fn add_component(&mut self, mut comp: Box<dyn Component>) {
+        let mut base_components = Vec::new();
+        comp.collect_base_components_mut(&mut base_components);
+
+        base_components.iter_mut().for_each(|component| {
+            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
+            self.next_instance_id += 1;
+        });
+
+        self.get_layer_mut().push(comp);
     }
+
+    fn remove_by_name(&mut self, name: &str) {
+        let index = match self.get_layer().iter().position(|c| c.name() == name) {
+            Some(s) => s,
+            None => return,
+        };
+
+        self.get_layer_mut().remove(index);
+    }
+
 }
 
 fn read_events(
@@ -271,9 +304,10 @@ impl ComponentManagerBuilder {
             out_writer,
             last_update: SystemTime::now(),
             next_instance_id: 1,
-            global_event_listener: &default_listener
+            global_event_listener: default_listener,
+            component_manager_messenger: Default::default()
         }
     }
 }
 
-fn default_listener(_: &mut ComponentManager, _: &ClickEvent) {}
+fn default_listener(_: &mut dyn ManageComponents, _: &ClickEvent) {}

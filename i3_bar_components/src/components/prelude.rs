@@ -1,10 +1,10 @@
-use crate::protocol::ClickEvent;
+use crate::{protocol::ClickEvent, component_manager::ManageComponents};
 
 use super::BaseComponent;
 
 pub trait Component: std::any::Any {
     fn update(&mut self, dt: f64);
-    fn event(&mut self, event: &ClickEvent);
+    fn event(&mut self, cm: &mut dyn ManageComponents, event: &ClickEvent);
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>);
     fn collect_base_components_mut<'a>(
         &'a mut self,

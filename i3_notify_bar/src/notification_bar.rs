@@ -5,6 +5,7 @@ use std::time::SystemTime;
 use crate::emoji::EmojiMode;
 use crate::{icons, rule::Action};
 use log::{debug, error, info};
+use notify_server::notification::Urgency;
 use notify_server::{notification::Notification, Event, Observer};
 use serde::Serialize;
 
@@ -15,6 +16,7 @@ pub struct NotificationManager {
     events: Vec<NotificationEvent>,
     definitions: Vec<Definition>,
     default_emoji_mode: EmojiMode,
+    minimum_urgency: Urgency
 }
 
 impl NotificationManager {
@@ -24,6 +26,7 @@ impl NotificationManager {
             events: Vec::new(),
             definitions,
             default_emoji_mode,
+            minimum_urgency: Urgency::Normal
         }
     }
 
@@ -50,6 +53,10 @@ impl NotificationManager {
             "Notification Tempalate Data: {:#?}",
             notification_template_data
         );
+
+        if notification.urgency < self.minimum_urgency {
+            return;
+        }
 
         execute_rules(
             &self.definitions,
@@ -115,6 +122,11 @@ impl NotificationManager {
             .collect::<Vec<Arc<RwLock<NotificationData>>>>();
         self.notifications = filtered_notifications;
         self.events.push(NotificationEvent::Remove(id));
+    }
+
+    #[cfg(tray_icon)]
+    pub fn set_minimal_urgency(&mut self, min: Urgency) {
+        self.minimum_urgency = min;
     }
 }
 

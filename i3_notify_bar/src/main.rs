@@ -13,8 +13,8 @@ use args::Args;
 use clap::Clap;
 use components::NotificationComponent;
 use emoji::EmojiMode;
-use i3_bar_components::{components::Label, ComponentManagerBuilder};
-use log::error;
+use i3_bar_components::{components::Label, component_manager::{ComponentManagerBuilder, ManageComponents}};
+use log::{error, debug};
 use notification_bar::{NotificationEvent, NotificationManager};
 use path_manager::PathManager;
 use rule::Definition;
@@ -81,9 +81,13 @@ fn run(
     refresh_rate: u64,
 ) {
     let mut notify_server = notify_server::NotifyServer::start();
-    let mut manager = ComponentManagerBuilder::new()
+    let mut component_manager = ComponentManagerBuilder::new()
         .with_click_events(true)
         .build();
+    component_manager.add_component(Box::new(components::menu_button(false)));
+    component_manager.set_global_event_listener(|_, ce| {
+        debug!("{}", ce.get_button().to_string());
+    });
     let notification_manager = Arc::new(Mutex::new(NotificationManager::new(config, emoji_mode)));
     notify_server.add_observer(notification_manager.clone());
 
@@ -108,9 +112,9 @@ fn run(
                         return;
                     }
                 };
-                match manager.get_component_mut::<NotificationComponent>(&n.id) {
+                match component_manager.get_component_mut::<NotificationComponent>(&n.id) {
                     Some(c) => c.update_notification(&n),
-                    None => manager.add_component(Box::new(NotificationComponent::new(
+                    None => component_manager.add_component(Box::new(NotificationComponent::new(
                         &n,
                         max_text_length,
                         animation_chars_per_second,
@@ -118,10 +122,10 @@ fn run(
                     ))),
                 }
             }
-            &NotificationEvent::Remove(id) => manager.remove_by_name(id),
+            &NotificationEvent::Remove(id) => component_manager.remove_by_name(id),
         });
 
-        manager.update();
+        component_manager.update();
         std::thread::sleep(Duration::from_millis(refresh_rate));
     }
 }

@@ -47,11 +47,11 @@ impl Notification {
 
 unsafe impl Sync for Notification {}
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Copy, Eq, Hash)]
 pub enum Urgency {
-    Low,
-    Normal,
-    Critical,
+    Low = 0,
+    Normal = 1,
+    Critical = 2,
 }
 
 impl FromStr for Urgency {
@@ -65,6 +65,37 @@ impl FromStr for Urgency {
             "critical" => Urgency::Critical,
             _ => return Err(format!("Can not convert {} to urgency", s))
         })
+    }
+
+}
+
+impl PartialOrd for Urgency {
+
+    fn ge(&self, other: &Self) -> bool {
+        (*self as usize) >= *other as usize
+    }
+
+    fn gt(&self, other: &Self) -> bool {
+        (*self as usize) > *other as usize
+    }
+
+    fn le(&self, other: &Self) -> bool {
+        (*self as usize) <= *other as usize
+    }
+
+    fn lt(&self, other: &Self) -> bool {
+        (*self as usize) < *other as usize
+    }
+
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let result = if self > other {
+            std::cmp::Ordering::Greater
+        } else if self < other {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Equal
+        };
+        Some(result)
     }
 
 }

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use i3_bar_components::{components::{Label, Button, ProgressBar, prelude::*, BaseComponent}, protocol::ClickEvent, };
+use i3_bar_components::{components::{Label, Button, ProgressBar, prelude::*, BaseComponent}, protocol::ClickEvent, ManageComponents, };
 use log::debug;
 
 use crate::{notification_bar::{NotificationManager, NotificationData}, icons};
@@ -119,7 +119,7 @@ impl Component for NotificationComponent {
         self.padding_r.collect_base_components_mut(base_components);
     }
 
-    fn event(&mut self, ce: &ClickEvent) {
+    fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
         if self.close_type.is_button()
             && ce.get_button() == 1
             && ce.get_id() == self.close_type.get_id()

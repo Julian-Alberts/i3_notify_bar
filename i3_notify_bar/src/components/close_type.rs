@@ -1,4 +1,5 @@
 use i3_bar_components::{components::{Button, ProgressBar, prelude::{Component, Widget}, BaseComponent}, protocol::ClickEvent};
+use i3_bar_components::component_manager::ManageComponents;
 
 pub enum CloseType {
     Button(Button),
@@ -47,10 +48,10 @@ impl Component for CloseType {
         }
     }
 
-    fn event(&mut self, event: &ClickEvent) {
+    fn event(&mut self, mc: &mut dyn ManageComponents ,event: &ClickEvent) {
         match self {
-            Self::Button(b) => b.event(event),
-            Self::Timer(t) => t.event(event),
+            Self::Button(b) => b.event(mc, event),
+            Self::Timer(t) => t.event(mc, event),
         }
     }
 

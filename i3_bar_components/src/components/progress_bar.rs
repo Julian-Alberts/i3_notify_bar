@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::protocol::ClickEvent;
+use crate::{protocol::ClickEvent, component_manager::ManageComponents};
 
 use super::{prelude::*, BaseComponent};
 
@@ -44,7 +44,7 @@ impl Component for ProgressBar {
         base_components.push(&mut self.base_component);
     }
 
-    fn event(&mut self, _: &ClickEvent) {}
+    fn event(&mut self, _: &mut dyn ManageComponents, _: &ClickEvent) {}
 
     fn update(&mut self, _: f64) {
         let step =

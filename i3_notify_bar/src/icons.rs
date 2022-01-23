@@ -29,7 +29,9 @@ icons!(
     "Spotify" => SPOTIFY_ICON = '\u{F1BC}',
     "Steam" => STEAM_ICON = '\u{F1B6}',
     "Thunderbird" => MAIL_ICON,
-    "x" => X_ICON = '\u{F057}'
+    "x" => X_ICON = '\u{F057}',
+    "menu" => MENU_ICON = '\u{F0C9}',
+    "close" => CLOSE_ICON = '\u{F00D}'
 );
 
 #[cfg(not(feature = "fa_icons"))]

@@ -1,10 +1,10 @@
-use crate::{property::Properties, protocol::ClickEvent};
+use crate::{property::Properties, protocol::ClickEvent, component_manager::ManageComponents};
 
 use super::{prelude::*, BaseComponent};
 
 pub struct Button {
     base_component: BaseComponent,
-    on_click: fn(&mut Self, &ClickEvent),
+    on_click: fn(&mut Self, mc: &mut dyn ManageComponents, &ClickEvent),
 }
 
 impl Button {
@@ -21,19 +21,19 @@ impl Button {
                 },
                 ..Default::default()
             }),
-            on_click: |_, _| {},
+            on_click: |_, _, _| {},
         }
     }
 
-    pub fn set_on_click(&mut self, on_click: fn(&mut Self, &ClickEvent)) {
+    pub fn set_on_click(&mut self, on_click: fn(&mut Self, mc: &mut dyn ManageComponents, &ClickEvent)) {
         self.on_click = on_click;
     }
 }
 
 impl Component for Button {
     fn update(&mut self, _: f64) {}
-    fn event(&mut self, ce: &ClickEvent) {
-        (self.on_click)(self, ce);
+    fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
+        (self.on_click)(self, mc, ce);
     }
 
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
@@ -74,12 +74,15 @@ impl SeperatorWidth for Button {}
 
 #[cfg(test)]
 mod tests {
+
+    use crate::component_manager::ComponentManagerBuilder;
+
     use super::*;
 
     #[test]
     fn on_button_click() {
         let mut button = Button::new(String::from("test"));
-        button.set_on_click(|btn, _| {
+        button.set_on_click(|btn, _, _| {
             btn.get_base_component_mut().get_properties_mut().instance =
                 Some(String::from("clicked"));
         });
@@ -101,7 +104,7 @@ mod tests {
         )
         .unwrap();
 
-        button.event(&ce);
+        button.event(&mut ComponentManagerBuilder::new().build(), &ce);
         assert_eq!(
             button
                 .get_base_component_mut()

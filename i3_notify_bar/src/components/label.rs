@@ -1,4 +1,4 @@
-use i3_bar_components::{components::{Label, prelude::{Component, Widget, SeperatorWidth, Seperator}, BaseComponent}, protocol::ClickEvent};
+use i3_bar_components::{components::{Label, prelude::{Component, Widget, SeperatorWidth, Seperator}, BaseComponent}, protocol::ClickEvent, ManageComponents};
 
 pub struct AnimatedLabel {
     pub start_offset: f64,
@@ -34,8 +34,8 @@ impl AnimatedLabel {
 
 impl Component for AnimatedLabel {
 
-    fn event(&mut self, event: &ClickEvent) {
-        self.label.event(event)
+    fn event(&mut self, mc: &mut dyn ManageComponents, event: &ClickEvent) {
+        self.label.event(mc, event)
     }
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
         self.label.collect_base_components(base_components)

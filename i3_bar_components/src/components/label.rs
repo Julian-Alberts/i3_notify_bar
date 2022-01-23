@@ -1,7 +1,7 @@
 use super::{prelude::*, BaseComponent};
 use crate::{
     property::{Properties, Text},
-    protocol::ClickEvent,
+    protocol::ClickEvent, component_manager::ManageComponents,
 };
 
 pub struct Label {
@@ -28,7 +28,7 @@ impl Label {
 
 impl Component for Label {
     fn update(&mut self, _: f64) {}
-    fn event(&mut self, _: &ClickEvent) {}
+    fn event(&mut self, _: &mut dyn ManageComponents, _: &ClickEvent) {}
 
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
         base_components.push(&self.base_component)
