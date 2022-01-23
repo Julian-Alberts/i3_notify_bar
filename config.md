@@ -47,6 +47,14 @@ body | notification text |
 urgency | Urgency of this message. possible values are: low, normal, critical |
 expire_timeout | timeout in secs. -1 this notification will not be hidden
 
+In addition, summary and body support the match comparison method. This enables the matching of messages with regex.
+
+example
+```
+rule
+    body match Message from .*
+endrule
+```
 #### action
 Actions allow you to change the behavior of the bar. 
 
@@ -74,8 +82,9 @@ allowed properties
 | --- | --- |
 |app_name| application name |
 icon| application icon |
-text | Display text |
-expire_timeout | timeout in secs. -1 this notification will not be hidden
+text | Display text. This option supports [templates](https://github.com/Julian-Alberts/i3_notify_bar/blob/master/template.md)|
+expire_timeout | timeout in secs. If expire_timeout is set to -1 the message won't close automaticily.
+emoji_mode | How emojis should be handled. Valid values: remove, replace, ignore
 
 #### style
 With the style block it is possible to change the appearance of a notification
