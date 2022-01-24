@@ -1,11 +1,12 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc::Sender};
 
 use i3_bar_components::{components::{Label, Button, ProgressBar, prelude::*, BaseComponent}, protocol::ClickEvent, ManageComponents, };
 use log::debug;
+use notify_server::{notification::Action, NotificationMessage};
 
 use crate::{notification_bar::{NotificationManager, NotificationData}, icons};
 
-use super::{close_type::CloseType, label::AnimatedLabel};
+use super::{close_type::CloseType, label::AnimatedLabel, action_bar::ActionBar};
 
 pub struct NotificationComponent {
     close_type: CloseType,
@@ -13,6 +14,8 @@ pub struct NotificationComponent {
     padding_r: Label,
     id: String,
     notification_manager: Arc<Mutex<NotificationManager>>,
+    actions: Vec<Action>,
+    notification_tx: Arc<Sender<NotificationMessage>>
 }
 
 impl NotificationComponent {
@@ -21,6 +24,7 @@ impl NotificationComponent {
         max_width: usize,
         move_chars_per_sec: usize,
         notification_manager: Arc<Mutex<NotificationManager>>,
+        notification_tx: Arc<Sender<NotificationMessage>>
     ) -> NotificationComponent {
         let close_type = match nd.expire_timeout {
             -1 => {
@@ -71,6 +75,8 @@ impl NotificationComponent {
             id: nd.id.to_owned(),
             notification_manager,
             padding_r,
+            notification_tx,
+            actions: nd.actions.clone()
         }
     }
 
@@ -119,7 +125,7 @@ impl Component for NotificationComponent {
         self.padding_r.collect_base_components_mut(base_components);
     }
 
-    fn event(&mut self, _: &mut dyn ManageComponents, ce: &ClickEvent) {
+    fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
         if self.close_type.is_button()
             && ce.get_button() == 1
             && ce.get_id() == self.close_type.get_id()
@@ -132,6 +138,9 @@ impl Component for NotificationComponent {
                 }
             }
             .remove(&self.id);
+        } else if ce.get_button() == 3 {
+            mc.new_layer();
+            mc.add_component(Box::new(ActionBar::new(&self.actions, self.id.parse::<u32>().unwrap(), Arc::clone(&self.notification_tx))))
         }
     }
 

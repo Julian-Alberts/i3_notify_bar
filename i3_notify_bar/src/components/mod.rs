@@ -2,6 +2,7 @@ mod notification;
 mod close_type;
 mod label;
 mod min_urgency_selector;
+mod action_bar;
 
 use std::sync::{Arc, Mutex};
 

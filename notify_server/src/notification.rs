@@ -1,8 +1,7 @@
-use serde::Serialize;
 use std::{collections::HashMap, str::FromStr};
 use zvariant::Value;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Notification {
     pub app_name: String,
     pub id: u32,
@@ -10,7 +9,7 @@ pub struct Notification {
     pub summary: String,
     pub body: String,
     pub urgency: Urgency,
-    pub actions: Vec<String>,
+    pub actions: Vec<Action>,
     pub expire_timeout: i32,
 }
 
@@ -21,7 +20,7 @@ impl Notification {
         app_icon: String,
         summary: String,
         body: String,
-        actions: Vec<String>,
+        mut actions_array: Vec<String>,
         hints: HashMap<String, Value>,
         expire_timeout: i32,
     ) -> Self {
@@ -31,6 +30,17 @@ impl Notification {
             "urgency" => urgency = get_urgency(hint),
             _ => {}
         });
+
+        let mut actions = Vec::with_capacity(actions_array.len() / 2);
+
+        while actions_array.len() > 0 {
+            let key = actions_array.remove(0);
+            if actions_array.len() == 0 {
+                break
+            }
+            let text = actions_array.remove(0);
+            actions.push(Action { key, text });
+        }
 
         Self {
             app_name,
@@ -47,7 +57,7 @@ impl Notification {
 
 unsafe impl Sync for Notification {}
 
-#[derive(Debug, Clone, Serialize, PartialEq, Copy, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Copy, Eq, Hash)]
 pub enum Urgency {
     Low = 0,
     Normal = 1,
@@ -107,4 +117,10 @@ fn get_urgency(value: Value) -> Urgency {
         Value::U8(2) => Urgency::Critical,
         _ => Urgency::Normal,
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Action {
+    pub key: String,
+    pub text: String
 }

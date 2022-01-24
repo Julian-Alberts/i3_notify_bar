@@ -4,7 +4,7 @@ mod notify_server;
 mod routes;
 
 pub use crate::notify_server::CloseReason;
-pub use crate::notify_server::NotifyServer;
+pub use crate::notify_server::{NotifyServer, Message as NotificationMessage};
 pub use events::Event;
 pub use observer::Observer;
 

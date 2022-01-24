@@ -6,6 +6,7 @@ use std::time::SystemTime;
 use crate::emoji::EmojiMode;
 use crate::{icons, rule::Action};
 use log::{debug, error, info};
+use notify_server::notification::Action as NotificationAction;
 use notify_server::notification::Urgency;
 use notify_server::{notification::Notification, Event, Observer};
 use serde::Serialize;
@@ -205,6 +206,7 @@ pub struct NotificationData {
     pub style: Vec<Style>,
     pub emoji_mode: EmojiMode,
     pub ignore: bool,
+    pub actions: Vec<NotificationAction>
 }
 
 impl NotificationData {
@@ -217,6 +219,7 @@ impl NotificationData {
             text: notification.summary.clone(),
             emoji_mode,
             ignore: false,
+            actions: notification.actions.clone()
         }
     }
 }
