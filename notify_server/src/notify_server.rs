@@ -1,3 +1,4 @@
+use log::debug;
 use observer::SingleEventSystem;
 use std::convert::TryInto;
 use std::sync::mpsc::Sender;
@@ -60,6 +61,7 @@ impl NotifyServer {
             loop {
                 match rx.recv() {
                     Ok(Message::ActionInvoked(id, key)) => {
+                        debug!("invoke action {} on {}", key, id);
                         send_action_invoked(&object_server, id, key.as_str())
                     }
                     Ok(Message::NotificationClosed(id, reason)) => {
