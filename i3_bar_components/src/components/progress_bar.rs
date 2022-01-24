@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{protocol::ClickEvent, component_manager::ManageComponents};
+use crate::{component_manager::ManageComponents, protocol::ClickEvent};
 
 use super::{prelude::*, BaseComponent};
 

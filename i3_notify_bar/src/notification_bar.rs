@@ -18,17 +18,21 @@ pub struct NotificationManager {
     events: Vec<NotificationEvent>,
     definitions: Vec<Definition>,
     default_emoji_mode: EmojiMode,
-    minimum_urgency: Arc<Mutex<MinimalUrgency>>
+    minimum_urgency: Arc<Mutex<MinimalUrgency>>,
 }
 
 impl NotificationManager {
-    pub fn new(definitions: Vec<Definition>, default_emoji_mode: EmojiMode, minimum_urgency: Arc<Mutex<MinimalUrgency>>) -> Self {
+    pub fn new(
+        definitions: Vec<Definition>,
+        default_emoji_mode: EmojiMode,
+        minimum_urgency: Arc<Mutex<MinimalUrgency>>,
+    ) -> Self {
         Self {
             notifications: Vec::new(),
             events: Vec::new(),
             definitions,
             default_emoji_mode,
-            minimum_urgency
+            minimum_urgency,
         }
     }
 
@@ -136,7 +140,7 @@ impl Observer<Event> for NotificationManager {
     fn on_notify(&mut self, event: &Event) {
         match event {
             Event::Notify(n) => self.notify(n),
-            Event::Close(id) => self.remove(id.to_string().as_str())
+            Event::Close(id) => self.remove(id.to_string().as_str()),
         }
     }
 }
@@ -206,7 +210,7 @@ pub struct NotificationData {
     pub style: Vec<Style>,
     pub emoji_mode: EmojiMode,
     pub ignore: bool,
-    pub actions: Vec<NotificationAction>
+    pub actions: Vec<NotificationAction>,
 }
 
 impl NotificationData {
@@ -219,7 +223,7 @@ impl NotificationData {
             text: notification.summary.clone(),
             emoji_mode,
             ignore: false,
-            actions: notification.actions.clone()
+            actions: notification.actions.clone(),
         }
     }
 }
@@ -252,11 +256,10 @@ pub enum MinimalUrgency {
     All = 0,
     Normal = 1,
     Critical = 2,
-    None = 3
+    None = 3,
 }
 
 impl std::cmp::PartialEq<Urgency> for MinimalUrgency {
-
     fn eq(&self, other: &Urgency) -> bool {
         *self as usize == *other as usize
     }
@@ -264,11 +267,9 @@ impl std::cmp::PartialEq<Urgency> for MinimalUrgency {
     fn ne(&self, other: &Urgency) -> bool {
         *self as usize != *other as usize
     }
-
 }
 
 impl std::cmp::PartialOrd<Urgency> for MinimalUrgency {
-
     fn ge(&self, other: &Urgency) -> bool {
         *self as usize >= *other as usize
     }
@@ -278,7 +279,7 @@ impl std::cmp::PartialOrd<Urgency> for MinimalUrgency {
     }
 
     fn le(&self, other: &Urgency) -> bool {
-        *self as usize <= *other as usize   
+        *self as usize <= *other as usize
     }
 
     fn lt(&self, other: &Urgency) -> bool {
@@ -288,5 +289,4 @@ impl std::cmp::PartialOrd<Urgency> for MinimalUrgency {
     fn partial_cmp(&self, other: &Urgency) -> Option<std::cmp::Ordering> {
         Some((*self as usize).cmp(&(*other as usize)))
     }
-
 }

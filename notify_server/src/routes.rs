@@ -107,10 +107,7 @@ impl Routes {
     }
 
     fn close_notification(&self, id: u32) {
-        self.event_system
-            .lock()
-            .unwrap()
-            .notify(&Event::Close(id))
+        self.event_system.lock().unwrap().notify(&Event::Close(id))
     }
 
     fn get_server_information(&self) -> (&str, &str, &str, &str) {

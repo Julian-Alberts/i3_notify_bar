@@ -2,5 +2,5 @@ use crate::notification::Notification;
 
 pub enum Event {
     Notify(Notification),
-    Close(u32)
+    Close(u32),
 }

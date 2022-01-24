@@ -1,4 +1,4 @@
-use crate::{property::Properties, protocol::ClickEvent, component_manager::ManageComponents};
+use crate::{component_manager::ManageComponents, property::Properties, protocol::ClickEvent};
 
 use super::{prelude::*, BaseComponent};
 
@@ -25,7 +25,10 @@ impl Button {
         }
     }
 
-    pub fn set_on_click<F: Fn(&mut Self, &mut dyn ManageComponents, &ClickEvent) + 'static>(&mut self, on_click: F) {
+    pub fn set_on_click<F: Fn(&mut Self, &mut dyn ManageComponents, &ClickEvent) + 'static>(
+        &mut self,
+        on_click: F,
+    ) {
         self.on_click = Box::new(on_click);
     }
 }
@@ -34,9 +37,7 @@ impl Component for Button {
     fn update(&mut self, _: f64) {}
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
         let self_ptr: *mut _ = self;
-        let self_ref = unsafe {
-            self_ptr.as_mut().unwrap()
-        };
+        let self_ref = unsafe { self_ptr.as_mut().unwrap() };
         (self.on_click)(self_ref, mc, ce);
     }
 

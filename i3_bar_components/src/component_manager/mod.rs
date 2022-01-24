@@ -1,8 +1,8 @@
-mod component_manager_messenger;
 mod component_manager;
+mod component_manager_messenger;
 
-pub use component_manager::ComponentManagerBuilder;
 pub use component_manager::ComponentManager;
+pub use component_manager::ComponentManagerBuilder;
 pub use component_manager_messenger::ComponentManagerMassenger;
 
 use crate::components::prelude::Component;

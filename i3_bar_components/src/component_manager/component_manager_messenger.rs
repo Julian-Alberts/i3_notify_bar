@@ -4,11 +4,10 @@ use super::ManageComponents;
 
 #[derive(Default)]
 pub struct ComponentManagerMassenger {
-    queue: Vec<Message>
+    queue: Vec<Message>,
 }
 
 impl ManageComponents for ComponentManagerMassenger {
-
     fn add_component(&mut self, comp: Box<dyn crate::components::prelude::Component>) {
         self.queue.push(Message::AddComponent(comp));
     }
@@ -32,7 +31,6 @@ impl ManageComponents for ComponentManagerMassenger {
     fn add_component_at_on_layer(&mut self, _: Box<dyn Component>, _: isize, _: usize) {
         unimplemented!()
     }
-
 }
 
 impl ComponentManagerMassengerQueue for ComponentManagerMassenger {
@@ -45,11 +43,9 @@ pub enum Message {
     AddComponent(Box<dyn crate::components::prelude::Component>),
     NewLayer,
     PopLayer,
-    RemoveByName(String)
+    RemoveByName(String),
 }
 
 pub trait ComponentManagerMassengerQueue {
-    
     fn take_queue(&mut self) -> Vec<Message>;
-
 }

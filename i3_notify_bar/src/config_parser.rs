@@ -117,9 +117,7 @@ fn parse_set_action(set_action: Pair<Rule>) -> ParseResult<Action> {
             },
         )),
         Rule::expire_timeout => Action::Set(SetProperty::ExpireTimeout(
-            value
-                .parse()
-                .or_else(|e| Err(ParseError::NumParse(e)))?,
+            value.parse().or_else(|e| Err(ParseError::NumParse(e)))?,
         )),
         Rule::emoji_mode => Action::Set(SetProperty::EmojiMode(
             EmojiMode::from_str(value).or_else(|e| Err(ParseError::EmojiMode(e)))?,

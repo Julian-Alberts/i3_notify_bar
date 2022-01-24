@@ -9,7 +9,7 @@ use crate::{routes, Event};
 pub struct NotifyServer {
     event_system: Arc<Mutex<SingleEventSystem<Event>>>,
     object_server: ObjectServer<'static>,
-    message_tx: Arc<Sender<Message>>
+    message_tx: Arc<Sender<Message>>,
 }
 
 impl NotifyServer {
@@ -61,22 +61,21 @@ impl NotifyServer {
                 match rx.recv() {
                     Ok(Message::ActionInvoked(id, key)) => {
                         send_action_invoked(&object_server, id, key.as_str())
-                    },
+                    }
                     Ok(Message::NotificationClosed(id, reason)) => {
                         notification_closed(&object_server, id, reason)
-                    },
+                    }
                     Err(_) => {}
                 }
             }
         });
 
         let object_server = zbus::ObjectServer::new(&connection);
-        
 
         Self {
             event_system,
             object_server,
-            message_tx: Arc::new(tx)
+            message_tx: Arc::new(tx),
         }
     }
 
@@ -103,20 +102,20 @@ impl NotifyServer {
 
 fn send_action_invoked(object_server: &ObjectServer, id: u32, action: &str) {
     object_server
-            .with(
-                &routes::DBUS_INTERFACE_PATH.try_into().unwrap(),
-                |interface: &routes::Routes| interface.action_invoked(id, action),
-            )
-            .unwrap();
+        .with(
+            &routes::DBUS_INTERFACE_PATH.try_into().unwrap(),
+            |interface: &routes::Routes| interface.action_invoked(id, action),
+        )
+        .unwrap();
 }
 
 fn notification_closed(object_server: &ObjectServer, id: u32, reason: CloseReason) {
     object_server
-            .with(
-                &routes::DBUS_INTERFACE_PATH.try_into().unwrap(),
-                |interface: &routes::Routes| interface.notification_closed(id, reason as u32),
-            )
-            .unwrap();
+        .with(
+            &routes::DBUS_INTERFACE_PATH.try_into().unwrap(),
+            |interface: &routes::Routes| interface.notification_closed(id, reason as u32),
+        )
+        .unwrap();
 }
 
 #[derive(Clone, Copy)]
@@ -129,5 +128,5 @@ pub enum CloseReason {
 
 pub enum Message {
     NotificationClosed(u32, CloseReason),
-    ActionInvoked(u32, String)
+    ActionInvoked(u32, String),
 }

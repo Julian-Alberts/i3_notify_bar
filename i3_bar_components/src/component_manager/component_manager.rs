@@ -11,8 +11,10 @@ use crate::{
     protocol::{ClickEvent, Header},
 };
 
+use super::component_manager_messenger::{
+    ComponentManagerMassenger, ComponentManagerMassengerQueue, Message,
+};
 use super::ManageComponents;
-use super::component_manager_messenger::{ComponentManagerMassenger, ComponentManagerMassengerQueue, Message};
 
 pub struct ComponentManager {
     layers: Vec<Vec<Box<dyn Component>>>,
@@ -21,7 +23,7 @@ pub struct ComponentManager {
     last_update: SystemTime,
     next_instance_id: u128,
     global_event_listener: fn(&mut dyn ManageComponents, &ClickEvent),
-    component_manager_messenger: ComponentManagerMassenger
+    component_manager_messenger: ComponentManagerMassenger,
 }
 
 impl ComponentManager {
@@ -133,27 +135,24 @@ impl ComponentManager {
         self.component_manager_messenger
             .take_queue()
             .into_iter()
-            .for_each(|message| {
-                match message {
-                    Message::AddComponent(component) => {
-                        self.add_component(component);
-                    }
-                    Message::RemoveByName(component) => {
-                        self.remove_by_name(component.as_str());
-                    }
-                    Message::NewLayer => {
-                        self.new_layer();
-                    }
-                    Message::PopLayer => {
-                        self.pop_layer();
-                    }
+            .for_each(|message| match message {
+                Message::AddComponent(component) => {
+                    self.add_component(component);
+                }
+                Message::RemoveByName(component) => {
+                    self.remove_by_name(component.as_str());
+                }
+                Message::NewLayer => {
+                    self.new_layer();
+                }
+                Message::PopLayer => {
+                    self.pop_layer();
                 }
             });
     }
 }
 
 impl ManageComponents for ComponentManager {
-
     fn new_layer(&mut self) {
         self.layers.push(Vec::new())
     }
@@ -194,7 +193,12 @@ impl ManageComponents for ComponentManager {
         self.get_layer_mut().splice(pos..pos, [comp]);
     }
 
-    fn add_component_at_on_layer(&mut self, mut comp: Box<dyn Component>, pos: isize, layer: usize) {
+    fn add_component_at_on_layer(
+        &mut self,
+        mut comp: Box<dyn Component>,
+        pos: isize,
+        layer: usize,
+    ) {
         let mut base_components = Vec::new();
         comp.collect_base_components_mut(&mut base_components);
 
@@ -220,7 +224,6 @@ impl ManageComponents for ComponentManager {
 
         self.get_layer_mut().remove(index);
     }
-
 }
 
 fn read_events(
@@ -349,7 +352,7 @@ impl ComponentManagerBuilder {
             last_update: SystemTime::now(),
             next_instance_id: 1,
             global_event_listener: default_listener,
-            component_manager_messenger: Default::default()
+            component_manager_messenger: Default::default(),
         }
     }
 }

@@ -1,12 +1,19 @@
-use std::sync::{Arc, Mutex, mpsc::Sender};
+use std::sync::{mpsc::Sender, Arc, Mutex};
 
-use i3_bar_components::{components::{Label, Button, ProgressBar, prelude::*, BaseComponent}, protocol::ClickEvent, ManageComponents, };
+use i3_bar_components::{
+    components::{prelude::*, BaseComponent, Button, Label, ProgressBar},
+    protocol::ClickEvent,
+    ManageComponents,
+};
 use log::debug;
 use notify_server::{notification::Action, NotificationMessage};
 
-use crate::{notification_bar::{NotificationManager, NotificationData}, icons};
+use crate::{
+    icons,
+    notification_bar::{NotificationData, NotificationManager},
+};
 
-use super::{close_type::CloseType, label::AnimatedLabel, action_bar::ActionBar};
+use super::{action_bar::ActionBar, close_type::CloseType, label::AnimatedLabel};
 
 pub struct NotificationComponent {
     close_type: CloseType,
@@ -15,7 +22,7 @@ pub struct NotificationComponent {
     id: String,
     notification_manager: Arc<Mutex<NotificationManager>>,
     actions: Vec<Action>,
-    notification_tx: Arc<Sender<NotificationMessage>>
+    notification_tx: Arc<Sender<NotificationMessage>>,
 }
 
 impl NotificationComponent {
@@ -24,7 +31,7 @@ impl NotificationComponent {
         max_width: usize,
         move_chars_per_sec: usize,
         notification_manager: Arc<Mutex<NotificationManager>>,
-        notification_tx: Arc<Sender<NotificationMessage>>
+        notification_tx: Arc<Sender<NotificationMessage>>,
     ) -> NotificationComponent {
         let close_type = match nd.expire_timeout {
             -1 => {
@@ -47,7 +54,6 @@ impl NotificationComponent {
             }
         };
 
-        
         let mut label = AnimatedLabel {
             max_width,
             move_chars_per_sec,
@@ -55,10 +61,9 @@ impl NotificationComponent {
             text: nd.text.clone(),
             stop_animation_for_secs: 0.0,
             label: Label::new(String::new()),
-            icon: nd.icon
+            icon: nd.icon,
         };
 
-        
         label.set_seperator(false);
         label.set_separator_block_width(0);
 
@@ -76,7 +81,7 @@ impl NotificationComponent {
             notification_manager,
             padding_r,
             notification_tx,
-            actions: nd.actions.clone()
+            actions: nd.actions.clone(),
         }
     }
 
@@ -106,7 +111,6 @@ impl NotificationComponent {
         };
         self.close_type = close_type;
     }
-
 }
 
 impl Component for NotificationComponent {
@@ -140,7 +144,11 @@ impl Component for NotificationComponent {
             .remove(&self.id);
         } else if ce.get_button() == 3 {
             mc.new_layer();
-            mc.add_component(Box::new(ActionBar::new(&self.actions, self.id.parse::<u32>().unwrap(), Arc::clone(&self.notification_tx))))
+            mc.add_component(Box::new(ActionBar::new(
+                &self.actions,
+                self.id.parse::<u32>().unwrap(),
+                Arc::clone(&self.notification_tx),
+            )))
         }
     }
 

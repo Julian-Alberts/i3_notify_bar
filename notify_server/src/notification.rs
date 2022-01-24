@@ -36,7 +36,7 @@ impl Notification {
         while actions_array.len() > 0 {
             let key = actions_array.remove(0);
             if actions_array.len() == 0 {
-                break
+                break;
             }
             let text = actions_array.remove(0);
             actions.push(Action { key, text });
@@ -65,7 +65,6 @@ pub enum Urgency {
 }
 
 impl FromStr for Urgency {
-
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -73,14 +72,12 @@ impl FromStr for Urgency {
             "low" => Urgency::Low,
             "normal" => Urgency::Normal,
             "critical" => Urgency::Critical,
-            _ => return Err(format!("Can not convert {} to urgency", s))
+            _ => return Err(format!("Can not convert {} to urgency", s)),
         })
     }
-
 }
 
 impl PartialOrd for Urgency {
-
     fn ge(&self, other: &Self) -> bool {
         (*self as usize) >= *other as usize
     }
@@ -107,7 +104,6 @@ impl PartialOrd for Urgency {
         };
         Some(result)
     }
-
 }
 
 fn get_urgency(value: Value) -> Urgency {
@@ -122,5 +118,5 @@ fn get_urgency(value: Value) -> Urgency {
 #[derive(Debug, Clone)]
 pub struct Action {
     pub key: String,
-    pub text: String
+    pub text: String,
 }

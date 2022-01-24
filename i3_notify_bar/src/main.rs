@@ -13,9 +13,12 @@ use args::Args;
 use clap::Clap;
 use components::NotificationComponent;
 use emoji::EmojiMode;
-use i3_bar_components::{components::Label, component_manager::{ComponentManagerBuilder, ManageComponents}};
-use log::{error, debug};
-use notification_bar::{NotificationEvent, NotificationManager, MinimalUrgency};
+use i3_bar_components::{
+    component_manager::{ComponentManagerBuilder, ManageComponents},
+    components::Label,
+};
+use log::{debug, error};
+use notification_bar::{MinimalUrgency, NotificationEvent, NotificationManager};
 use path_manager::PathManager;
 use rule::Definition;
 use std::{
@@ -88,17 +91,17 @@ fn run(
 
     let minimal_urgency = Arc::new(Mutex::new(MinimalUrgency::All));
 
-    component_manager.add_component(
-        Box::new(
-            components::menu_button_open(
-                Arc::clone(&minimal_urgency)
-            )
-        )
-    );
+    component_manager.add_component(Box::new(components::menu_button_open(Arc::clone(
+        &minimal_urgency,
+    ))));
     component_manager.set_global_event_listener(|_, ce| {
         debug!("{}", ce.get_button().to_string());
     });
-    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(config, emoji_mode, minimal_urgency)));
+    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(
+        config,
+        emoji_mode,
+        minimal_urgency,
+    )));
     notify_server.add_observer(notification_manager.clone());
 
     loop {
@@ -124,13 +127,17 @@ fn run(
                 };
                 match component_manager.get_component_mut::<NotificationComponent>(&n.id) {
                     Some(c) => c.update_notification(&n),
-                    None => component_manager.add_component_at_on_layer(Box::new(NotificationComponent::new(
-                        &n,
-                        max_text_length,
-                        animation_chars_per_second,
-                        Arc::clone(&notification_manager),
-                        Arc::clone(&notification_tx)
-                    )), -1, 0),
+                    None => component_manager.add_component_at_on_layer(
+                        Box::new(NotificationComponent::new(
+                            &n,
+                            max_text_length,
+                            animation_chars_per_second,
+                            Arc::clone(&notification_manager),
+                            Arc::clone(&notification_tx),
+                        )),
+                        -1,
+                        0,
+                    ),
                 }
             }
             &NotificationEvent::Remove(id) => component_manager.remove_by_name(id),

@@ -1,4 +1,11 @@
-use i3_bar_components::{components::{Label, prelude::{Component, Widget, SeperatorWidth, Seperator}, BaseComponent}, protocol::ClickEvent, ManageComponents};
+use i3_bar_components::{
+    components::{
+        prelude::{Component, Seperator, SeperatorWidth, Widget},
+        BaseComponent, Label,
+    },
+    protocol::ClickEvent,
+    ManageComponents,
+};
 
 pub struct AnimatedLabel {
     pub start_offset: f64,
@@ -7,7 +14,7 @@ pub struct AnimatedLabel {
     pub text: String,
     pub stop_animation_for_secs: f64,
     pub label: Label,
-    pub icon: char
+    pub icon: char,
 }
 
 impl AnimatedLabel {
@@ -33,14 +40,16 @@ impl AnimatedLabel {
 }
 
 impl Component for AnimatedLabel {
-
     fn event(&mut self, mc: &mut dyn ManageComponents, event: &ClickEvent) {
         self.label.event(mc, event)
     }
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
         self.label.collect_base_components(base_components)
     }
-    fn collect_base_components_mut<'a>(&'a mut self, base_components: &mut Vec<&'a mut BaseComponent>) {
+    fn collect_base_components_mut<'a>(
+        &'a mut self,
+        base_components: &mut Vec<&'a mut BaseComponent>,
+    ) {
         self.label.collect_base_components_mut(base_components)
     }
     fn get_id(&self) -> &str {
@@ -54,11 +63,9 @@ impl Component for AnimatedLabel {
         self.label.set_text(self.to_string());
         self.label.update(dt);
     }
-
 }
 
 impl Widget for AnimatedLabel {
-
     fn get_base_component(&self) -> &BaseComponent {
         self.label.get_base_component()
     }
@@ -66,7 +73,6 @@ impl Widget for AnimatedLabel {
     fn get_base_component_mut(&mut self) -> &mut BaseComponent {
         self.label.get_base_component_mut()
     }
-
 }
 
 impl ToString for AnimatedLabel {

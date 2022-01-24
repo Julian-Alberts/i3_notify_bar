@@ -1,7 +1,8 @@
 use super::{prelude::*, BaseComponent};
 use crate::{
+    component_manager::ManageComponents,
     property::{Properties, Text},
-    protocol::ClickEvent, component_manager::ManageComponents,
+    protocol::ClickEvent,
 };
 
 pub struct Label {
