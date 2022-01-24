@@ -34,7 +34,7 @@ action = { stop_action|ignore_action|set_action }
 stop_action = { "stop" }
 ignore_action = { "ignore" }
 set_action = { "set" ~ set_action_key ~ eol}
-set_action_key = { app_icon|message_id|text|expire_timeout|emoji_mode }
+set_action_key = { app_icon|text|expire_timeout|emoji_mode }
 
 style_section = {
     "style" ~ NEWLINE ~
@@ -55,7 +55,6 @@ body = { "body" }
 urgency = { "urgency" }
 expire_timeout = { "expire_timeout" }
 emoji_mode = { "emoji_mode" }
-message_id = {"id"}
 text = {"text"}
 
 eol = {(!NEWLINE ~ ANY)+}

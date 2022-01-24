@@ -31,7 +31,6 @@ pub enum Action {
 #[derive(Debug, PartialEq)]
 pub enum SetProperty {
     Icon(char),
-    Id(String),
     Text(u64),
     ExpireTimeout(i32),
     EmojiMode(EmojiMode),
@@ -45,7 +44,6 @@ impl SetProperty {
                 nd.text = emoji::handle(template::render_template(i, n), &nd.emoji_mode)
             }
             Self::ExpireTimeout(i) => nd.expire_timeout = *i,
-            Self::Id(i) => nd.id = i.clone(),
             Self::EmojiMode(em) => nd.emoji_mode = em.clone(),
         }
     }
