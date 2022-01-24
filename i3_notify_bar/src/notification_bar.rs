@@ -135,6 +135,7 @@ impl Observer<Event> for NotificationManager {
     fn on_notify(&mut self, event: &Event) {
         match event {
             Event::Notify(n) => self.notify(n),
+            Event::Close(id) => self.remove(id.to_string().as_str())
         }
     }
 }
