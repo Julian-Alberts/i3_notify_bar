@@ -8,11 +8,10 @@ use std::sync::{Arc, Mutex};
 use i3_bar_components::{components::Button, ManageComponents, protocol::ClickEvent};
 pub use notification::NotificationComponent;
 pub use min_urgency_selector::init;
-use notify_server::notification::Urgency;
 
-use crate::icons;
+use crate::{icons, notification_bar::MinimalUrgency};
 
-pub fn menu_button_open(selected: Arc<Mutex<Urgency>>) -> Button {
+pub fn menu_button_open(selected: Arc<Mutex<MinimalUrgency>>) -> Button {
     let icon = icons::get_icon("menu").map_or(String::from(" menu "), |c| format!(" {} ", c));
     let mut button = Button::new(icon);
 
@@ -36,7 +35,7 @@ fn close_menu(_: &mut Button, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
     mc.pop_layer()
 }
 
-fn open_menu(mc: &mut dyn ManageComponents, ce: &ClickEvent, selected: Arc<Mutex<Urgency>>) {
+fn open_menu(mc: &mut dyn ManageComponents, ce: &ClickEvent, selected: Arc<Mutex<MinimalUrgency>>) {
     if ce.get_button() != 1 { return };
     mc.new_layer();
     let group = min_urgency_selector::init(selected);

@@ -17,11 +17,11 @@ pub struct NotificationManager {
     events: Vec<NotificationEvent>,
     definitions: Vec<Definition>,
     default_emoji_mode: EmojiMode,
-    minimum_urgency: Arc<Mutex<Urgency>>
+    minimum_urgency: Arc<Mutex<MinimalUrgency>>
 }
 
 impl NotificationManager {
-    pub fn new(definitions: Vec<Definition>, default_emoji_mode: EmojiMode, minimum_urgency: Arc<Mutex<Urgency>>) -> Self {
+    pub fn new(definitions: Vec<Definition>, default_emoji_mode: EmojiMode, minimum_urgency: Arc<Mutex<MinimalUrgency>>) -> Self {
         Self {
             notifications: Vec::new(),
             events: Vec::new(),
@@ -55,7 +55,7 @@ impl NotificationManager {
             notification_template_data
         );
 
-        if notification.urgency < self.minimum_urgency.lock().unwrap().clone() {
+        if self.minimum_urgency.lock().unwrap().clone() > notification.urgency {
             return;
         }
 
@@ -242,4 +242,48 @@ impl From<&Notification> for NotificationTemplateData {
             time: SystemTime::now(),
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum MinimalUrgency {
+    All = 0,
+    Normal = 1,
+    Critical = 2,
+    None = 3
+}
+
+impl std::cmp::PartialEq<Urgency> for MinimalUrgency {
+
+    fn eq(&self, other: &Urgency) -> bool {
+        *self as usize == *other as usize
+    }
+
+    fn ne(&self, other: &Urgency) -> bool {
+        *self as usize != *other as usize
+    }
+
+}
+
+impl std::cmp::PartialOrd<Urgency> for MinimalUrgency {
+
+    fn ge(&self, other: &Urgency) -> bool {
+        *self as usize >= *other as usize
+    }
+
+    fn gt(&self, other: &Urgency) -> bool {
+        *self as usize > *other as usize
+    }
+
+    fn le(&self, other: &Urgency) -> bool {
+        *self as usize <= *other as usize   
+    }
+
+    fn lt(&self, other: &Urgency) -> bool {
+        (*self as usize) < *other as usize
+    }
+
+    fn partial_cmp(&self, other: &Urgency) -> Option<std::cmp::Ordering> {
+        Some((*self as usize).cmp(&(*other as usize)))
+    }
+
 }

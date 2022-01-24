@@ -15,8 +15,7 @@ use components::NotificationComponent;
 use emoji::EmojiMode;
 use i3_bar_components::{components::Label, component_manager::{ComponentManagerBuilder, ManageComponents}};
 use log::{error, debug};
-use notification_bar::{NotificationEvent, NotificationManager};
-use notify_server::notification::Urgency;
+use notification_bar::{NotificationEvent, NotificationManager, MinimalUrgency};
 use path_manager::PathManager;
 use rule::Definition;
 use std::{
@@ -86,7 +85,7 @@ fn run(
         .with_click_events(true)
         .build();
 
-    let minimal_urgency = Arc::new(Mutex::new(Urgency::Low));
+    let minimal_urgency = Arc::new(Mutex::new(MinimalUrgency::All));
 
     component_manager.add_component(
         Box::new(
