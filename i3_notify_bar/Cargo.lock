@@ -371,7 +371,7 @@ dependencies = [
 
 [[package]]
 name = "i3_notify_bar"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "clap",
  "i3_bar_components",
