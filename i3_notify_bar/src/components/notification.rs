@@ -108,6 +108,36 @@ impl NotificationComponent {
         };
         self.close_type = close_type;
     }
+
+    fn on_close_button_click(&self) {
+        match self.notification_manager.lock() {
+            Ok(nm) => nm,
+            Err(_) => {
+                debug!("Could not lock notification manager");
+                return;
+            }
+        }
+        .remove(&self.id, &CloseReason::Closed);
+    }
+
+    fn on_notification_right_click(&mut self, mc: &mut dyn ManageComponents) {
+        mc.new_layer();
+        mc.add_component(Box::new(ActionBar::new(
+            &self.actions,
+            self.id.parse::<u32>().unwrap(),
+            Arc::clone(&self.notification_manager),
+        )))
+    }
+
+    fn on_notification_click(&mut self) {
+        let action = self.actions.iter().find(|action| {
+            action.key == "default"
+        });
+
+        if let Some(action) = action {
+            self.notification_manager.lock().unwrap().action_invoked(self.id.parse().unwrap(), &action.key)
+        }
+    }
 }
 
 impl Component for NotificationComponent {
@@ -131,21 +161,11 @@ impl Component for NotificationComponent {
             && ce.get_button() == 1
             && ce.get_id() == self.close_type.get_id()
         {
-            match self.notification_manager.lock() {
-                Ok(nm) => nm,
-                Err(_) => {
-                    debug!("Could not lock notification manager");
-                    return;
-                }
-            }
-            .remove(&self.id, &CloseReason::Closed);
+            self.on_close_button_click()
         } else if ce.get_button() == 3 {
-            mc.new_layer();
-            mc.add_component(Box::new(ActionBar::new(
-                &self.actions,
-                self.id.parse::<u32>().unwrap(),
-                Arc::clone(&self.notification_manager),
-            )))
+            self.on_notification_right_click(mc)   
+        } else if ce.get_button() == 1 {
+            self.on_notification_click()
         }
     }
 
