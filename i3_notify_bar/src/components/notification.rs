@@ -6,7 +6,7 @@ use i3_bar_components::{
     ManageComponents,
 };
 use log::debug;
-use notify_server::notification::Action;
+use notify_server::{notification::Action, CloseReason};
 
 use crate::{
     icons,
@@ -138,12 +138,13 @@ impl Component for NotificationComponent {
                     return;
                 }
             }
-            .remove(&self.id);
+            .remove(&self.id, &CloseReason::Closed);
         } else if ce.get_button() == 3 {
             mc.new_layer();
             mc.add_component(Box::new(ActionBar::new(
                 &self.actions,
                 self.id.parse::<u32>().unwrap(),
+                Arc::clone(&self.notification_manager),
             )))
         }
     }
@@ -157,7 +158,7 @@ impl Component for NotificationComponent {
                     return;
                 }
             }
-            .remove(&self.id);
+            .remove(&self.id, &CloseReason::Expired);
         }
 
         self.label.update(dt);

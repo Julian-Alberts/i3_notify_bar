@@ -8,6 +8,8 @@ use crate::{icons, rule::Action};
 use log::{debug, error, info};
 use notify_server::notification::Action as NotificationAction;
 use notify_server::notification::Urgency;
+use notify_server::CloseReason;
+use notify_server::NotifyServer;
 use notify_server::{notification::Notification, Event, Observer};
 use serde::Serialize;
 
@@ -19,6 +21,7 @@ pub struct NotificationManager {
     definitions: Vec<Definition>,
     default_emoji_mode: EmojiMode,
     minimum_urgency: Arc<Mutex<MinimalUrgency>>,
+    notify_server: NotifyServer,
 }
 
 impl NotificationManager {
@@ -26,14 +29,26 @@ impl NotificationManager {
         definitions: Vec<Definition>,
         default_emoji_mode: EmojiMode,
         minimum_urgency: Arc<Mutex<MinimalUrgency>>,
-    ) -> Self {
-        Self {
+        notify_server: NotifyServer,
+    ) -> Arc<Mutex<Self>> {
+        let manager = Self {
             notifications: Vec::new(),
             events: Vec::new(),
             definitions,
             default_emoji_mode,
             minimum_urgency,
-        }
+            notify_server,
+        };
+
+        let manager = Arc::new(Mutex::new(manager));
+        let manager_cp = Arc::clone(&manager);
+        manager
+            .lock()
+            .unwrap()
+            .notify_server
+            .add_observer(manager_cp);
+
+        manager
     }
 
     fn notify(&mut self, notification: &Notification) {
@@ -112,7 +127,7 @@ impl NotificationManager {
         std::mem::take(&mut self.events)
     }
 
-    pub fn remove(&mut self, id: &str) {
+    pub fn remove(&mut self, id: &str, close_reason: &CloseReason) {
         let id = id.to_owned();
         let filtered_notifications = self
             .notifications
@@ -127,7 +142,16 @@ impl NotificationManager {
             .map(Arc::clone)
             .collect::<Vec<Arc<RwLock<NotificationData>>>>();
         self.notifications = filtered_notifications;
+        self.notification_closed(id.parse().unwrap(), close_reason);
         self.events.push(NotificationEvent::Remove(id));
+    }
+
+    pub fn action_invoked(&mut self, id: u32, action: &str) {
+        async_std::task::block_on(self.notify_server.action_invoked(id, action)).unwrap()
+    }
+
+    pub fn notification_closed(&mut self, id: u32, reason: &CloseReason) {
+        async_std::task::block_on(self.notify_server.notification_closed(id, reason)).unwrap()
     }
 
     #[cfg(tray_icon)]
@@ -140,7 +164,7 @@ impl Observer<Event> for NotificationManager {
     fn on_notify(&mut self, event: &Event) {
         match event {
             Event::Notify(n) => self.notify(n),
-            Event::Close(id) => self.remove(id.to_string().as_str()),
+            Event::Close(id, reason) => self.remove(id.to_string().as_str(), reason),
         }
     }
 }

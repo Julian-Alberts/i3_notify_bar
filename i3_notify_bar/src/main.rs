@@ -31,7 +31,8 @@ use std::{
 #[macro_use]
 extern crate pest_derive;
 
-fn main() {
+#[async_std::main]
+async fn main() {
     let mut path_manager = PathManager::default();
     let Args {
         emoji_mode,
@@ -83,26 +84,21 @@ fn run(
     animation_chars_per_second: usize,
     refresh_rate: u64,
 ) {
-    let mut notify_server = notify_server::NotifyServer::start().unwrap();
+    let minimal_urgency = Arc::new(Mutex::new(MinimalUrgency::All));
+
     let mut component_manager = ComponentManagerBuilder::new()
         .with_click_events(true)
         .build();
-
-    let minimal_urgency = Arc::new(Mutex::new(MinimalUrgency::All));
-
     component_manager.add_component(Box::new(components::menu_button_open(Arc::clone(
         &minimal_urgency,
     ))));
     component_manager.set_global_event_listener(|_, ce| {
         debug!("{}", ce.get_button().to_string());
     });
-    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(
-        config,
-        emoji_mode,
-        minimal_urgency,
-    )));
-    notify_server.add_observer(notification_manager.clone());
-    
+
+    let notify_server = notify_server::NotifyServer::start().unwrap();
+    let notification_manager =
+        NotificationManager::new(config, emoji_mode, minimal_urgency, notify_server);
 
     loop {
         let mut nm_lock = notification_manager.lock();

@@ -30,15 +30,14 @@ impl NotifyServer {
         self.interface_ref.get_mut().add_observer(observer)
     }
 
-    pub fn action_invoked(&self, id: u32, action: &str) {
+    pub async fn action_invoked(&self, id: u32, action: &str) -> zbus::Result<()>{
         let context = self.interface_ref.signal_context();
-       let i = NotifyServerInterface::action_invoked(context, id, action);
-       
+       NotifyServerInterface::action_invoked(context, id, action).await
     }
 
-    pub fn notification_closed(&mut self, id: u32, reason: u32) {
+    pub async fn notification_closed(&mut self, id: u32, reason: &CloseReason) -> zbus::Result<()> {
         let context = self.interface_ref.signal_context();
-        NotifyServerInterface::notification_closed(context, id, reason);
+        NotifyServerInterface::notification_closed(context, id, *reason as u32).await
     }
 
 }
@@ -149,7 +148,7 @@ impl NotifyServerInterface {
     }
 
     fn close_notification(&self, id: u32) {
-        self.event_system.lock().unwrap().notify(&Event::Close(id))
+        self.event_system.lock().unwrap().notify(&Event::Close(id, CloseReason::Undeined))
     }
 
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
