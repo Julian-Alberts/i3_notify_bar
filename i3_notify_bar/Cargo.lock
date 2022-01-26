@@ -550,7 +550,7 @@ dependencies = [
 
 [[package]]
 name = "i3_notify_bar"
-version = "1.7.0"
+version = "1.7.1"
 dependencies = [
  "async-std",
  "clap",
