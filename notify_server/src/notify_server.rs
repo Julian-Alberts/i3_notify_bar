@@ -1,87 +1,56 @@
-use log::debug;
 use observer::SingleEventSystem;
-use std::convert::TryInto;
-use std::sync::mpsc::Sender;
+use zbus::blocking::InterfaceRef;
+use zbus::zvariant::Value;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use zbus::{fdo, ObjectServer};
+use zbus::{dbus_interface, blocking::{ConnectionBuilder, Connection}, SignalContext};
 
-use crate::{routes, Event};
+use crate::notification::Notification;
+use crate::Event;
 
 pub struct NotifyServer {
-    event_system: Arc<Mutex<SingleEventSystem<Event>>>,
-    object_server: ObjectServer<'static>,
-    message_tx: Arc<Sender<Message>>,
+    interface_ref: InterfaceRef<NotifyServerInterface>,
 }
 
 impl NotifyServer {
-    pub fn start() -> Self {
-        let event_system = Arc::new(Mutex::new(SingleEventSystem::new()));
 
-        let connection = Arc::new(zbus::Connection::new_session().unwrap());
-        fdo::DBusProxy::new(&connection)
-            .unwrap()
-            .request_name(
-                routes::DBUS_INTERFACE_NAME,
-                fdo::RequestNameFlags::ReplaceExisting.into(),
-            )
-            .unwrap();
-
-        let connection_cp = Arc::clone(&connection);
-        let event_system_cp = Arc::clone(&event_system);
-
-        std::thread::spawn(move || {
-            let mut object_server = zbus::ObjectServer::new(&connection_cp);
-            object_server
-                .at(
-                    &routes::DBUS_INTERFACE_PATH.try_into().unwrap(),
-                    routes::Routes::new(event_system_cp),
-                )
-                .unwrap();
-            loop {
-                match object_server.try_handle_next() {
-                    Ok(Some(_)) => {}
-                    Err(err) => eprintln!("{}", err),
-                    _ => {}
-                }
-            }
-        });
-
-        let connection_cp = Arc::clone(&connection);
-        let event_system_cp = Arc::clone(&event_system);
-        let (tx, rx) = std::sync::mpsc::channel();
-
-        std::thread::spawn(move || {
-            let mut object_server = zbus::ObjectServer::new(&connection_cp);
-            object_server
-                .at(
-                    &routes::DBUS_INTERFACE_PATH.try_into().unwrap(),
-                    routes::Routes::new(event_system_cp),
-                )
-                .unwrap();
-            loop {
-                match rx.recv() {
-                    Ok(Message::ActionInvoked(id, key)) => {
-                        debug!("invoke action {} on {}", key, id);
-                        send_action_invoked(&object_server, id, key.as_str())
-                    }
-                    Ok(Message::NotificationClosed(id, reason)) => {
-                        notification_closed(&object_server, id, reason)
-                    }
-                    Err(_) => {}
-                }
-            }
-        });
-
-        let object_server = zbus::ObjectServer::new(&connection);
-
-        Self {
-            event_system,
-            object_server,
-            message_tx: Arc::new(tx),
-        }
+    pub fn start() -> zbus::Result<Self> {
+        let interface = NotifyServerInterface::default();
+        let connection = interface.run()?;
+        let i = connection.object_server().interface::<_,NotifyServerInterface>("/org/freedesktop/Notifications")?;
+        Ok(Self {
+            interface_ref: i,
+        })
     }
 
     pub fn add_observer(
+        &mut self,
+        observer: Arc<Mutex<dyn observer::Observer<Event> + Send + Sync + 'static>>,
+    ) {
+        self.interface_ref.get_mut().add_observer(observer)
+    }
+
+    pub fn action_invoked(&self, id: u32, action: &str) {
+        let context = self.interface_ref.signal_context();
+       let i = NotifyServerInterface::action_invoked(context, id, action);
+       
+    }
+
+    pub fn notification_closed(&mut self, id: u32, reason: u32) {
+        let context = self.interface_ref.signal_context();
+        NotifyServerInterface::notification_closed(context, id, reason);
+    }
+
+}
+
+struct NotifyServerInterface {
+    event_system: Arc<Mutex<SingleEventSystem<Event>>>,
+    last_id: u32,
+}
+
+impl NotifyServerInterface {
+
+    fn add_observer(
         &mut self,
         observer: Arc<Mutex<dyn observer::Observer<Event> + Send + Sync + 'static>>,
     ) {
@@ -89,35 +58,120 @@ impl NotifyServer {
         event_system.set_observer(observer);
     }
 
-    pub fn send_action_invoked(&self, id: u32, action: &str) {
-        send_action_invoked(&self.object_server, id, action)
+    pub fn run(self) -> zbus::Result<Connection> {
+        ConnectionBuilder::session()?
+            .name("org.freedesktop.Notifications")?
+            .serve_at("/org/freedesktop/Notifications", self)?
+            .build()
     }
 
-    pub fn notification_closed(&self, id: u32, reason: CloseReason) {
-        notification_closed(&self.object_server, id, reason);
-    }
-
-    pub fn get_message_channel(&self) -> Arc<Sender<Message>> {
-        Arc::clone(&self.message_tx)
+    fn create_new_notification(
+        &mut self,
+        app_name: String,
+        replace_id: u32,
+        app_icon: String,
+        summary: String,
+        body: String,
+        actions: Vec<String>,
+        hints: HashMap<String, Value>,
+        expire_timeout: i32,
+    ) -> Notification {
+        match replace_id {
+            0 => {
+                self.last_id += 1;
+                Notification::new(
+                    app_name,
+                    self.last_id,
+                    app_icon,
+                    summary,
+                    body,
+                    actions,
+                    hints,
+                    expire_timeout,
+                )
+            }
+            id => Notification::new(
+                app_name,
+                id,
+                app_icon,
+                summary,
+                body,
+                actions,
+                hints,
+                expire_timeout,
+            ),
+        }
     }
 }
 
-fn send_action_invoked(object_server: &ObjectServer, id: u32, action: &str) {
-    object_server
-        .with(
-            &routes::DBUS_INTERFACE_PATH.try_into().unwrap(),
-            |interface: &routes::Routes| interface.action_invoked(id, action),
-        )
-        .unwrap();
+#[dbus_interface(name = "org.freedesktop.Notifications")]
+impl NotifyServerInterface {
+
+    fn get_capabilities(&self) -> Vec<&str> {
+        vec![
+            "action-icons",
+            "actions",
+            "body",
+            "body-hyperlinks",
+            "body-markup",
+            "persistence",
+        ]
+    }
+
+    fn notify(
+        &mut self,
+        app_name: String,
+        replaces_id: u32,
+        app_icon: String,
+        summary: String,
+        body: String,
+        actions: Vec<String>,
+        hints: HashMap<String, Value>,
+        expire_timeout: i32,
+    ) -> u32 {
+        let notification = self.create_new_notification(
+            app_name,
+            replaces_id,
+            app_icon,
+            summary,
+            body,
+            actions,
+            hints,
+            expire_timeout,
+        );
+        let id = notification.id;
+
+        self.event_system
+            .lock()
+            .unwrap()
+            .notify(&Event::Notify(notification));
+        id
+    }
+
+    fn close_notification(&self, id: u32) {
+        self.event_system.lock().unwrap().notify(&Event::Close(id))
+    }
+
+    fn get_server_information(&self) -> (&str, &str, &str, &str) {
+        ("test", "Julian Alberts", "0.1", "1.2")
+    }
+
+    #[dbus_interface(signal)]
+    async fn action_invoked(signal_ctxt: &SignalContext<'_>, id: u32, action: &str) -> zbus::Result<()>;
+
+    #[dbus_interface(signal)]
+    async fn notification_closed(signal_ctxt: &SignalContext<'_>, id: u32, reason: u32) -> zbus::Result<()>;
 }
 
-fn notification_closed(object_server: &ObjectServer, id: u32, reason: CloseReason) {
-    object_server
-        .with(
-            &routes::DBUS_INTERFACE_PATH.try_into().unwrap(),
-            |interface: &routes::Routes| interface.notification_closed(id, reason as u32),
-        )
-        .unwrap();
+impl Default for NotifyServerInterface {
+
+    fn default() -> Self {
+        Self {
+            event_system: Arc::new(Mutex::new(SingleEventSystem::new())),
+            last_id: 0
+        }
+    }
+
 }
 
 #[derive(Clone, Copy)]

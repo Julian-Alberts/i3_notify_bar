@@ -1,7 +1,6 @@
 mod events;
 pub mod notification;
 mod notify_server;
-mod routes;
 
 pub use crate::notify_server::CloseReason;
 pub use crate::notify_server::{Message as NotificationMessage, NotifyServer};

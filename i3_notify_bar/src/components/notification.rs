@@ -1,4 +1,4 @@
-use std::sync::{mpsc::Sender, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 
 use i3_bar_components::{
     components::{prelude::*, BaseComponent, Button, Label, ProgressBar},
@@ -6,7 +6,7 @@ use i3_bar_components::{
     ManageComponents,
 };
 use log::debug;
-use notify_server::{notification::Action, NotificationMessage};
+use notify_server::notification::Action;
 
 use crate::{
     icons,
@@ -22,7 +22,6 @@ pub struct NotificationComponent {
     id: String,
     notification_manager: Arc<Mutex<NotificationManager>>,
     actions: Vec<Action>,
-    notification_tx: Arc<Sender<NotificationMessage>>,
 }
 
 impl NotificationComponent {
@@ -31,7 +30,6 @@ impl NotificationComponent {
         max_width: usize,
         move_chars_per_sec: usize,
         notification_manager: Arc<Mutex<NotificationManager>>,
-        notification_tx: Arc<Sender<NotificationMessage>>,
     ) -> NotificationComponent {
         let close_type = match nd.expire_timeout {
             -1 => {
@@ -80,7 +78,6 @@ impl NotificationComponent {
             id: nd.id.to_owned(),
             notification_manager,
             padding_r,
-            notification_tx,
             actions: nd.actions.clone(),
         }
     }
@@ -147,7 +144,6 @@ impl Component for NotificationComponent {
             mc.add_component(Box::new(ActionBar::new(
                 &self.actions,
                 self.id.parse::<u32>().unwrap(),
-                Arc::clone(&self.notification_tx),
             )))
         }
     }

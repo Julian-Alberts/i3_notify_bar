@@ -83,8 +83,7 @@ fn run(
     animation_chars_per_second: usize,
     refresh_rate: u64,
 ) {
-    let mut notify_server = notify_server::NotifyServer::start();
-    let notification_tx = notify_server.get_message_channel();
+    let mut notify_server = notify_server::NotifyServer::start().unwrap();
     let mut component_manager = ComponentManagerBuilder::new()
         .with_click_events(true)
         .build();
@@ -103,6 +102,7 @@ fn run(
         minimal_urgency,
     )));
     notify_server.add_observer(notification_manager.clone());
+    
 
     loop {
         let mut nm_lock = notification_manager.lock();
@@ -133,7 +133,6 @@ fn run(
                             max_text_length,
                             animation_chars_per_second,
                             Arc::clone(&notification_manager),
-                            Arc::clone(&notification_tx),
                         )),
                         -1,
                         0,

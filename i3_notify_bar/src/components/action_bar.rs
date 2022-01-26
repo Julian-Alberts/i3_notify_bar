@@ -1,24 +1,20 @@
-use std::sync::{mpsc::Sender, Arc};
-
 use i3_bar_components::components::{
     prelude::{Component, Widget},
     Button,
 };
-use notify_server::{notification::Action, NotificationMessage};
+use notify_server::notification::Action;
 
 use crate::icons;
 pub struct ActionBar {
     buttons: Vec<ActionButton>,
     close_btn: Button,
     notification_id: u32,
-    notification_tx: Arc<Sender<NotificationMessage>>,
 }
 
 impl ActionBar {
     pub fn new(
         actions: &[Action],
         notification_id: u32,
-        notification_tx: Arc<Sender<NotificationMessage>>,
     ) -> Self {
         let buttons = actions
             .iter()
@@ -37,7 +33,6 @@ impl ActionBar {
         Self {
             buttons,
             notification_id,
-            notification_tx,
             close_btn,
         }
     }
@@ -89,12 +84,12 @@ impl Component for ActionBar {
             .find(|b| &b.get_base_component().get_properties().instance == event.get_instance());
 
         if let Some(button) = button {
-            self.notification_tx
+            /*self.notification_tx
                 .send(NotificationMessage::ActionInvoked(
                     self.notification_id,
                     button.key.clone(),
                 ))
-                .unwrap()
+                .unwrap()*/
         }
     }
 

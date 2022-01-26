@@ -1,5 +1,5 @@
 use std::{collections::HashMap, str::FromStr};
-use zvariant::Value;
+use zbus::zvariant::Value;
 
 #[derive(Debug, Clone)]
 pub struct Notification {
