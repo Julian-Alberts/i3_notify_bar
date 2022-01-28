@@ -372,6 +372,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6907e25393cdcc1f4f3f513d9aac1e840eb1cc341a0fccb01171f7d14d10b946"
 
 [[package]]
+name = "emoji"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "log",
+]
+
+[[package]]
 name = "enumflags2"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -550,6 +558,7 @@ version = "1.7.1"
 dependencies = [
  "async-std",
  "clap",
+ "emoji",
  "i3_bar_components",
  "lazy_static",
  "log",

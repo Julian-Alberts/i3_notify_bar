@@ -2,7 +2,7 @@ use notify_server::notification::Notification;
 
 use crate::{
     args::DebugConfig,
-    emoji::EmojiMode,
+    EmojiMode,
     notification_bar::{execute_rules, NotificationData, NotificationTemplateData},
     rule::Definition,
 };

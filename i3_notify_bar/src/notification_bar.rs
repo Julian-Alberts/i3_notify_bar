@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use std::sync::RwLock;
 use std::time::SystemTime;
 
-use crate::emoji::EmojiMode;
+use emoji::EmojiMode;
 use crate::{icons, rule::Action};
 use log::{debug, error, info};
 use notify_server::notification::Action as NotificationAction;

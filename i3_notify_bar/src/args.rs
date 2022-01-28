@@ -1,7 +1,7 @@
 use log::LevelFilter;
 use notify_server::notification::Urgency;
 
-use crate::emoji::EmojiMode;
+use emoji::EmojiMode;
 
 #[derive(clap::Parser)]
 #[clap(version = include_str!("../version.txt"), author = "Julian Alberts")]

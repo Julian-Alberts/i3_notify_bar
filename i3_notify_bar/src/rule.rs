@@ -2,8 +2,8 @@ pub use crate::config_parser::parse_config;
 use notify_server::notification::Notification;
 use regex::Regex;
 
+use emoji::{self, EmojiMode};
 use crate::{
-    emoji::{self, EmojiMode},
     notification_bar::{NotificationData, NotificationTemplateData},
     template,
 };

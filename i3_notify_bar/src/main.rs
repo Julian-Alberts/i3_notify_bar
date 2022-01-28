@@ -2,7 +2,6 @@ mod args;
 mod components;
 mod config_parser;
 mod debug_config;
-mod emoji;
 mod icons;
 mod notification_bar;
 mod path_manager;
@@ -61,7 +60,7 @@ async fn main() {
     logger::init(log_level, path_manager.log_file());
 
     let config = read_config(path_manager.config_file());
-    crate::emoji::init(path_manager.emoji_file().as_ref().map(Path::new));
+    emoji::init(path_manager.emoji_file().as_ref().map(Path::new));
 
     drop(path_manager);
 

@@ -7,7 +7,7 @@ use log::{error, info};
 use pest::{iterators::Pair, Parser};
 use regex::Regex;
 
-use crate::emoji::EmojiMode;
+use emoji::EmojiMode;
 use crate::{
     icons,
     rule::{Action, ConditionTypeString, Conditions as Condition, Definition, SetProperty, Style},
@@ -263,7 +263,7 @@ pub enum ParseError {
     PestError(pest::error::Error<Rule>),
     UnexpectedEnd,
     NumParse(std::num::ParseIntError),
-    EmojiMode(super::emoji::EmojiModeError),
+    EmojiMode(emoji::EmojiModeError),
     Regex(regex::Error),
 }
 
