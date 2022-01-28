@@ -1,55 +1,63 @@
-use clap::Clap;
 use log::LevelFilter;
 use notify_server::notification::Urgency;
 
 use crate::emoji::EmojiMode;
 
-#[derive(Clap, Debug)]
+#[derive(clap::Parser)]
 #[clap(version = include_str!("../version.txt"), author = "Julian Alberts")]
 pub struct Args {
+    /// "Allowed values: "ignore", "remove", "replace"
     #[cfg(emoji_mode_replace)]
     #[clap(
         long,
         default_value = "ignore",
-        about = r#"Allowed values: "ignore", "remove", "replace""#
     )]
     pub emoji_mode: EmojiMode,
+    
+    /// Allowed values: "ignore", "remove"
     #[cfg(not(emoji_mode_replace))]
     #[clap(
         long,
         default_value = "ignore",
-        about = r#"Allowed values: "ignore", "remove""#
     )]
     pub emoji_mode: EmojiMode,
+    
+    ///Allowed values: "off", "Error", "Warn", "Info", "Debug", "Trace"
     #[clap(
         long,
         default_value = "off",
-        about = r#"Allowed values: "off", "Error", "Warn", "Info", "Debug", "Trace""#
     )]
     pub log_level: LevelFilter,
-    #[clap(long, about = "log file location")]
+
+    /// log file location
+    #[clap(long)]
     pub log_file: Option<String>,
-    #[clap(long, about = "override default emoji file")]
+    
+    /// override default emoji file
+    #[clap(long)]
     pub emoji_file: Option<String>,
+    
+    ///Time between refresh in ms
     #[clap(
         short,
         long,
         default_value = "250",
-        about = "Time between refresh in ms"
     )]
     pub refresh_rate: u64,
+
+    /// Maximum length a single notification can use in chars
     #[clap(
         short,
         long,
         default_value = "30",
-        about = "Maximum length a single notification can use in chars"
     )]
     pub max_text_length: usize,
+
+    /// How fast the text is animated
     #[clap(
         short,
         long,
         default_value = "5",
-        about = "How fast the text is animated"
     )]
     pub animation_chars_per_second: usize,
     pub config_file: Option<String>,
@@ -57,13 +65,13 @@ pub struct Args {
     pub command: Option<Command>,
 }
 
-#[derive(Clap, Debug)]
+#[derive(clap::Parser, Debug)]
 pub enum Command {
     DebugConfig(DebugConfig),
     Run,
 }
 
-#[derive(Clap, Debug)]
+#[derive(clap::Parser, Debug)]
 pub struct DebugConfig {
     #[clap(long, default_value = "")]
     pub app_name: String,

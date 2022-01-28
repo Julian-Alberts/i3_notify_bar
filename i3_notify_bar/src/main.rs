@@ -10,7 +10,7 @@ mod rule;
 mod template;
 
 use args::Args;
-use clap::Clap;
+use clap::Parser;
 use components::NotificationComponent;
 use emoji::EmojiMode;
 use i3_bar_components::{
