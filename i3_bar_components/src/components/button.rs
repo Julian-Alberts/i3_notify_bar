@@ -52,16 +52,10 @@ impl Component for Button {
         base_components.push(&mut self.base_component);
     }
 
-    fn name(&self) -> &str {
-        match self.base_component.get_name() {
-            Some(name) => name,
-            None => "",
-        }
+    fn name(&self) -> Option<&str> {
+        self.base_component.get_name()
     }
 
-    fn get_id(&self) -> &str {
-        self.base_component.get_id()
-    }
 }
 
 impl Widget for Button {
@@ -88,7 +82,7 @@ mod tests {
     fn on_button_click() {
         let mut button = Button::new(String::from("test"));
         button.set_on_click(|btn, _, _| {
-            btn.get_base_component_mut().get_properties_mut().instance =
+            btn.get_base_component_mut().get_properties_mut().name =
                 Some(String::from("clicked"));
         });
 
@@ -114,7 +108,7 @@ mod tests {
             button
                 .get_base_component_mut()
                 .get_properties_mut()
-                .instance,
+                .name,
             Some(String::from("clicked"))
         )
     }

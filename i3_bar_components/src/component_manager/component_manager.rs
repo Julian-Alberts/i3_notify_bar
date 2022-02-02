@@ -21,7 +21,7 @@ pub struct ComponentManager {
     event_reader: Receiver<ClickEvent>,
     out_writer: Stdout,
     last_update: SystemTime,
-    next_instance_id: u128,
+    next_instance_id: u32,
     global_event_listener: fn(&mut dyn ManageComponents, &ClickEvent),
     component_manager_messenger: ComponentManagerMassenger,
 }
@@ -60,11 +60,11 @@ impl ComponentManager {
 
         events.iter().for_each(|event| {
             (global_event_listener)(cmm, event);
-            let element_id = event.get_id();
+            let element_id = event.get_instance();
             let comp = layer.iter_mut().find(|comp| {
                 let mut blocks = Vec::new();
                 comp.collect_base_components(&mut blocks);
-                blocks.iter().any(|b| b.get_id() == element_id)
+                blocks.iter().any(|b| Some(b.get_id()) == element_id)
             });
 
             if let Some(comp) = comp {
@@ -102,7 +102,7 @@ impl ComponentManager {
 
     pub fn get_component_mut<'a, T: Component>(&'a mut self, name: &str) -> Option<&'a mut T> {
         self.get_layer_mut().iter_mut().find_map(|c| {
-            if c.name() == name {
+            if c.name() == Some(name) {
                 let c: &mut dyn Any = c;
                 c.downcast_mut::<T>()
             } else {
@@ -168,7 +168,7 @@ impl ManageComponents for ComponentManager {
         comp.collect_base_components_mut(&mut base_components);
 
         base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
+            component.get_properties_mut().instance = Some(self.next_instance_id);
             self.next_instance_id += 1;
         });
 
@@ -180,7 +180,7 @@ impl ManageComponents for ComponentManager {
         comp.collect_base_components_mut(&mut base_components);
 
         base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
+            component.get_properties_mut().instance = Some(self.next_instance_id);
             self.next_instance_id += 1;
         });
 
@@ -203,7 +203,7 @@ impl ManageComponents for ComponentManager {
         comp.collect_base_components_mut(&mut base_components);
 
         base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
+            component.get_properties_mut().instance = Some(self.next_instance_id);
             self.next_instance_id += 1;
         });
 
@@ -217,7 +217,7 @@ impl ManageComponents for ComponentManager {
     }
 
     fn remove_by_name(&mut self, name: &str) {
-        let index = match self.get_layer().iter().position(|c| c.name() == name) {
+        let index = match self.get_layer().iter().position(|c| c.name() == Some(name)) {
             Some(s) => s,
             None => return,
         };

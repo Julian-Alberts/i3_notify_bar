@@ -69,8 +69,8 @@ impl ClickEvent {
         &self.name
     }
 
-    pub fn get_instance(&self) -> &Option<String> {
-        &self.instance
+    pub fn get_instance(&self) -> Option<u32> {
+        self.instance.as_ref()?.parse().ok()
     }
 
     pub fn get_button(&self) -> usize {
@@ -111,15 +111,6 @@ impl ClickEvent {
 
     pub fn get_height(&self) -> usize {
         self.height
-    }
-}
-
-impl ClickEvent {
-    pub fn get_id(&self) -> &str {
-        match self.get_instance() {
-            Some(s) => s,
-            None => "",
-        }
     }
 }
 

@@ -74,7 +74,7 @@ impl Component for ActionBar {
         }
 
         if event.get_instance()
-            == &self
+            == self
                 .close_btn
                 .get_base_component()
                 .get_properties()
@@ -86,7 +86,7 @@ impl Component for ActionBar {
         let button = self
             .buttons
             .iter()
-            .find(|b| &b.get_base_component().get_properties().instance == event.get_instance());
+            .find(|b| b.get_base_component().get_properties().instance == event.get_instance());
 
         if let Some(button) = button {
             self.notification_manager
@@ -96,12 +96,8 @@ impl Component for ActionBar {
         }
     }
 
-    fn get_id(&self) -> &str {
-        ""
-    }
-
-    fn name(&self) -> &str {
-        ""
+    fn name(&self) -> Option<&str> {
+        Some("i3_notify_bar:action_bar")
     }
 
     fn update(&mut self, _: f64) {}
@@ -134,11 +130,7 @@ impl Component for ActionButton {
     ) {
     }
 
-    fn get_id(&self) -> &str {
-        self.button.get_id()
-    }
-
-    fn name(&self) -> &str {
+    fn name(&self) -> Option<&str> {
         self.button.name()
     }
 

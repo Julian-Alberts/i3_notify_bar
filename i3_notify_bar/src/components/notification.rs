@@ -19,7 +19,8 @@ pub struct NotificationComponent {
     close_type: CloseType,
     label: AnimatedLabel,
     padding_r: Label,
-    id: String,
+    id: u32,
+    name: String,
     notification_manager: Arc<Mutex<NotificationManager>>,
     actions: Vec<Action>,
 }
@@ -75,10 +76,11 @@ impl NotificationComponent {
         Self {
             close_type,
             label,
-            id: nd.id.to_owned(),
+            id: nd.id,
             notification_manager,
             padding_r,
             actions: nd.actions.clone(),
+            name: notification_id_to_notification_compnent_name(nd.id)
         }
     }
 
@@ -117,14 +119,14 @@ impl NotificationComponent {
                 return;
             }
         }
-        .remove(&self.id, &CloseReason::Closed);
+        .remove(self.id, &CloseReason::Closed);
     }
 
     fn on_notification_right_click(&mut self, mc: &mut dyn ManageComponents) {
         mc.new_layer();
         mc.add_component(Box::new(ActionBar::new(
             &self.actions,
-            self.id.parse::<u32>().unwrap(),
+            self.id,
             Arc::clone(&self.notification_manager),
         )))
     }
@@ -135,7 +137,7 @@ impl NotificationComponent {
         });
 
         if let Some(action) = action {
-            self.notification_manager.lock().unwrap().action_invoked(self.id.parse().unwrap(), &action.key)
+            self.notification_manager.lock().unwrap().action_invoked(self.id, &action.key)
         }
     }
 }
@@ -159,7 +161,7 @@ impl Component for NotificationComponent {
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
         if self.close_type.is_button()
             && ce.get_button() == 1
-            && ce.get_id() == self.close_type.get_id()
+            && ce.get_instance() == self.close_type.get_base_component().get_properties().instance
         {
             self.on_close_button_click()
         } else if ce.get_button() == 3 {
@@ -178,18 +180,19 @@ impl Component for NotificationComponent {
                     return;
                 }
             }
-            .remove(&self.id, &CloseReason::Expired);
+            .remove(self.id, &CloseReason::Expired);
         }
 
         self.label.update(dt);
         self.close_type.update(dt);
     }
 
-    fn name(&self) -> &str {
-        &self.id
+    fn name(&self) -> Option<&str> {
+        Some(&self.name[..])
     }
 
-    fn get_id(&self) -> &str {
-        &self.id
-    }
+}
+
+pub fn notification_id_to_notification_compnent_name(id: u32) -> String {
+    format!("i3_notify_bar_notification_component:{}", id)
 }

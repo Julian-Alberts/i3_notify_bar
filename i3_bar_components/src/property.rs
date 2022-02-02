@@ -20,7 +20,7 @@ pub struct Properties {
     pub min_width: Option<usize>,
     pub align: Align,
     pub name: Option<String>,
-    pub instance: Option<String>,
+    pub instance: Option<u32>,
     pub urgent: bool,
     pub markup: Markup,
 }

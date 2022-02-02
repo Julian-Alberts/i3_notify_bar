@@ -127,7 +127,7 @@ impl NotificationManager {
         std::mem::take(&mut self.events)
     }
 
-    pub fn remove(&mut self, id: &str, close_reason: &CloseReason) {
+    pub fn remove(&mut self, id: u32, close_reason: &CloseReason) {
         let id = id.to_owned();
         let filtered_notifications = self
             .notifications
@@ -142,7 +142,7 @@ impl NotificationManager {
             .map(Arc::clone)
             .collect::<Vec<Arc<RwLock<NotificationData>>>>();
         self.notifications = filtered_notifications;
-        self.notification_closed(id.parse().unwrap(), close_reason);
+        self.notification_closed(id, close_reason);
         self.events.push(NotificationEvent::Remove(id));
     }
 
@@ -164,7 +164,7 @@ impl Observer<Event> for NotificationManager {
     fn on_notify(&mut self, event: &Event) {
         match event {
             Event::Notify(n) => self.notify(n),
-            Event::Close(id, reason) => self.remove(id.to_string().as_str(), reason),
+            Event::Close(id, reason) => self.remove(*id, reason),
         }
     }
 }
@@ -220,14 +220,14 @@ pub fn execute_rules(
 
 #[derive(Debug)]
 pub enum NotificationEvent {
-    Remove(String),
+    Remove(u32),
     Add(Arc<RwLock<NotificationData>>),
     Update(Arc<RwLock<NotificationData>>),
 }
 
 #[derive(Debug)]
 pub struct NotificationData {
-    pub id: String,
+    pub id: u32,
     pub expire_timeout: i32,
     pub icon: char,
     pub text: String,
@@ -242,7 +242,7 @@ impl NotificationData {
         Self {
             expire_timeout: notification.expire_timeout,
             icon: icons::get_icon(&notification.app_name).unwrap_or(' '),
-            id: notification.id.to_string(),
+            id: notification.id,
             style: Vec::new(),
             text: notification.summary.clone(),
             emoji_mode,

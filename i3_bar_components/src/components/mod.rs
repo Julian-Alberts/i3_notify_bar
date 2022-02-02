@@ -58,12 +58,12 @@ impl BaseComponent {
         &self.properties
     }
 
-    pub fn get_name(&self) -> &Option<String> {
-        &self.properties.name
+    pub fn get_name(&self) -> Option<&str> {
+        self.properties.name.as_ref().map(|s| &s[..])
     }
 
-    pub fn get_id(&self) -> &str {
-        self.properties.instance.as_ref().unwrap()
+    pub fn get_id(&self) -> u32 {
+        self.properties.instance.unwrap()
     }
 }
 

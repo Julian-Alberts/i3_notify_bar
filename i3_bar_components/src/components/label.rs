@@ -42,16 +42,10 @@ impl Component for Label {
         base_components.push(&mut self.base_component)
     }
 
-    fn name(&self) -> &str {
-        match self.base_component.get_name() {
-            Some(name) => name,
-            None => "",
-        }
+    fn name(&self) -> Option<&str> {
+        self.base_component.get_name()
     }
 
-    fn get_id(&self) -> &str {
-        self.base_component.get_id()
-    }
 }
 
 impl Widget for Label {

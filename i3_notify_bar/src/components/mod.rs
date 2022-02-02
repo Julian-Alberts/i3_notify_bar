@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use i3_bar_components::{components::Button, protocol::ClickEvent, ManageComponents};
 pub use min_urgency_selector::init;
-pub use notification::NotificationComponent;
+pub use notification::{NotificationComponent, notification_id_to_notification_compnent_name};
 
 use crate::{icons, notification_bar::MinimalUrgency};
 

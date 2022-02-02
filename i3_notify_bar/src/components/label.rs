@@ -52,10 +52,8 @@ impl Component for AnimatedLabel {
     ) {
         self.label.collect_base_components_mut(base_components)
     }
-    fn get_id(&self) -> &str {
-        self.label.get_id()
-    }
-    fn name(&self) -> &str {
+
+    fn name(&self) -> Option<&str> {
         self.label.name()
     }
     fn update(&mut self, dt: f64) {

@@ -65,16 +65,10 @@ impl Component for ProgressBar {
         self.base_component.get_properties_mut().text.full = icon.to_string()
     }
 
-    fn name(&self) -> &str {
-        match self.base_component.get_name() {
-            Some(name) => name,
-            None => "",
-        }
+    fn name(&self) -> Option<&str> {
+        self.base_component.get_name()
     }
 
-    fn get_id(&self) -> &str {
-        self.get_base_component().get_id()
-    }
 }
 
 impl Widget for ProgressBar {

@@ -61,14 +61,7 @@ impl Component for CloseType {
         }
     }
 
-    fn get_id(&self) -> &str {
-        match self {
-            Self::Button(b) => b.get_id(),
-            Self::Timer(t) => t.get_id(),
-        }
-    }
-
-    fn name(&self) -> &str {
+    fn name(&self) -> Option<&str> {
         match self {
             Self::Button(b) => b.name(),
             Self::Timer(t) => t.name(),

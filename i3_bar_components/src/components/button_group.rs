@@ -10,12 +10,13 @@ use super::{
 pub struct ButtonGroup<K: Copy + PartialEq + 'static> {
     buttons: Vec<GroupButton<K>>,
     selected: Arc<Mutex<K>>,
+    name: Option<String>
 }
 
 impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
     pub fn new(mut buttons: Vec<GroupButton<K>>, selected: Arc<Mutex<K>>) -> Self {
         buttons.sort_by(|a, b| a.pos.cmp(&b.pos));
-        let mut button_group = Self { buttons, selected };
+        let mut button_group = Self { buttons, selected, name: None };
         let selected = *button_group.selected.lock().unwrap();
         button_group.select(selected);
         button_group
@@ -34,6 +35,10 @@ impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
             Ok(mut s) => *s = selected_key,
             Err(_) => {}
         }
+    }
+
+    pub fn set_name(&mut self, name: String) {
+        self.name = Some(name)
     }
 }
 
@@ -56,7 +61,7 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
     fn event(&mut self, _: &mut dyn ManageComponents, event: &ClickEvent) {
         let buttons = &mut self.buttons;
         let selected = buttons.iter_mut().find_map(|button| {
-            if &button.get_base_component().get_properties().instance == event.get_instance() {
+            if &button.get_base_component().get_properties().instance == &event.get_instance() {
                 return Some(button.key.clone());
             }
             return None;
@@ -67,12 +72,8 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
         }
     }
 
-    fn get_id(&self) -> &str {
-        ""
-    }
-
-    fn name(&self) -> &str {
-        ""
+    fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(|name| &name[..])
     }
 
     fn update(&mut self, _: f64) {}
@@ -124,11 +125,7 @@ impl<K: Copy + PartialEq + 'static> Component for GroupButton<K> {
         self.button.event(cm, event)
     }
 
-    fn get_id(&self) -> &str {
-        self.button.get_id()
-    }
-
-    fn name(&self) -> &str {
+    fn name(&self) -> Option<&str> {
         self.button.name()
     }
 

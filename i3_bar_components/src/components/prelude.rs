@@ -10,8 +10,7 @@ pub trait Component: std::any::Any {
         &'a mut self,
         base_components: &mut Vec<&'a mut BaseComponent>,
     );
-    fn name(&self) -> &str;
-    fn get_id(&self) -> &str;
+    fn name(&self) -> Option<&str>;
 }
 
 pub trait Widget: Component {

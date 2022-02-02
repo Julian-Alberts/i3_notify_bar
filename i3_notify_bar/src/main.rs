@@ -10,7 +10,7 @@ mod template;
 
 use args::Args;
 use clap::Parser;
-use components::NotificationComponent;
+use components::{NotificationComponent, notification_id_to_notification_compnent_name};
 use emoji::EmojiMode;
 use i3_bar_components::{
     component_manager::{ComponentManagerBuilder, ManageComponents},
@@ -120,7 +120,7 @@ fn run(
                         return;
                     }
                 };
-                match component_manager.get_component_mut::<NotificationComponent>(&n.id) {
+                match component_manager.get_component_mut::<NotificationComponent>(&notification_id_to_notification_compnent_name(n.id)) {
                     Some(c) => c.update_notification(&n),
                     None => component_manager.add_component_at_on_layer(
                         Box::new(NotificationComponent::new(
@@ -134,7 +134,7 @@ fn run(
                     ),
                 }
             }
-            &NotificationEvent::Remove(id) => component_manager.remove_by_name(id),
+            &NotificationEvent::Remove(id) => component_manager.remove_by_name(&notification_id_to_notification_compnent_name(*id)),
         });
 
         component_manager.update();
