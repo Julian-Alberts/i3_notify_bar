@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 use zbus::zvariant::Value;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Notification {
     pub app_name: String,
     pub id: u32,
@@ -115,7 +115,7 @@ fn get_urgency(value: Value) -> Urgency {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Action {
     pub key: String,
     pub text: String,

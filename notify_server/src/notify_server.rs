@@ -3,7 +3,9 @@ use zbus::blocking::InterfaceRef;
 use zbus::zvariant::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use zbus::{dbus_interface, blocking::{ConnectionBuilder, Connection}, SignalContext};
+use zbus::{dbus_interface, SignalContext};
+#[cfg(not(test))]
+use zbus::blocking::{ConnectionBuilder, Connection};
 
 use crate::notification::Notification;
 use crate::Event;
@@ -14,6 +16,8 @@ pub struct NotifyServer {
 
 impl NotifyServer {
 
+    // Calling this method in tests could break the notification service of operating systems.
+    #[cfg(not(test))]
     pub fn start() -> zbus::Result<Self> {
         let interface = NotifyServerInterface::default();
         let connection = interface.run()?;
@@ -57,6 +61,8 @@ impl NotifyServerInterface {
         event_system.set_observer(observer);
     }
 
+    // Calling this method in tests could break the notification service of operating systems.
+    #[cfg(not(test))]
     pub fn run(self) -> zbus::Result<Connection> {
         ConnectionBuilder::session()?
             .name("org.freedesktop.Notifications")?
@@ -173,7 +179,7 @@ impl Default for NotifyServerInterface {
 
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CloseReason {
     Expired = 1,
     Dismissed = 2,
@@ -185,3 +191,136 @@ pub enum Message {
     NotificationClosed(u32, CloseReason),
     ActionInvoked(u32, String),
 }
+
+#[cfg(test)]
+mod interface_tests {
+
+    use std::{collections::HashMap, sync::{Arc, Mutex}};
+
+    use crate::{Event, notification::Notification};
+
+    use super::NotifyServerInterface;
+
+
+    #[test]
+    fn create_new_notification() {
+        let app_name = String::from("my app name");
+        let replace_id = 0;
+        let app_icon = String::from("my app icon");
+        let summary = String::from("my app name");
+        let body = String::from("my app name");
+        let actions = vec![];
+        let hints = HashMap::new();
+        let expire_timeout = 0;
+
+
+        let mut interface = NotifyServerInterface::default();
+
+        assert_eq!(interface.last_id, 0);
+
+        let notification = interface.create_new_notification(app_name.clone(), replace_id, app_icon.clone(), summary.clone(), body.clone(), actions.clone(), hints.clone(), expire_timeout);        
+        
+        assert_eq!(notification.app_name, app_name);
+        assert_eq!(notification.id, 1);
+        assert_eq!(notification.app_icon, app_icon);
+        assert_eq!(notification.summary, summary);
+        assert_eq!(notification.body, body);
+        assert!(notification.actions.is_empty());
+        assert_eq!(notification.expire_timeout, expire_timeout);
+
+        assert_eq!(interface.last_id, 1);
+    }
+
+    #[test]
+    fn create_new_notification_replace() {
+        let app_name = String::from("my app name");
+        let replace_id = 10;
+        let app_icon = String::from("my app icon");
+        let summary = String::from("my app name");
+        let body = String::from("my app name");
+        let actions = vec![];
+        let hints = HashMap::new();
+        let expire_timeout = 0;
+
+
+        let mut interface = NotifyServerInterface::default();
+
+        assert_eq!(interface.last_id, 0);
+
+        let notification = interface.create_new_notification(app_name.clone(), replace_id, app_icon.clone(), summary.clone(), body.clone(), actions.clone(), hints.clone(), expire_timeout);        
+        
+        assert_eq!(notification.app_name, app_name);
+        assert_eq!(notification.id, 10);
+        assert_eq!(notification.app_icon, app_icon);
+        assert_eq!(notification.summary, summary);
+        assert_eq!(notification.body, body);
+        assert!(notification.actions.is_empty());
+        assert_eq!(notification.expire_timeout, expire_timeout);
+
+        assert_eq!(interface.last_id, 0);
+    }
+
+    #[test]
+    fn notify() {
+        let app_name = String::from("my app name");
+        let app_name_cp = app_name.clone();
+        let replace_id = 0;
+        let app_icon = String::from("my app icon");
+        let app_icon_cp = app_icon.clone();
+        let summary = String::from("my app name");
+        let summary_cp = summary.clone();
+        let body = String::from("my app name");
+        let body_cp = body.clone();
+        let actions = vec![];
+        let actions_cp = actions.clone();
+        let hints = HashMap::new();
+        let hints_cp = hints.clone();
+        let expire_timeout = 0;
+
+        let observer = TestObserver {
+            last_event: None
+        };
+
+        let observer = Arc::new(Mutex::new(observer));
+
+        let observer_cp = Arc::clone(&observer);
+        let observer_cp: Arc<Mutex<dyn observer::Observer<Event> + Sync + std::marker::Send + 'static>> = observer_cp;
+
+        let mut interface = NotifyServerInterface::default();
+        interface.add_observer(observer_cp);
+
+        interface.notify(app_name_cp, replace_id, app_icon_cp, summary_cp, body_cp, actions_cp, hints_cp, expire_timeout);        
+        
+        assert_eq!(observer.lock().unwrap().last_event, Some(Event::Notify(Notification {
+            actions: vec![],
+            app_icon,
+            app_name,
+            body,
+            expire_timeout,
+            id: 1,
+            summary,
+            urgency: crate::notification::Urgency::Normal
+        })) );
+
+        assert_eq!(interface.last_id, 1);
+
+
+
+    }
+
+    struct TestObserver {
+        last_event: Option<Event>
+    }
+
+    impl observer::Observer<Event> for TestObserver {
+        fn on_notify(&mut self, event: &Event) {
+            self.last_event = Some(event.clone())    
+        }
+    }
+
+    unsafe impl Sync for TestObserver {}
+    unsafe impl Send for TestObserver {}
+
+
+}
+
