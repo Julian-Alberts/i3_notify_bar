@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use i3_bar_components::{
-    components::{prelude::*, BaseComponent, Button, Label, ProgressBar},
+    components::{prelude::*, BaseComponent, Button, Label, ProgressBar, Padding},
     protocol::ClickEvent,
     ManageComponents, string::{PartialyAnimatedString, AnimatedString},
 };
@@ -23,7 +23,8 @@ pub struct NotificationComponent {
     notification_manager: Arc<Mutex<NotificationManager>>,
     actions: Vec<Action>,
     max_width: usize,
-    move_chars_per_sec: usize
+    move_chars_per_sec: usize,
+    right_padding: Padding,
 }
 
 impl NotificationComponent {
@@ -60,8 +61,11 @@ impl NotificationComponent {
         label.set_seperator(false);
         label.set_separator_block_width(0);
 
+        let mut right_padding = Padding::new(1);
+
         nd.style.iter().for_each(|s| {
             s.apply(label.get_base_component_mut());
+            s.apply(right_padding.get_base_component_mut());
         });
 
         Self {
@@ -72,7 +76,8 @@ impl NotificationComponent {
             actions: nd.actions.clone(),
             name: notification_id_to_notification_compnent_name(nd.id),
             max_width,
-            move_chars_per_sec
+            move_chars_per_sec,
+            right_padding,
         }
     }
 
@@ -137,6 +142,7 @@ impl Component for NotificationComponent {
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
         self.label.collect_base_components(base_components);
         self.close_type.collect_base_components(base_components);
+        self.right_padding.collect_base_components(base_components)
     }
 
     fn collect_base_components_mut<'a>(
@@ -145,6 +151,7 @@ impl Component for NotificationComponent {
     ) {
         self.label.collect_base_components_mut(base_components);
         self.close_type.collect_base_components_mut(base_components);
+        self.right_padding.collect_base_components_mut(base_components)
     }
 
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
