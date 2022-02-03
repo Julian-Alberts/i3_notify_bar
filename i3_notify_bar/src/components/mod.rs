@@ -1,6 +1,5 @@
 mod action_bar;
 mod close_type;
-mod label;
 mod min_urgency_selector;
 mod notification;
 
@@ -14,7 +13,7 @@ use crate::{icons, notification_bar::MinimalUrgency};
 
 pub fn menu_button_open(selected: Arc<Mutex<MinimalUrgency>>) -> Button {
     let icon = icons::get_icon("menu").map_or(String::from(" menu "), |c| format!(" {} ", c));
-    let mut button = Button::new(icon);
+    let mut button = Button::new(icon.into());
 
     button.set_on_click(move |_, mc, ce| {
         open_menu(mc, ce, selected.clone());
@@ -25,7 +24,7 @@ pub fn menu_button_open(selected: Arc<Mutex<MinimalUrgency>>) -> Button {
 
 pub fn menu_button_close() -> Button {
     let icon = icons::get_icon("close").map_or(String::from(" close "), |c| format!(" {} ", c));
-    let mut button = Button::new(icon);
+    let mut button = Button::new(icon.into());
     button.set_on_click(&close_menu);
     button
 }

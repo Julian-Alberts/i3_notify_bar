@@ -14,7 +14,7 @@ use components::{NotificationComponent, notification_id_to_notification_compnent
 use emoji::EmojiMode;
 use i3_bar_components::{
     component_manager::{ComponentManagerBuilder, ManageComponents},
-    components::Label,
+    components::Label, string::AnimatedString,
 };
 use log::{debug, error};
 use notification_bar::{MinimalUrgency, NotificationEvent, NotificationManager};
@@ -170,7 +170,11 @@ fn print_error(data: String) -> ! {
     let mut cm = ComponentManagerBuilder::new()
         .with_click_events(false)
         .build();
-    let mut label = Label::new(data);
+
+    let data = data.replace("\n", "");
+    let mut animated_data = AnimatedString::new(data);
+    animated_data.set_max_width(50);
+    let mut label = Label::new(animated_data.into());
     let mut base_components = Vec::new();
     label.collect_base_components_mut(&mut base_components);
     base_components[0].get_properties_mut().urgent = true;

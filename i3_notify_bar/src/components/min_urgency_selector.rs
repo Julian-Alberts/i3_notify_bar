@@ -48,7 +48,7 @@ struct ButtonConfig<'a> {
 
 impl<'a> From<&'a ButtonConfig<'a>> for Button {
     fn from(config: &'a ButtonConfig) -> Self {
-        let mut button = Button::new(config.text.to_owned());
+        let mut button = Button::new(config.text.to_owned().into());
         let properties = button.get_base_component_mut().get_properties_mut();
         properties.color.text = Some(config.color.to_owned());
         properties.border.color = Some(config.color.to_owned());

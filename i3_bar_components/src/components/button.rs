@@ -1,20 +1,17 @@
-use crate::{component_manager::ManageComponents, property::Properties, protocol::ClickEvent};
+use crate::{component_manager::ManageComponents, property::Properties, protocol::ClickEvent, string::ComponentString};
 
 use super::{prelude::*, BaseComponent};
 
 pub struct Button {
     base_component: BaseComponent,
+    text: Box<dyn ComponentString>,
     on_click: Box<dyn Fn(&mut Self, &mut dyn ManageComponents, &ClickEvent) + 'static>,
 }
 
 impl Button {
-    pub fn new(text: String) -> Button {
+    pub fn new(text: Box<dyn ComponentString>) -> Button {
         Button {
             base_component: BaseComponent::from(Properties {
-                text: crate::property::Text {
-                    full: text,
-                    short: None,
-                },
                 border: crate::property::Border {
                     color: Some(String::from("#FFFFFF")),
                     ..Default::default()
@@ -22,6 +19,7 @@ impl Button {
                 ..Default::default()
             }),
             on_click: Box::new(|_, _, _| {}),
+            text
         }
     }
 
@@ -34,7 +32,10 @@ impl Button {
 }
 
 impl Component for Button {
-    fn update(&mut self, _: f64) {}
+    fn update(&mut self, dt: f64) {
+        self.text.update(dt);
+        self.base_component.get_properties_mut().text.full = self.text.to_component_text();
+    }
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
         let self_ptr: *mut _ = self;
         let self_ref = unsafe { self_ptr.as_mut().unwrap() };
@@ -80,7 +81,7 @@ mod tests {
 
     #[test]
     fn on_button_click() {
-        let mut button = Button::new(String::from("test"));
+        let mut button = Button::new(String::from("test").into());
         button.set_on_click(|btn, _, _| {
             btn.get_base_component_mut().get_properties_mut().name =
                 Some(String::from("clicked"));

@@ -23,7 +23,7 @@ impl ActionBar {
         let buttons = actions
             .iter()
             .map(|a| ActionButton {
-                button: Button::new(format!(" {} ", a.text.clone())),
+                button: Button::new(format!(" {} ", a.text.clone()).into()),
                 key: a.key.clone(),
             })
             .collect::<Vec<_>>();
@@ -32,7 +32,7 @@ impl ActionBar {
             " {} ",
             icons::get_icon("close").map_or("close".to_owned(), |i| i.to_string())
         );
-        let close_btn = Button::new(btn_text);
+        let close_btn = Button::new(btn_text.into());
 
         Self {
             buttons,

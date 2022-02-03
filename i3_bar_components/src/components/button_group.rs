@@ -76,7 +76,11 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
         self.name.as_ref().map(|name| &name[..])
     }
 
-    fn update(&mut self, _: f64) {}
+    fn update(&mut self, dt: f64) {
+        self.buttons.iter_mut().for_each(|btn| {
+            btn.update(dt)
+        })
+    }
 }
 
 pub struct GroupButton<K: Copy + PartialEq + 'static> {
