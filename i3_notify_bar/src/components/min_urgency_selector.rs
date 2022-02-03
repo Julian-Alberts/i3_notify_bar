@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use i3_bar_components::components::{prelude::Widget, Button, ButtonGroup, GroupButton};
+use i3_bar_components::components::{prelude::Widget, Button, ButtonGroup, GroupButton, Label};
 
 use crate::notification_bar::MinimalUrgency;
 
@@ -37,7 +37,9 @@ pub fn init(selected: Arc<Mutex<MinimalUrgency>>) -> ButtonGroup<MinimalUrgency>
         },
     );
 
-    ButtonGroup::new(buttons, selected)
+    let description = Label::new("Minimal urgency".to_string().into());
+
+    ButtonGroup::new(buttons, selected, Some(description))
 }
 
 struct ButtonConfig<'a> {

@@ -4,19 +4,20 @@ use crate::{component_manager::ManageComponents, property::Color, protocol::Clic
 
 use super::{
     prelude::{Component, Widget},
-    Button,
+    Button, Label,
 };
 
 pub struct ButtonGroup<K: Copy + PartialEq + 'static> {
+    description: Option<Label>,
     buttons: Vec<GroupButton<K>>,
     selected: Arc<Mutex<K>>,
     name: Option<String>
 }
 
 impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
-    pub fn new(mut buttons: Vec<GroupButton<K>>, selected: Arc<Mutex<K>>) -> Self {
+    pub fn new(mut buttons: Vec<GroupButton<K>>, selected: Arc<Mutex<K>>, description: Option<Label>) -> Self {
         buttons.sort_by(|a, b| a.pos.cmp(&b.pos));
-        let mut button_group = Self { buttons, selected, name: None };
+        let mut button_group = Self { buttons, selected, name: None, description };
         let selected = *button_group.selected.lock().unwrap();
         button_group.select(selected);
         button_group
@@ -44,6 +45,9 @@ impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
 
 impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a super::BaseComponent>) {
+        if let Some(description) = &self.description {
+            description.collect_base_components(base_components);
+        }
         self.buttons
             .iter()
             .for_each(|b| b.collect_base_components(base_components))
@@ -53,6 +57,9 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
         &'a mut self,
         base_components: &mut Vec<&'a mut super::BaseComponent>,
     ) {
+        if let Some(description) = &mut self.description {
+            description.collect_base_components_mut(base_components);
+        }
         self.buttons
             .iter_mut()
             .for_each(|b| b.collect_base_components_mut(base_components))
@@ -79,7 +86,8 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
     fn update(&mut self, dt: f64) {
         self.buttons.iter_mut().for_each(|btn| {
             btn.update(dt)
-        })
+        });
+        self.description.as_mut().map(|d| d.update(dt));
     }
 }
 
