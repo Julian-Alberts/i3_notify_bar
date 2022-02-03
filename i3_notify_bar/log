@@ -1,0 +1,25 @@
+21:45:58 [ERROR] Could not open file /home/julian/.config/i3_notify_bar/config error: Os {
+    code: 2,
+    kind: NotFound,
+    message: "No such file or directory",
+}
+21:46:05 [ERROR] Invalid click event EOF while parsing a value at line 2 column 0
+21:47:26 [ERROR] Could not open file /home/julian/.config/i3_notify_bar/config error: Os {
+    code: 2,
+    kind: NotFound,
+    message: "No such file or directory",
+}
+21:47:31 [ERROR] Invalid click event invalid type: integer `1`, expected a string at line 1 column 123
+21:47:31 [ERROR] Invalid click event EOF while parsing a value at line 1 column 0
+21:47:43 [ERROR] Could not open file /home/julian/.config/i3_notify_bar/config error: Os {
+    code: 2,
+    kind: NotFound,
+    message: "No such file or directory",
+}
+21:48:16 [ERROR] Could not open file /home/julian/.config/i3_notify_bar/config error: Os {
+    code: 2,
+    kind: NotFound,
+    message: "No such file or directory",
+}
+21:48:29 [INFO] Got new notification app_name "notify-send" summary "suhfshidfshisfd9idgshsgdijfsi9fsdusfnk" body ""
+21:48:32 [ERROR] Invalid click event invalid type: string "button", expected struct ClickEvent at line 1 column 8

@@ -59,12 +59,14 @@ impl ComponentManager {
         let global_event_listener = &self.global_event_listener;
 
         events.iter().for_each(|event| {
+            debug!("Event detected: {:?}", event);
             (global_event_listener)(cmm, event);
             let element_id = event.get_instance();
             let comp = layer.iter_mut().find(|comp| {
                 let mut blocks = Vec::new();
                 comp.collect_base_components(&mut blocks);
-                blocks.iter().any(|b| Some(b.get_id()) == element_id)
+                trace!("Blocks: {:?}", blocks);
+                blocks.iter().any(|b| b.get_properties().instance == element_id)
             });
 
             if let Some(comp) = comp {
@@ -237,6 +239,8 @@ fn read_events(
         error!("Could not read event from stdin");
         return;
     }
+
+    trace!("Raw event data: {}", event);
 
     let mut new_event_number = *event_number + 1;
 

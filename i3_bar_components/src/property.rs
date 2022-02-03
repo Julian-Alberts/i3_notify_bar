@@ -58,6 +58,10 @@ impl serde::Serialize for Properties {
         serialize_field!(self.name => "name", state);
         serialize_field!(self.instance => "instance", state);
 
+        if let Some(value) = &self.instance {
+            state.serialize_field("instance", &value.to_string())?;
+        }
+
         serialize_field!(self.urgent => "urgent"? ,state);
 
         match self.markup {
