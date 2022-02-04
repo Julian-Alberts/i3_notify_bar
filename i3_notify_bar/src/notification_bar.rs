@@ -135,7 +135,7 @@ impl NotificationManager {
             .filter(|n| match n.read() {
                 Ok(n) => n.id == id,
                 Err(_) => {
-                    error!("Could not read notification data");
+                    error!("Could not lock notification data");
                     false
                 }
             })
@@ -157,6 +157,21 @@ impl NotificationManager {
     #[cfg(tray_icon)]
     pub fn set_minimal_urgency(&mut self, min: Urgency) {
         self.minimum_urgency = min;
+    }
+
+    pub fn close_all_notifications(&mut self, reason: CloseReason) {
+        let ids = self.notifications.iter().filter_map(|n| match n.read() {
+            Ok(n) => Some(n.id),
+            Err(_) => {
+                error!("Could not lock notification data");
+                None
+            }
+        }).collect::<Vec<_>>();
+        self.notifications.clear();
+        for id in ids {
+            self.notification_closed(id, &reason);
+            self.events.push(NotificationEvent::Remove(id));
+        }
     }
 }
 

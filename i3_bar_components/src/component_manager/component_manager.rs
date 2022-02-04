@@ -219,12 +219,14 @@ impl ManageComponents for ComponentManager {
     }
 
     fn remove_by_name(&mut self, name: &str) {
-        let index = match self.get_layer().iter().position(|c| c.name() == Some(name)) {
-            Some(s) => s,
-            None => return,
-        };
-
-        self.get_layer_mut().remove(index);
+        self.layers.iter_mut().for_each(|layer| {
+            let index = layer
+                .iter()
+                .position(|c| c.name() == Some(name));
+            if let Some(index) = index {
+                layer.remove(index);
+            }
+        });
     }
 }
 

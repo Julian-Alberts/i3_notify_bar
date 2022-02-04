@@ -88,16 +88,19 @@ fn run(
     let mut component_manager = ComponentManagerBuilder::new()
         .with_click_events(true)
         .build();
-    component_manager.add_component(Box::new(components::menu_button_open(Arc::clone(
-        &minimal_urgency,
-    ))));
+    
     component_manager.set_global_event_listener(|_, ce| {
         debug!("{}", ce.get_button().to_string());
     });
 
     let notify_server = notify_server::NotifyServer::start().unwrap();
     let notification_manager =
-        NotificationManager::new(config, emoji_mode, minimal_urgency, notify_server);
+        NotificationManager::new(config, emoji_mode, Arc::clone(&minimal_urgency), notify_server);
+
+    component_manager.add_component(Box::new(components::menu_button_open(
+        minimal_urgency,
+        Arc::clone(&notification_manager),
+    )));
 
     loop {
         let mut nm_lock = notification_manager.lock();
@@ -134,7 +137,10 @@ fn run(
                     ),
                 }
             }
-            &NotificationEvent::Remove(id) => component_manager.remove_by_name(&notification_id_to_notification_compnent_name(*id)),
+            &NotificationEvent::Remove(id) => {
+                debug!("Removing notification {}", notification_id_to_notification_compnent_name(*id));
+                component_manager.remove_by_name(&notification_id_to_notification_compnent_name(*id))
+            }
         });
 
         component_manager.update();
