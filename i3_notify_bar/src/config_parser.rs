@@ -72,6 +72,7 @@ fn parse_definition(definition: Pair<Rule>) -> ParseResult<Definition> {
             Rule::condition_section => parse_condition_section(section, &mut def.conditions)?,
             Rule::style_section => def.style = parse_style_section(section)?,
             Rule::action_section => def.actions = parse_action_section(section)?,
+            Rule::definition => def.sub_definition.push(parse_definition(section)?),
             _ => panic!(),
         }
     }
@@ -417,7 +418,8 @@ mod tests {
             vec![Definition {
                 conditions: vec![Condition::AppName("Thunderbird".to_owned())],
                 actions: vec![Action::Set(SetProperty::ExpireTimeout(-1))],
-                style: vec![Style::Background("#ff00ff".to_owned())]
+                style: vec![Style::Background("#ff00ff".to_owned())],
+                sub_definition: vec![]
             }]
         )
     }

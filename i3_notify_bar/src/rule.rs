@@ -13,6 +13,7 @@ pub struct Definition {
     pub conditions: Vec<Conditions>,
     pub actions: Vec<Action>,
     pub style: Vec<Style>,
+    pub sub_definition: Vec<Definition>
 }
 
 impl Definition {

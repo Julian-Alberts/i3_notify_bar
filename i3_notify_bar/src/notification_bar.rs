@@ -1,9 +1,11 @@
+use std::ops::ControlFlow;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 use std::time::SystemTime;
 
 use emoji::EmojiMode;
+use crate::debug_config::MatchedDefinitionTree;
 use crate::{icons, rule::Action};
 use log::{debug, error, info};
 use notify_server::notification::Action as NotificationAction;
@@ -62,7 +64,7 @@ impl NotificationManager {
             NotificationData::new(notification, self.default_emoji_mode.clone());
         debug!("Notification Data: {:#?}", notification_data);
 
-        let notification_template_data = NotificationTemplateData {
+        let mut notification_template_data = NotificationTemplateData {
             app_name: notification.app_name.clone(),
             icon: notification.app_icon.clone(),
             summary: notification.summary.clone(),
@@ -82,9 +84,10 @@ impl NotificationManager {
         execute_rules(
             &self.definitions,
             notification,
-            notification_template_data,
+            &mut notification_template_data,
             &mut notification_data,
         );
+        drop(notification_template_data);
 
         if notification_data.ignore {
             return;
@@ -187,10 +190,20 @@ impl Observer<Event> for NotificationManager {
 pub fn execute_rules(
     definitions: &[Definition],
     n: &Notification,
-    notification_template_data: NotificationTemplateData,
+    notification_template_data: &mut NotificationTemplateData,
     notification_data: &mut NotificationData,
-) -> Vec<usize> {
-    let mut matched_rules = Vec::new();
+) -> super::debug_config::MatchedDefinitionTree {
+    let mut matched_rules = MatchedDefinitionTree::new_root();
+    execute_rules_inner(definitions, n, notification_template_data, notification_data, &mut matched_rules);
+    matched_rules
+}
+pub fn execute_rules_inner(
+    definitions: &[Definition],
+    n: &Notification,
+    notification_template_data: &mut NotificationTemplateData,
+    notification_data: &mut NotificationData,
+    matched_rules: &mut MatchedDefinitionTree
+) -> ControlFlow<()> {
     let mut last_definition_id = 0;
     let mut read_next_definition = true;
 
@@ -208,29 +221,38 @@ pub fn execute_rules(
                     definition.conditions
                 );
                 last_definition_id += index + 1;
-                matched_rules.push(last_definition_id);
+                let mut sub_branch = MatchedDefinitionTree::new(last_definition_id);
 
                 for action in &definition.actions {
                     match action {
                         Action::Ignore => {
                             debug!("Ignore Message");
                             notification_data.ignore = true;
-                            return matched_rules;
+                            matched_rules.add_branch(sub_branch);
+                            return ControlFlow::Break(())
                         }
                         Action::Set(set_property) => {
                             set_property.set(notification_data, &notification_template_data)
                         }
-                        Action::Stop => read_next_definition = false,
+                        Action::Stop => {
+                            matched_rules.add_branch(sub_branch);
+                            return ControlFlow::Break(())
+                        }
                     }
                 }
 
                 notification_data.style.extend(definition.style.clone());
+
+                let break_execution = execute_rules_inner(&definition.sub_definition, n, notification_template_data, notification_data, &mut sub_branch);
+                matched_rules.add_branch(sub_branch);
+                if let ControlFlow::Break(_) = break_execution {
+                    return break_execution
+                }
             }
             None => read_next_definition = false,
         }
     }
-
-    matched_rules
+    ControlFlow::Continue(())
 }
 
 #[derive(Debug)]
