@@ -131,7 +131,6 @@ impl NotificationManager {
     }
 
     pub fn remove(&mut self, id: u32, close_reason: &CloseReason) {
-        let id = id.to_owned();
         let filtered_notifications = self
             .notifications
             .iter()
@@ -170,10 +169,8 @@ impl NotificationManager {
                 None
             }
         }).collect::<Vec<_>>();
-        self.notifications.clear();
         for id in ids {
-            self.notification_closed(id, &reason);
-            self.events.push(NotificationEvent::Remove(id));
+            self.remove(id, &reason)
         }
     }
 }
