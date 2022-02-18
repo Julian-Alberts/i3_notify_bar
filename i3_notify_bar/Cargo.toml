@@ -12,7 +12,7 @@ mini_template = { path = "../mini_template" }
 notify_server = { path = "../notify_server" }
 emoji = { path = "../emoji" }
 serde = { version = "1.0", features = ["derive"] }
-simplelog = "0.11.0"
+simplelog = "0.11.2"
 log = "0.4.14"
 clap = { version = "3.0.12", features = ["derive"] }
 regex = "1.4.6"
