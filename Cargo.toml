@@ -5,5 +5,5 @@ members = [
     "i3_bar_components",
     "mini_template",
     "observer",
-#    "emoji"
+    "emoji"
 ]
