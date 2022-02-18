@@ -100,7 +100,12 @@ impl Component for ActionBar {
         Some("i3_notify_bar:action_bar")
     }
 
-    fn update(&mut self, _: f64) {}
+    fn update(&mut self, dt: f64) {
+        self.close_btn.update(dt);
+        self.buttons.iter_mut().for_each(|b| {
+            b.update(dt)
+        })
+    }
 }
 
 struct ActionButton {
