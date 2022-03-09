@@ -3,7 +3,6 @@ members = [
     "i3_notify_bar",
     "notify_server",
     "i3_bar_components",
-    "mini_template",
     "observer",
     "emoji"
 ]
