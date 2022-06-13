@@ -7,7 +7,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zbus = "2.0.1"
+zbus = "2.3.0"
 zvariant = "2.8.0"
 observer = { path = "../observer"}
 log = "0.4.14"
