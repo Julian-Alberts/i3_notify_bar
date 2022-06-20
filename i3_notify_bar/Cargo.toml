@@ -26,7 +26,7 @@ branch = "v0.2"
 features = ["regex"]
 
 [dependencies.async-std]
-version = "1.7.1"
+version = "1.12.0"
 features = ["attributes"]
 
 [features]
