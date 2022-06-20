@@ -25,6 +25,3 @@ jobs:
     - name: Run tests observer
       working-directory: ./observer
       run: cargo test --verbose
-    - name: Run test --verbose
-      working-directory: ./mini_template
-      run: cargo test --verbose
