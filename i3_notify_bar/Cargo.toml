@@ -12,7 +12,7 @@ notify_server = { path = "../notify_server" }
 emoji = { path = "../emoji" }
 serde = { version = "1.0", features = ["derive"] }
 simplelog = "0.12"
-log = "0.4.14"
+log = "0.4.17"
 clap = { version = "3.0.12", features = ["derive"] }
 regex = "1.4.6"
 pest = "2.0"
