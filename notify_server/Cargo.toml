@@ -10,4 +10,4 @@ edition = "2021"
 zbus = "2.0.1"
 zvariant = "2.8.0"
 observer = { path = "../observer"}
-log = "0.4.14"
+log = "0.4.17"
