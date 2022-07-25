@@ -8,6 +8,6 @@ edition = "2021"
 
 [dependencies]
 zbus = "2.3.2"
-zvariant = "3.3.1"
+zvariant = "3.6.0"
 observer = { path = "../observer"}
 log = "0.4.17"
