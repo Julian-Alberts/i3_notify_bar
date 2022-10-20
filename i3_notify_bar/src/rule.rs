@@ -75,10 +75,10 @@ impl Conditions {
                 notify_server::notification::Urgency::Critical => v == "critical",
             },
             Conditions::ExpireTimeout(NumberCondition::Eq(v)) => *v == other.expire_timeout,
-            Conditions::ExpireTimeout(NumberCondition::Lt(v)) => *v < other.expire_timeout,
-            Conditions::ExpireTimeout(NumberCondition::Le(v)) => *v <= other.expire_timeout,
-            Conditions::ExpireTimeout(NumberCondition::Gt(v)) => *v > other.expire_timeout,
-            Conditions::ExpireTimeout(NumberCondition::Ge(v)) => *v >= other.expire_timeout,
+            Conditions::ExpireTimeout(NumberCondition::Lt(v)) => *v > other.expire_timeout,
+            Conditions::ExpireTimeout(NumberCondition::Le(v)) => *v >= other.expire_timeout,
+            Conditions::ExpireTimeout(NumberCondition::Gt(v)) => *v < other.expire_timeout,
+            Conditions::ExpireTimeout(NumberCondition::Ge(v)) => *v <= other.expire_timeout,
         }
     }
 }
@@ -220,7 +220,7 @@ mod tests {
         }
 
         #[test]
-        fn expire_timeout() {
+        fn expire_timeout_eq() {
             let condition = Conditions::ExpireTimeout(NumberCondition::Eq(42));
             let mut n = new_notification();
             n.expire_timeout = 42;
@@ -228,5 +228,50 @@ mod tests {
             n.expire_timeout = 21;
             assert!(!condition.is_match(&n));
         }
+
+        #[test]
+        fn expire_timeout_lt() {
+            let condition = Conditions::ExpireTimeout(NumberCondition::Lt(10));
+            let mut n = new_notification();
+            n.expire_timeout = 9;
+            assert!(condition.is_match(&n));
+            n.expire_timeout = 10;
+            assert!(!condition.is_match(&n));
+        }
+
+        #[test]
+        fn expire_timeout_le() {
+            let condition = Conditions::ExpireTimeout(NumberCondition::Le(10));
+            let mut n = new_notification();
+            n.expire_timeout = 9;
+            assert!(condition.is_match(&n));
+            n.expire_timeout = 10;
+            assert!(condition.is_match(&n));
+            n.expire_timeout = 11;
+            assert!(!condition.is_match(&n));
+        }
+
+        #[test]
+        fn expire_timeout_gt() {
+            let condition = Conditions::ExpireTimeout(NumberCondition::Gt(10));
+            let mut n = new_notification();
+            n.expire_timeout = 11;
+            assert!(condition.is_match(&n));
+            n.expire_timeout = 10;
+            assert!(!condition.is_match(&n));
+        }
+
+        #[test]
+        fn expire_timeout_ge() {
+            let condition = Conditions::ExpireTimeout(NumberCondition::Ge(10));
+            let mut n = new_notification();
+            n.expire_timeout = 10;
+            assert!(condition.is_match(&n));
+            n.expire_timeout = 11;
+            assert!(condition.is_match(&n));
+            n.expire_timeout = 9;
+            assert!(!condition.is_match(&n));
+        }
+
     }
 }
