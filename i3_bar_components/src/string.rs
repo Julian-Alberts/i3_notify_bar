@@ -4,6 +4,7 @@ pub struct AnimatedString {
     pub move_chars_per_sec: usize,
     pub text: String,
     pub stop_animation_for_secs: f64,
+    text_reached_end: bool
 }
 
 impl AnimatedString {
@@ -14,7 +15,8 @@ impl AnimatedString {
             max_width: 20,
             move_chars_per_sec: 5,
             text,
-            stop_animation_for_secs: 0.
+            stop_animation_for_secs: 0.,
+            text_reached_end: false
         }
     }
 
@@ -84,15 +86,24 @@ impl ComponentString for AnimatedString {
             return;
         }
 
+        // As long as stop_animation_for_secs is greater than 0 the animation is stopped
         if self.stop_animation_for_secs > 0.0 {
             self.stop_animation_for_secs -= dt;
             return;
         }
 
+        if self.text_reached_end {
+            self.start_offset = 0.;
+            self.stop_animation_for_secs = 1.;
+            self.text_reached_end = false;
+            return;
+        }
+
         let move_chars = self.move_chars_per_sec as f64 * dt;
         self.start_offset += move_chars;
-        if self.start_offset as usize >= text_len {
-            self.start_offset = 0.0;
+        if self.start_offset as usize >= text_len - self.max_width {
+            self.text_reached_end = true;
+            self.start_offset = (text_len - self.max_width) as f64;
             self.stop_animation_for_secs = 1.0;
         }
     }

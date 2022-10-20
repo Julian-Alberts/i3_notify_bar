@@ -57,7 +57,7 @@ pub enum Conditions {
     Summary(ConditionTypeString),
     Body(ConditionTypeString),
     Urgency(String),
-    ExpireTimeout(i32),
+    ExpireTimeout(NumberCondition),
 }
 
 impl Conditions {
@@ -74,9 +74,22 @@ impl Conditions {
                 notify_server::notification::Urgency::Normal => v == "normal",
                 notify_server::notification::Urgency::Critical => v == "critical",
             },
-            Conditions::ExpireTimeout(v) => *v == other.expire_timeout,
+            Conditions::ExpireTimeout(NumberCondition::Eq(v)) => *v == other.expire_timeout,
+            Conditions::ExpireTimeout(NumberCondition::Lt(v)) => *v < other.expire_timeout,
+            Conditions::ExpireTimeout(NumberCondition::Le(v)) => *v <= other.expire_timeout,
+            Conditions::ExpireTimeout(NumberCondition::Gt(v)) => *v > other.expire_timeout,
+            Conditions::ExpireTimeout(NumberCondition::Ge(v)) => *v >= other.expire_timeout,
         }
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum NumberCondition {
+    Eq(i32),
+    Lt(i32),
+    Le(i32),
+    Gt(i32),
+    Ge(i32)
 }
 
 #[derive(Debug)]
@@ -208,7 +221,7 @@ mod tests {
 
         #[test]
         fn expire_timeout() {
-            let condition = Conditions::ExpireTimeout(42);
+            let condition = Conditions::ExpireTimeout(NumberCondition::Eq(42));
             let mut n = new_notification();
             n.expire_timeout = 42;
             assert!(condition.is_match(&n));

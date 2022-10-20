@@ -8,6 +8,7 @@ use pest::{iterators::Pair, Parser};
 use regex::Regex;
 
 use emoji::EmojiMode;
+use crate::rule::NumberCondition;
 use crate::{
     icons,
     rule::{Action, ConditionTypeString, Conditions as Condition, Definition, SetProperty, Style},
@@ -159,14 +160,22 @@ fn parse_condition(condition: Pair<Rule>) -> ParseResult<Condition> {
 fn parse_number_condition(number_condition: Pair<Rule>) -> ParseResult<Condition> {
     let mut inner = number_condition.into_inner();
     let name = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
-    let _ = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
+    let operation = inner.next().ok_or(ParseError::UnexpectedEnd)?;
     let number_string = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
 
     let value = number_string
         .parse()
         .or_else(|e| Err(ParseError::NumParse(e)))?;
+    let operation = match operation.as_rule() {
+        Rule::compare_eq => NumberCondition::Eq(value),
+        Rule::compare_lt => NumberCondition::Lt(value),
+        Rule::compare_le => NumberCondition::Le(value),
+        Rule::compare_gt => NumberCondition::Gt(value),
+        Rule::compare_ge => NumberCondition::Ge(value),
+        _ => panic!()
+    };
     match name {
-        "expire_timeout" => Ok(Condition::ExpireTimeout(value)),
+        "expire_timeout" => Ok(Condition::ExpireTimeout(operation)),
         _ => unimplemented!(),
     }
 }
@@ -321,7 +330,7 @@ mod tests {
             .next()
             .unwrap();
         let condition = parse_number_condition(condition).unwrap();
-        assert_eq!(condition, Condition::ExpireTimeout(42));
+        assert_eq!(condition, Condition::ExpireTimeout(NumberCondition::Eq(42)));
     }
 
     #[test]
@@ -369,7 +378,7 @@ mod tests {
             conditions,
             vec![
                 Condition::AppName(String::from("Thunderbird")),
-                Condition::ExpireTimeout(10),
+                Condition::ExpireTimeout(NumberCondition::Eq(10)),
                 Condition::Body(ConditionTypeString::Regex(Regex::new("new").unwrap()))
             ]
         );
