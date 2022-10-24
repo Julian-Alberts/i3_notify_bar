@@ -5,6 +5,7 @@ use std::sync::RwLock;
 use std::time::SystemTime;
 
 use emoji::EmojiMode;
+use mini_template::macros::ValueContainer;
 use crate::debug_config::MatchedDefinitionTree;
 use crate::{icons, rule::Action};
 use log::{debug, error, info};
@@ -70,7 +71,7 @@ impl NotificationManager {
             summary: notification.summary.clone(),
             body: notification.body.clone(),
             expire_timeout: notification.expire_timeout,
-            time: SystemTime::now(),
+            time: SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
         };
         debug!(
             "Notification Tempalate Data: {:#?}",
@@ -286,14 +287,14 @@ impl NotificationData {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ValueContainer, Clone)]
 pub struct NotificationTemplateData {
     pub app_name: String,
     pub icon: String,
     pub summary: String,
     pub body: String,
     pub expire_timeout: i32,
-    pub time: SystemTime,
+    pub time: u64,
 }
 
 impl From<&Notification> for NotificationTemplateData {
@@ -304,7 +305,7 @@ impl From<&Notification> for NotificationTemplateData {
             summary: notification.summary.clone(),
             body: notification.body.clone(),
             expire_timeout: notification.expire_timeout,
-            time: SystemTime::now(),
+            time: SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
         }
     }
 }

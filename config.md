@@ -29,13 +29,15 @@ A rule definition always starts with `def` and ends with `enddef`. A definition 
 
 #### rule
 
-Rules start with a key and an equal sign (=) and end with a value it should be compared with.
+Rules start with a key followed by an operator and end with a value it should be compared with.
 example
 ```
 rule
     app_name = Spotify
 endrule
 ```
+
+The equals operator is available for all keys. Additionally `expire_timeout` supports <, <=, > and >=. 
 
 rule keys:
 | name | values |

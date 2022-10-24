@@ -1,6 +1,6 @@
 use crate::notification_bar::NotificationTemplateData;
 
-use mini_template::{MiniTemplate, ValueManager};
+use mini_template::{MiniTemplate, MiniTemplateBuilder};
 
 pub const DEFAULT_TEMPLATE_ID: u64 = 0;
 
@@ -19,7 +19,7 @@ pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> Stri
                 }
             }
         };
-        let output = match tplm.render(tpl_id.to_string().as_str(), ValueManager::from_serde(context).unwrap()) {
+        let output = match tplm.render(tpl_id.to_string().as_str(), context.clone().into()) {
             Ok(s) => s,
             Err(e) => e.to_string(),
         };
@@ -43,19 +43,17 @@ pub fn add_template(template: String) -> Result<u64, ()> {
         .add_template(id, template);
 
         match old_template {
-            Ok(None) => {
+            Ok(_) => {
                 NEXT_TEMPLATE_ID += 1;
                 Ok(NEXT_TEMPLATE_ID - 1)
             }
-            Ok(Some(_)) => unreachable!(),
             Err(_) => Err(()), // TODO return better error
         }
     }
 }
 
 fn init_template_manager() -> MiniTemplate {
-    let mut tplm = MiniTemplate::default();
-    tplm.add_default_modifiers();
+    let mut tplm = MiniTemplateBuilder::default().with_default_modifiers().build();
     if let Err(_) = tplm.add_template("0".to_owned(), "[{app_name}] {summary}: {body}".to_owned()) {
         unreachable!("Invalid default template")
     }
