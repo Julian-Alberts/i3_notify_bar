@@ -686,21 +686,19 @@ dependencies = [
 [[package]]
 name = "mini_template"
 version = "0.2.0"
-source = "git+https://github.com/Julian-Alberts/mini_template_rs.git?branch=v0.2#9adeffcd3ab3f8341dfa7cfdd9c0d6defe130b1a"
+source = "git+https://github.com/Julian-Alberts/mini_template_rs.git?branch=v0.2a1#69694a441a15fa05a363a06bf4de1af520268025"
 dependencies = [
  "mini_template_macro",
  "once_cell",
  "pest",
  "pest_derive",
  "regex",
- "serde",
- "serde_json",
 ]
 
 [[package]]
 name = "mini_template_macro"
 version = "0.2.0"
-source = "git+https://github.com/Julian-Alberts/mini_template_rs.git?branch=v0.2#9adeffcd3ab3f8341dfa7cfdd9c0d6defe130b1a"
+source = "git+https://github.com/Julian-Alberts/mini_template_rs.git?branch=v0.2a1#69694a441a15fa05a363a06bf4de1af520268025"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1010,9 +1008,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.6.0"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c4eb3267174b8c6c2f654116623910a0fef09c4753f8dd83db29c48a0df988b"
+checksum = "e076559ef8e241f2ae3479e36f97bd5741c0330689e217ad51ce2c76808b868a"
 dependencies = [
  "aho-corasick",
  "memchr",
