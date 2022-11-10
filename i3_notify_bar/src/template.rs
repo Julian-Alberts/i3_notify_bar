@@ -54,7 +54,7 @@ pub fn add_template(template: String) -> Result<u64, ()> {
 
 fn init_template_manager() -> MiniTemplate {
     let mut tplm = MiniTemplateBuilder::default().with_default_modifiers().build();
-    if let Err(_) = tplm.add_template("0".to_owned(), "[{app_name}] {summary}: {body}".to_owned()) {
+    if let Err(_) = tplm.add_template("0".to_owned(), "[{{app_name}}] {{summary}}: {{body}}".to_owned()) {
         unreachable!("Invalid default template")
     }
     tplm
