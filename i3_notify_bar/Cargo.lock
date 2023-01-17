@@ -686,7 +686,7 @@ dependencies = [
 [[package]]
 name = "mini_template"
 version = "0.2.0"
-source = "git+https://github.com/Julian-Alberts/mini_template_rs.git?branch=v0.2a1#16c5151774b33f6c3b78247906aeb05833aef215"
+source = "git+https://github.com/Julian-Alberts/mini_template_rs.git?branch=v0.2a1#1743fb0ceb5752deefe3f75736d67ed929e9c87f"
 dependencies = [
  "mini_template_macro",
  "once_cell",
@@ -698,7 +698,7 @@ dependencies = [
 [[package]]
 name = "mini_template_macro"
 version = "0.2.0"
-source = "git+https://github.com/Julian-Alberts/mini_template_rs.git?branch=v0.2a1#16c5151774b33f6c3b78247906aeb05833aef215"
+source = "git+https://github.com/Julian-Alberts/mini_template_rs.git?branch=v0.2a1#1743fb0ceb5752deefe3f75736d67ed929e9c87f"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
