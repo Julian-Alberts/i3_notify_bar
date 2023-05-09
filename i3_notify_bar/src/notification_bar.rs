@@ -2,7 +2,6 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
-use std::time::SystemTime;
 
 use emoji::EmojiMode;
 use mini_template::macros::ValueContainer;
@@ -65,14 +64,7 @@ impl NotificationManager {
             NotificationData::new(notification, self.default_emoji_mode.clone());
         debug!("Notification Data: {:#?}", notification_data);
 
-        let mut notification_template_data = NotificationTemplateData {
-            app_name: notification.app_name.clone(),
-            icon: notification.app_icon.clone(),
-            summary: notification.summary.clone(),
-            body: notification.body.clone(),
-            expire_timeout: notification.expire_timeout,
-            time: SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
-        };
+        let mut notification_template_data = NotificationTemplateData::from(notification);
         debug!(
             "Notification Tempalate Data: {:#?}",
             notification_template_data
@@ -294,7 +286,7 @@ pub struct NotificationTemplateData {
     pub summary: String,
     pub body: String,
     pub expire_timeout: i32,
-    pub time: u64,
+    pub time: i64,
 }
 
 impl From<&Notification> for NotificationTemplateData {
@@ -305,7 +297,7 @@ impl From<&Notification> for NotificationTemplateData {
             summary: notification.summary.clone(),
             body: notification.body.clone(),
             expire_timeout: notification.expire_timeout,
-            time: SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+            time: chrono::Local::now().timestamp(),
         }
     }
 }

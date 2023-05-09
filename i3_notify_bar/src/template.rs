@@ -1,5 +1,6 @@
 use crate::notification_bar::NotificationTemplateData;
 
+use chrono::{TimeZone, LocalResult};
 use mini_template::{MiniTemplate, MiniTemplateBuilder};
 
 pub const DEFAULT_TEMPLATE_ID: u64 = 0;
@@ -53,9 +54,24 @@ pub fn add_template(template: String) -> Result<u64, ()> {
 }
 
 fn init_template_manager() -> MiniTemplate {
-    let mut tplm = MiniTemplateBuilder::default().with_default_modifiers().build();
+    let mut tplm = MiniTemplateBuilder::default()
+        .with_default_modifiers()
+        .with_modifier("date_time", &date_modifier)
+        .build();
     if let Err(_) = tplm.add_template("0".to_owned(), "[{{app_name}}] {{summary}}: {{body}}".to_owned()) {
         unreachable!("Invalid default template")
     }
     tplm
+}
+
+#[mini_template::macros::create_modifier]
+fn date_modifier(time: i64, format: Option<&str>) -> String {
+    let LocalResult::Single(time) = chrono::Local.timestamp_opt(time, 0) else {
+        return format!("Error while reading time UNIX time <{time}>")
+    };
+    if let Some(fmt) = format {
+        time.format(fmt).to_string()
+    } else {
+        time.to_rfc3339_opts(chrono::SecondsFormat::Secs, false)
+    }
 }
