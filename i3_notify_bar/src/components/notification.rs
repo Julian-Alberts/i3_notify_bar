@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use i3_bar_components::{
     components::{prelude::*, BaseComponent, Button, Label, ProgressBar, Padding},
     protocol::ClickEvent,
-    ManageComponents, string::{PartialyAnimatedString, AnimatedString},
+    ManageComponents, string::{PartiallyAnimatedString, AnimatedString},
 };
 use log::debug;
 use notify_server::{notification::Action, CloseReason};
@@ -193,13 +193,13 @@ pub fn notification_id_to_notification_compnent_name(id: u32) -> String {
     format!("i3_notify_bar_notification_component:{}", id)
 }
 
-pub fn notification_data_to_animated_text(nd: &NotificationData, max_width: usize, move_chars_per_sec: usize) -> PartialyAnimatedString {
+pub fn notification_data_to_animated_text(nd: &NotificationData, max_width: usize, move_chars_per_sec: usize) -> PartiallyAnimatedString {
     let icon = if nd.icon != ' ' {
         Some(nd.icon.to_string())
     } else {
         None
     };
-    PartialyAnimatedString::new(
+    PartiallyAnimatedString::new(
         icon, 
         AnimatedString::new(nd.text.clone())
         .with_max_width(max_width)

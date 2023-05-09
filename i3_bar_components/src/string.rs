@@ -118,13 +118,13 @@ impl From<AnimatedString> for Box<dyn ComponentString> {
 
 }
 
-pub struct PartialyAnimatedString {
+pub struct PartiallyAnimatedString {
     left_static: Option<String>,
     animated_text: AnimatedString,
     right_static: Option<String>,
 }
 
-impl PartialyAnimatedString {
+impl PartiallyAnimatedString {
 
     pub fn new(left: Option<String>, animated: AnimatedString, right: Option<String>) -> Self {
         Self {
@@ -163,7 +163,7 @@ impl PartialyAnimatedString {
 
 }
 
-impl ComponentString for PartialyAnimatedString {
+impl ComponentString for PartiallyAnimatedString {
 
     fn to_component_text(&self) -> String {
         let mut out_text = String::new();
@@ -184,9 +184,9 @@ impl ComponentString for PartialyAnimatedString {
 
 }
 
-impl From<PartialyAnimatedString> for Box<dyn ComponentString> {
+impl From<PartiallyAnimatedString> for Box<dyn ComponentString> {
     
-    fn from(s: PartialyAnimatedString) -> Self {
+    fn from(s: PartiallyAnimatedString) -> Self {
         Box::new(s)
     }
 
