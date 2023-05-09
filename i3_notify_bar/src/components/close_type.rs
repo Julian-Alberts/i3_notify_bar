@@ -9,7 +9,7 @@ use i3_bar_components::{
 
 pub enum CloseType {
     Button(Button),
-    Timer(ProgressBar),
+    Timer(Box<ProgressBar>),
 }
 
 impl CloseType {

@@ -172,7 +172,7 @@ impl Default for NotifyServerInterface {
 
     fn default() -> Self {
         Self {
-            event_system: Arc::new(Mutex::new(SingleEventSystem::new())),
+            event_system: Arc::new(Mutex::new(SingleEventSystem::default())),
             last_id: 0
         }
     }

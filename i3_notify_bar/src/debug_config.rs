@@ -4,9 +4,9 @@ use notify_server::notification::Notification;
 
 use crate::{
     args::DebugConfig,
-    EmojiMode,
     notification_bar::{execute_rules, NotificationData, NotificationTemplateData},
     rule::Definition,
+    EmojiMode,
 };
 
 pub fn debug_config(config: &[Definition], emoji_mode: EmojiMode, debug_config: DebugConfig) {
@@ -59,46 +59,42 @@ pub fn debug_config(config: &[Definition], emoji_mode: EmojiMode, debug_config: 
 
 pub struct MatchedDefinitionTree {
     id: Option<usize>,
-    branches: Vec<MatchedDefinitionTree>
+    branches: Vec<MatchedDefinitionTree>,
 }
 
 impl MatchedDefinitionTree {
-
     pub fn new(id: usize) -> Self {
         Self {
             id: Some(id),
-            branches: Vec::new()
+            branches: Vec::new(),
         }
     }
 
     pub fn new_root() -> Self {
         Self {
             id: None,
-            branches: Vec::new()
+            branches: Vec::new(),
         }
     }
 
     pub fn add_branch(&mut self, branch: MatchedDefinitionTree) {
         self.branches.push(branch)
     }
-
 }
 
 ///
 ///     1
 ///     |`1
-/// 
-/// 
+///
+///
 impl Display for MatchedDefinitionTree {
-
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(id) = self.id {
             writeln!(f, "{id}")?;
             self.branches.iter().try_for_each(|b| writeln!(f, "|`{b}"))
         } else {
-            writeln!(f, "")?;
+            writeln!(f)?;
             self.branches.iter().try_for_each(|b| writeln!(f, "{b}"))
         }
     }
-
 }

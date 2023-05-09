@@ -1,6 +1,6 @@
 use crate::notification_bar::NotificationTemplateData;
 
-use chrono::{TimeZone, LocalResult};
+use chrono::{LocalResult, TimeZone};
 use mini_template::{MiniTemplate, MiniTemplateBuilder};
 
 pub const DEFAULT_TEMPLATE_ID: u64 = 0;
@@ -58,7 +58,13 @@ fn init_template_manager() -> MiniTemplate {
         .with_default_modifiers()
         .with_modifier("date_time", &date_modifier)
         .build();
-    if let Err(_) = tplm.add_template("0".to_owned(), "[{{app_name}}] {{summary}}: {{body}}".to_owned()) {
+    if tplm
+        .add_template(
+            "0".to_owned(),
+            "[{{app_name}}] {{summary}}: {{body}}".to_owned(),
+        )
+        .is_err()
+    {
         unreachable!("Invalid default template")
     }
     tplm

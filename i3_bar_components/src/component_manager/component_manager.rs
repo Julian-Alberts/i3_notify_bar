@@ -42,11 +42,11 @@ impl ComponentManager {
         self.update_components(dt);
         let blocks = self.build_json();
 
-        if let Err(_) = self.out_writer.write_all(&blocks) {
+        if self.out_writer.write_all(&blocks).is_err() {
             error!("Could not write bytes: {:#?}", blocks);
             return;
         }
-        if let Err(_) = self.out_writer.flush() {
+        if self.out_writer.flush().is_err() {
             error!("Error while flushing buffer");
         }
     }
@@ -237,7 +237,7 @@ fn read_events(
 ) {
     let mut event = String::new();
 
-    if let Err(_) = reader.read_line(&mut event) {
+    if reader.read_line(&mut event).is_err() {
         error!("Could not read event from stdin");
         return;
     }
@@ -264,9 +264,8 @@ fn read_events(
             return;
         }
     };
-    if let Err(_) = tx.send(click_event) {
+    if tx.send(click_event).is_err() {
         debug!("No event rx found");
-        return;
     }
 }
 
@@ -329,12 +328,12 @@ impl ComponentManagerBuilder {
                 panic!("Could not convert header to json {:#?}", header)
             }
         };
-        if let Err(_) = out_writer.write_all(&header_buffer) {
+        if out_writer.write_all(&header_buffer).is_err() {
             debug!("Could not write header");
             panic!("Could not write header")
         }
 
-        if let Err(_) = out_writer.write_all(&[10, b'[']) {
+        if out_writer.write_all(&[10, b'[']).is_err() {
             debug!("Could not write json start");
             panic!("Could not write json start")
         }

@@ -32,7 +32,7 @@ pub fn init(selected: Arc<Mutex<MinimalUrgency>>) -> ButtonGroup<MinimalUrgency>
         Vec::with_capacity(BUTTON_CONFIG.len()),
         |mut vec, config| {
             let button = Button::from(config);
-            vec.push(GroupButton::new(config.key as isize, *&config.key, button));
+            vec.push(GroupButton::new(config.key as isize, config.key, button));
             vec
         },
     );

@@ -32,9 +32,8 @@ impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
                 button.deselect()
             }
         });
-        match self.selected.lock() {
-            Ok(mut s) => *s = selected_key,
-            Err(_) => {}
+        if let Ok(mut s) = self.selected.lock() {
+            *s = selected_key
         }
     }
 
@@ -68,10 +67,10 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
     fn event(&mut self, _: &mut dyn ManageComponents, event: &ClickEvent) {
         let buttons = &mut self.buttons;
         let selected = buttons.iter_mut().find_map(|button| {
-            if &button.get_base_component().get_properties().instance == &event.get_instance() {
-                return Some(button.key.clone());
+            if button.get_base_component().get_properties().instance == event.get_instance() {
+                return Some(button.key);
             }
-            return None;
+            None
         });
 
         if let Some(selected) = selected {
@@ -87,7 +86,9 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
         self.buttons.iter_mut().for_each(|btn| {
             btn.update(dt)
         });
-        self.description.as_mut().map(|d| d.update(dt));
+        if let Some(description) = self.description.as_mut() {
+            description.update(dt);
+        }
     }
 }
 

@@ -14,19 +14,10 @@ pub use padding::Padding;
 
 use crate::property::Properties;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct BaseComponent {
     properties: Properties,
     serialized: Option<Vec<u8>>,
-}
-
-impl Default for BaseComponent {
-    fn default() -> Self {
-        Self {
-            properties: Properties::default(),
-            serialized: None,
-        }
-    }
 }
 
 impl BaseComponent {
@@ -34,7 +25,7 @@ impl BaseComponent {
         Self::default()
     }
 
-    pub fn serialize_cache<'a>(&'a mut self) -> &'a [u8] {
+    pub fn serialize_cache(&mut self) -> &[u8] {
         let properties = &self.properties;
         self.serialized.get_or_insert_with(|| {
             match serde_json::to_string(properties) {

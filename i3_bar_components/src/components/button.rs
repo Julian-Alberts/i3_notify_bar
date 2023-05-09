@@ -2,10 +2,12 @@ use crate::{component_manager::ManageComponents, property::Properties, protocol:
 
 use super::{prelude::*, BaseComponent};
 
+type ClickHandler = dyn Fn(&mut Button, &mut dyn ManageComponents, &ClickEvent) + 'static; 
+
 pub struct Button {
     base_component: BaseComponent,
     text: Box<dyn ComponentString>,
-    on_click: Box<dyn Fn(&mut Self, &mut dyn ManageComponents, &ClickEvent) + 'static>,
+    on_click: Box<ClickHandler>,
 }
 
 impl Button {

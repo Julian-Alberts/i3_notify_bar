@@ -35,7 +35,7 @@ impl ManageComponents for ComponentManagerMassenger {
 
 impl ComponentManagerMassengerQueue for ComponentManagerMassenger {
     fn take_queue(&mut self) -> Vec<Message> {
-        std::mem::replace(&mut self.queue, Vec::new())
+        std::mem::take(&mut self.queue)
     }
 }
 

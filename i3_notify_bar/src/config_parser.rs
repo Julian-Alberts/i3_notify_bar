@@ -7,13 +7,13 @@ use log::{error, info};
 use pest::{iterators::Pair, Parser};
 use regex::Regex;
 
-use emoji::EmojiMode;
 use crate::rule::NumberCondition;
 use crate::{
     icons,
     rule::{Action, ConditionTypeString, Conditions as Condition, Definition, SetProperty, Style},
     template,
 };
+use emoji::EmojiMode;
 
 #[derive(Parser)]
 #[grammar = "config.pest"]
@@ -33,7 +33,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<Vec<Definition>> {
     let config = ConfigParser::parse(Rule::config, &config);
     let config = match config {
         Ok(config) => config,
-        Err(e) => return Err(ParseError::PestError(e)),
+        Err(e) => return Err(ParseError::PestError(Box::new(e))),
     }
     .next();
 
@@ -119,10 +119,10 @@ fn parse_set_action(set_action: Pair<Rule>) -> ParseResult<Action> {
             },
         )),
         Rule::expire_timeout => Action::Set(SetProperty::ExpireTimeout(
-            value.parse().or_else(|e| Err(ParseError::NumParse(e)))?,
+            value.parse().map_err(ParseError::NumParse)?,
         )),
         Rule::emoji_mode => Action::Set(SetProperty::EmojiMode(
-            EmojiMode::from_str(value).or_else(|e| Err(ParseError::EmojiMode(e)))?,
+            EmojiMode::from_str(value).map_err(ParseError::EmojiMode)?,
         )),
         _ => panic!(),
     };
@@ -163,16 +163,14 @@ fn parse_number_condition(number_condition: Pair<Rule>) -> ParseResult<Condition
     let operation = inner.next().ok_or(ParseError::UnexpectedEnd)?;
     let number_string = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
 
-    let value = number_string
-        .parse()
-        .or_else(|e| Err(ParseError::NumParse(e)))?;
+    let value = number_string.parse().map_err(ParseError::NumParse)?;
     let operation = match operation.as_rule() {
         Rule::compare_eq => NumberCondition::Eq(value),
         Rule::compare_lt => NumberCondition::Lt(value),
         Rule::compare_le => NumberCondition::Le(value),
         Rule::compare_gt => NumberCondition::Gt(value),
         Rule::compare_ge => NumberCondition::Ge(value),
-        _ => panic!()
+        _ => panic!(),
     };
     match name {
         "expire_timeout" => Ok(Condition::ExpireTimeout(operation)),
@@ -201,7 +199,7 @@ fn parse_string_condition(string_condition: Pair<Rule>) -> ParseResult<Condition
     let condition_type = match eq {
         Rule::compare_eq => ConditionTypeString::Literal(value.to_owned()),
         Rule::compare_match => {
-            ConditionTypeString::Regex(Regex::new(value).or_else(|e| Err(ParseError::Regex(e)))?)
+            ConditionTypeString::Regex(Regex::new(value).map_err(ParseError::Regex)?)
         }
         _ => panic!(),
     };
@@ -270,7 +268,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 
 #[derive(Debug)]
 pub enum ParseError {
-    PestError(pest::error::Error<Rule>),
+    PestError(Box<pest::error::Error<Rule>>),
     UnexpectedEnd,
     NumParse(std::num::ParseIntError),
     EmojiMode(emoji::EmojiModeError),

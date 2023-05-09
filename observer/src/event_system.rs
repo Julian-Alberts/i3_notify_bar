@@ -9,12 +9,6 @@ pub struct EventSystem<E> {
 }
 
 impl<E> EventSystem<E> {
-    pub fn new() -> Self {
-        Self {
-            wrapped_observers: Vec::new(),
-        }
-    }
-
     pub fn notify(&self, event: &E) {
         self.wrapped_observers.iter().for_each(|wo| {
             let mut observer = wo.lock().unwrap();
@@ -27,17 +21,19 @@ impl<E> EventSystem<E> {
     }
 }
 
+impl <E> Default for EventSystem<E> {
+    fn default() -> Self {
+        Self {
+            wrapped_observers: Vec::default()
+        }
+    }
+}
+
 pub struct SingleEventSystem<E> {
     wrapped_observer: Option<Arc<Mutex<Observer<E>>>>,
 }
 
 impl<E> SingleEventSystem<E> {
-    pub fn new() -> Self {
-        Self {
-            wrapped_observer: None,
-        }
-    }
-
     pub fn notify(&self, event: &E) {
         match &self.wrapped_observer {
             Some(wo) => {
@@ -50,6 +46,14 @@ impl<E> SingleEventSystem<E> {
 
     pub fn set_observer(&mut self, observer: Arc<Mutex<Observer<E>>>) {
         self.wrapped_observer = Some(observer);
+    }
+}
+
+impl <E> Default for SingleEventSystem<E> {
+    fn default() -> Self {
+        Self {
+            wrapped_observer: None
+        }
     }
 }
 
@@ -81,12 +85,12 @@ mod tests {
 
     #[test]
     fn event_system_create() {
-        EventSystem::<String>::new();
+        EventSystem::<String>::default();
     }
 
     #[test]
     fn event_system_notify() {
-        let es = EventSystem::new();
+        let es = EventSystem::default();
         es.notify(&"test");
     }
 
@@ -94,7 +98,7 @@ mod tests {
     fn event_system_single_listener() {
         create_observer!(Observer, String, "test");
 
-        let mut es = EventSystem::new();
+        let mut es = EventSystem::default();
         let observer = Arc::new(Mutex::new(Observer::new()));
         let observer_cp = Arc::clone(&observer);
         es.add_observer(observer_cp);
@@ -106,7 +110,7 @@ mod tests {
     fn event_system_multiple_listener() {
         create_observer!(Observer, String, "test");
 
-        let mut es = EventSystem::new();
+        let mut es = EventSystem::default();
         let observer = Arc::new(Mutex::new(Observer::new()));
         let observer_cp = Arc::clone(&observer);
         es.add_observer(observer_cp);

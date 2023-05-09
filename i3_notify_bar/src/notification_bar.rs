@@ -3,11 +3,11 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
-use emoji::EmojiMode;
-use mini_template::macros::ValueContainer;
 use crate::debug_config::MatchedDefinitionTree;
 use crate::{icons, rule::Action};
+use emoji::EmojiMode;
 use log::{debug, error, info};
+use mini_template::macros::ValueContainer;
 use notify_server::notification::Action as NotificationAction;
 use notify_server::notification::Urgency;
 use notify_server::CloseReason;
@@ -70,7 +70,7 @@ impl NotificationManager {
             notification_template_data
         );
 
-        if self.minimum_urgency.lock().unwrap().clone() > notification.urgency {
+        if *self.minimum_urgency.lock().unwrap() > notification.urgency {
             return;
         }
 
@@ -155,13 +155,17 @@ impl NotificationManager {
     }
 
     pub fn close_all_notifications(&mut self, reason: CloseReason) {
-        let ids = self.notifications.iter().filter_map(|n| match n.read() {
-            Ok(n) => Some(n.id),
-            Err(_) => {
-                error!("Could not lock notification data");
-                None
-            }
-        }).collect::<Vec<_>>();
+        let ids = self
+            .notifications
+            .iter()
+            .filter_map(|n| match n.read() {
+                Ok(n) => Some(n.id),
+                Err(_) => {
+                    error!("Could not lock notification data");
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
         for id in ids {
             self.remove(id, &reason)
         }
@@ -184,7 +188,13 @@ pub fn execute_rules(
     notification_data: &mut NotificationData,
 ) -> super::debug_config::MatchedDefinitionTree {
     let mut matched_rules = MatchedDefinitionTree::new_root();
-    execute_rules_inner(definitions, n, notification_template_data, notification_data, &mut matched_rules);
+    execute_rules_inner(
+        definitions,
+        n,
+        notification_template_data,
+        notification_data,
+        &mut matched_rules,
+    );
     matched_rules
 }
 pub fn execute_rules_inner(
@@ -192,7 +202,7 @@ pub fn execute_rules_inner(
     n: &Notification,
     notification_template_data: &mut NotificationTemplateData,
     notification_data: &mut NotificationData,
-    matched_rules: &mut MatchedDefinitionTree
+    matched_rules: &mut MatchedDefinitionTree,
 ) -> ControlFlow<()> {
     let mut last_definition_id = 0;
     let mut read_next_definition = true;
@@ -219,24 +229,30 @@ pub fn execute_rules_inner(
                             debug!("Ignore Message");
                             notification_data.ignore = true;
                             matched_rules.add_branch(sub_branch);
-                            return ControlFlow::Break(())
+                            return ControlFlow::Break(());
                         }
                         Action::Set(set_property) => {
-                            set_property.set(notification_data, &notification_template_data)
+                            set_property.set(notification_data, notification_template_data)
                         }
                         Action::Stop => {
                             matched_rules.add_branch(sub_branch);
-                            return ControlFlow::Break(())
+                            return ControlFlow::Break(());
                         }
                     }
                 }
 
                 notification_data.style.extend(definition.style.clone());
 
-                let break_execution = execute_rules_inner(&definition.sub_definition, n, notification_template_data, notification_data, &mut sub_branch);
+                let break_execution = execute_rules_inner(
+                    &definition.sub_definition,
+                    n,
+                    notification_template_data,
+                    notification_data,
+                    &mut sub_branch,
+                );
                 matched_rules.add_branch(sub_branch);
                 if let ControlFlow::Break(_) = break_execution {
-                    return break_execution
+                    return break_execution;
                 }
             }
             None => read_next_definition = false,
@@ -313,10 +329,6 @@ pub enum MinimalUrgency {
 impl std::cmp::PartialEq<Urgency> for MinimalUrgency {
     fn eq(&self, other: &Urgency) -> bool {
         *self as usize == *other as usize
-    }
-
-    fn ne(&self, other: &Urgency) -> bool {
-        *self as usize != *other as usize
     }
 }
 

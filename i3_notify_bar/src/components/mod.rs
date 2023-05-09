@@ -5,15 +5,25 @@ mod notification;
 
 use std::sync::{Arc, Mutex};
 
-use i3_bar_components::{components::{Button, Padding}, protocol::ClickEvent, ManageComponents};
+use i3_bar_components::{
+    components::{Button, Padding},
+    protocol::ClickEvent,
+    ManageComponents,
+};
 use log::debug;
 pub use min_urgency_selector::init;
-pub use notification::{NotificationComponent, notification_id_to_notification_compnent_name};
+pub use notification::{notification_id_to_notification_compnent_name, NotificationComponent};
 use notify_server::CloseReason;
 
-use crate::{icons, notification_bar::{MinimalUrgency, NotificationManager}};
+use crate::{
+    icons,
+    notification_bar::{MinimalUrgency, NotificationManager},
+};
 
-pub fn menu_button_open(selected: Arc<Mutex<MinimalUrgency>>, notification_manager: Arc<Mutex<NotificationManager>>) -> Button {
+pub fn menu_button_open(
+    selected: Arc<Mutex<MinimalUrgency>>,
+    notification_manager: Arc<Mutex<NotificationManager>>,
+) -> Button {
     let icon = icons::get_icon("menu").map_or(String::from(" menu "), |c| format!(" {} ", c));
     let mut button = Button::new(icon.into());
 
@@ -27,7 +37,7 @@ pub fn menu_button_open(selected: Arc<Mutex<MinimalUrgency>>, notification_manag
 pub fn menu_button_close() -> Button {
     let icon = icons::get_icon("close").map_or(String::from(" close "), |c| format!(" {} ", c));
     let mut button = Button::new(icon.into());
-    button.set_on_click(&close_menu);
+    button.set_on_click(close_menu);
     button
 }
 
@@ -38,7 +48,12 @@ fn close_menu(_: &mut Button, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
     mc.pop_layer()
 }
 
-fn open_menu(mc: &mut dyn ManageComponents, ce: &ClickEvent, selected: Arc<Mutex<MinimalUrgency>>, notification_manager: Arc<Mutex<NotificationManager>>) {
+fn open_menu(
+    mc: &mut dyn ManageComponents,
+    ce: &ClickEvent,
+    selected: Arc<Mutex<MinimalUrgency>>,
+    notification_manager: Arc<Mutex<NotificationManager>>,
+) {
     if ce.get_button() != 1 {
         return;
     };
@@ -49,7 +64,10 @@ fn open_menu(mc: &mut dyn ManageComponents, ce: &ClickEvent, selected: Arc<Mutex
         if ce.get_button() != 1 {
             return;
         };
-        notification_manager.lock().unwrap().close_all_notifications(CloseReason::Dismissed);
+        notification_manager
+            .lock()
+            .unwrap()
+            .close_all_notifications(CloseReason::Dismissed);
     });
     let group = min_urgency_selector::init(selected);
     mc.add_component(Box::new(close_all));

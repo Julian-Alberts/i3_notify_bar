@@ -102,9 +102,7 @@ impl Component for ActionBar {
 
     fn update(&mut self, dt: f64) {
         self.close_btn.update(dt);
-        self.buttons.iter_mut().for_each(|b| {
-            b.update(dt)
-        })
+        self.buttons.iter_mut().for_each(|b| b.update(dt))
     }
 }
 

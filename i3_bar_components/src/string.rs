@@ -61,12 +61,11 @@ impl ComponentString for AnimatedString {
         if text_len <= self.max_width {
             return self.text.to_owned();
         }
-        let end;
-        if self.start_offset as usize + self.max_width < text_len {
-            end = self.start_offset as usize + self.max_width;
+        let end =if self.start_offset as usize + self.max_width < text_len {
+            self.start_offset as usize + self.max_width
         } else {
-            end = text_len;
-        }
+            text_len
+        };
 
         let chars = self.text.chars().collect::<Vec<char>>();
         let chars = &chars[self.start_offset as usize..end];

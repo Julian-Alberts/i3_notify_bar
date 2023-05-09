@@ -1,9 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use i3_bar_components::{
-    components::{prelude::*, BaseComponent, Button, Label, ProgressBar, Padding},
+    components::{prelude::*, BaseComponent, Button, Label, Padding, ProgressBar},
     protocol::ClickEvent,
-    ManageComponents, string::{PartiallyAnimatedString, AnimatedString},
+    string::{AnimatedString, PartiallyAnimatedString},
+    ManageComponents,
 };
 use log::debug;
 use notify_server::{notification::Action, CloseReason};
@@ -51,11 +52,12 @@ impl NotificationComponent {
                 nd.style.iter().for_each(|s| {
                     s.apply(t.get_base_component_mut());
                 });
-                CloseType::Timer(t)
+                CloseType::Timer(Box::new(t))
             }
         };
 
-        let animated_notification_text = notification_data_to_animated_text(nd, max_width, move_chars_per_sec);
+        let animated_notification_text =
+            notification_data_to_animated_text(nd, max_width, move_chars_per_sec);
         let mut label = Label::new(animated_notification_text.into());
 
         label.set_seperator(false);
@@ -82,7 +84,9 @@ impl NotificationComponent {
     }
 
     pub fn update_notification(&mut self, nd: &NotificationData) {
-        self.label.set_text(notification_data_to_animated_text(nd, self.max_width, self.move_chars_per_sec).into());
+        self.label.set_text(
+            notification_data_to_animated_text(nd, self.max_width, self.move_chars_per_sec).into(),
+        );
         self.label.update(0.);
         let close_type = match nd.expire_timeout {
             -1 => {
@@ -101,7 +105,7 @@ impl NotificationComponent {
                 nd.style.iter().for_each(|s| {
                     s.apply(t.get_base_component_mut());
                 });
-                CloseType::Timer(t)
+                CloseType::Timer(Box::new(t))
             }
         };
         self.close_type = close_type;
@@ -128,12 +132,13 @@ impl NotificationComponent {
     }
 
     fn on_notification_click(&mut self) {
-        let action = self.actions.iter().find(|action| {
-            action.key == "default"
-        });
+        let action = self.actions.iter().find(|action| action.key == "default");
 
         if let Some(action) = action {
-            self.notification_manager.lock().unwrap().action_invoked(self.id, &action.key)
+            self.notification_manager
+                .lock()
+                .unwrap()
+                .action_invoked(self.id, &action.key)
         }
     }
 }
@@ -151,17 +156,23 @@ impl Component for NotificationComponent {
     ) {
         self.label.collect_base_components_mut(base_components);
         self.close_type.collect_base_components_mut(base_components);
-        self.right_padding.collect_base_components_mut(base_components)
+        self.right_padding
+            .collect_base_components_mut(base_components)
     }
 
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
         if self.close_type.is_button()
             && ce.get_button() == 1
-            && ce.get_instance() == self.close_type.get_base_component().get_properties().instance
+            && ce.get_instance()
+                == self
+                    .close_type
+                    .get_base_component()
+                    .get_properties()
+                    .instance
         {
             self.on_close_button_click()
         } else if ce.get_button() == 3 {
-            self.on_notification_right_click(mc)   
+            self.on_notification_right_click(mc)
         } else if ce.get_button() == 1 {
             self.on_notification_click()
         }
@@ -186,24 +197,27 @@ impl Component for NotificationComponent {
     fn name(&self) -> Option<&str> {
         Some(&self.name[..])
     }
-
 }
 
 pub fn notification_id_to_notification_compnent_name(id: u32) -> String {
     format!("i3_notify_bar_notification_component:{}", id)
 }
 
-pub fn notification_data_to_animated_text(nd: &NotificationData, max_width: usize, move_chars_per_sec: usize) -> PartiallyAnimatedString {
+pub fn notification_data_to_animated_text(
+    nd: &NotificationData,
+    max_width: usize,
+    move_chars_per_sec: usize,
+) -> PartiallyAnimatedString {
     let icon = if nd.icon != ' ' {
         Some(nd.icon.to_string())
     } else {
         None
     };
     PartiallyAnimatedString::new(
-        icon, 
+        icon,
         AnimatedString::new(nd.text.clone())
-        .with_max_width(max_width)
-        .with_move_chars_per_sec(move_chars_per_sec),
-        String::from(" ").into()
+            .with_max_width(max_width)
+            .with_move_chars_per_sec(move_chars_per_sec),
+        String::from(" ").into(),
     )
 }

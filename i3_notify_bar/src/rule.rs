@@ -2,18 +2,18 @@ pub use crate::config_parser::parse_config;
 use notify_server::notification::Notification;
 use regex::Regex;
 
-use emoji::{self, EmojiMode};
 use crate::{
     notification_bar::{NotificationData, NotificationTemplateData},
     template,
 };
+use emoji::{self, EmojiMode};
 
 #[derive(Default, Debug, PartialEq)]
 pub struct Definition {
     pub conditions: Vec<Conditions>,
     pub actions: Vec<Action>,
     pub style: Vec<Style>,
-    pub sub_definition: Vec<Definition>
+    pub sub_definition: Vec<Definition>,
 }
 
 impl Definition {
@@ -89,7 +89,7 @@ pub enum NumberCondition {
     Lt(i32),
     Le(i32),
     Gt(i32),
-    Ge(i32)
+    Ge(i32),
 }
 
 #[derive(Debug)]
@@ -272,6 +272,5 @@ mod tests {
             n.expire_timeout = 9;
             assert!(!condition.is_match(&n));
         }
-
     }
 }

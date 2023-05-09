@@ -26,16 +26,13 @@ impl Notification {
     ) -> Self {
         let mut urgency = Urgency::Normal;
 
-        hints.into_iter().for_each(|(key, hint)| match &key[..] {
-            "urgency" => urgency = get_urgency(hint),
-            _ => {}
-        });
+        hints.into_iter().for_each(|(key, hint)| if &key[..] == "urgency" { urgency = get_urgency(hint) });
 
         let mut actions = Vec::with_capacity(actions_array.len() / 2);
 
-        while actions_array.len() > 0 {
+        while !actions_array.is_empty() {
             let key = actions_array.remove(0);
-            if actions_array.len() == 0 {
+            if actions_array.is_empty() {
                 break;
             }
             let text = actions_array.remove(0);

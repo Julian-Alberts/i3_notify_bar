@@ -12,11 +12,17 @@ pub struct Options {
 }
 
 impl Options {
-    pub fn new() -> Self {
-        Self { notify: &|_| {} }
-    }
-
     pub fn set_notify(&mut self, notify: &'static dyn Fn(&mut notification::Notification)) {
         self.notify = notify;
     }
+}
+
+impl Default for Options {
+
+    fn default() -> Self {
+        Self {
+            notify: &|_| {}
+        }
+    }
+
 }

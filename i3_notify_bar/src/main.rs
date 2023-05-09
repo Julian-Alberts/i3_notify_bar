@@ -10,11 +10,12 @@ mod template;
 
 use args::Args;
 use clap::Parser;
-use components::{NotificationComponent, notification_id_to_notification_compnent_name};
+use components::{notification_id_to_notification_compnent_name, NotificationComponent};
 use emoji::EmojiMode;
 use i3_bar_components::{
     component_manager::{ComponentManagerBuilder, ManageComponents},
-    components::Label, string::AnimatedString,
+    components::Label,
+    string::AnimatedString,
 };
 use log::{debug, error};
 use notification_bar::{MinimalUrgency, NotificationEvent, NotificationManager};
@@ -88,14 +89,18 @@ fn run(
     let mut component_manager = ComponentManagerBuilder::new()
         .with_click_events(true)
         .build();
-    
+
     component_manager.set_global_event_listener(|_, ce| {
         debug!("{}", ce.get_button().to_string());
     });
 
     let notify_server = notify_server::NotifyServer::start().unwrap();
-    let notification_manager =
-        NotificationManager::new(config, emoji_mode, Arc::clone(&minimal_urgency), notify_server);
+    let notification_manager = NotificationManager::new(
+        config,
+        emoji_mode,
+        Arc::clone(&minimal_urgency),
+        notify_server,
+    );
 
     component_manager.add_component(Box::new(components::menu_button_open(
         minimal_urgency,
@@ -123,7 +128,9 @@ fn run(
                         return;
                     }
                 };
-                match component_manager.get_component_mut::<NotificationComponent>(&notification_id_to_notification_compnent_name(n.id)) {
+                match component_manager.get_component_mut::<NotificationComponent>(
+                    &notification_id_to_notification_compnent_name(n.id),
+                ) {
                     Some(c) => c.update_notification(&n),
                     None => component_manager.add_component_at_on_layer(
                         Box::new(NotificationComponent::new(
@@ -138,8 +145,12 @@ fn run(
                 }
             }
             &NotificationEvent::Remove(id) => {
-                debug!("Removing notification {}", notification_id_to_notification_compnent_name(*id));
-                component_manager.remove_by_name(&notification_id_to_notification_compnent_name(*id))
+                debug!(
+                    "Removing notification {}",
+                    notification_id_to_notification_compnent_name(*id)
+                );
+                component_manager
+                    .remove_by_name(&notification_id_to_notification_compnent_name(*id))
             }
         });
 
@@ -177,7 +188,7 @@ fn print_error(data: String) -> ! {
         .with_click_events(false)
         .build();
 
-    let data = data.replace("\n", "");
+    let data = data.replace('\n', "");
     let mut animated_data = AnimatedString::new(data);
     animated_data.set_max_width(50);
     let mut label = Label::new(animated_data.into());
@@ -241,7 +252,7 @@ mod logger {
             ),
         };
 
-        if let Err(_) = CombinedLogger::init(vec![logger]) {
+        if CombinedLogger::init(vec![logger]).is_err() {
             error!("Could not init logger")
         }
     }
