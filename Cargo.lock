@@ -642,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "i3_notify_bar"
-version = "1.7.1"
+version = "1.7.2"
 dependencies = [
  "async-std",
  "chrono",
