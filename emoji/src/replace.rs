@@ -247,7 +247,7 @@ mod tests {
 
     #[test]
     fn text_with_multi_char_emoji() {
-        super::load_emoji_file(Path::new("emojis"));
+        super::load_emoji_file(Path::new("../i3_notify_bar/emojis"));
         let text = String::from("Hello \u{1F468}\u{200D}\u{2764}\u{FE0F}\u{200D}\u{1F468} world!");
         assert_eq!(
             super::handle(text),
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn create_emoji_tree_from_string() {
         use std::str::FromStr;
-        super::load_emoji_file(Path::new("emojis"));
+        super::load_emoji_file(Path::new("../i3_notify_bar/emojis"));
         let tree = super::EmojiTree::from_str(r#"ff00_fffff_1234 :test_value:"#);
         assert!(tree.is_ok(), "{:#?}", tree);
         let tree = tree.unwrap();
