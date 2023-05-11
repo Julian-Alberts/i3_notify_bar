@@ -66,7 +66,9 @@ impl ComponentManager {
                 let mut blocks = Vec::new();
                 comp.collect_base_components(&mut blocks);
                 trace!("Blocks: {:?}", blocks);
-                blocks.iter().any(|b| b.get_properties().instance == element_id)
+                blocks
+                    .iter()
+                    .any(|b| b.get_properties().instance == element_id)
             });
 
             if let Some(comp) = comp {
@@ -220,9 +222,7 @@ impl ManageComponents for ComponentManager {
 
     fn remove_by_name(&mut self, name: &str) {
         self.layers.iter_mut().for_each(|layer| {
-            let index = layer
-                .iter()
-                .position(|c| c.name() == Some(name));
+            let index = layer.iter().position(|c| c.name() == Some(name));
             if let Some(index) = index {
                 layer.remove(index);
             }

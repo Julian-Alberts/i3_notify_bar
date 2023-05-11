@@ -1,9 +1,5 @@
 use super::{prelude::*, BaseComponent};
-use crate::{
-    component_manager::ManageComponents,
-    property::Properties,
-    protocol::ClickEvent,
-};
+use crate::{component_manager::ManageComponents, property::Properties, protocol::ClickEvent};
 
 pub struct Padding {
     base_component: BaseComponent,
@@ -13,7 +9,10 @@ impl Padding {
     pub fn new(width: usize) -> Self {
         Self {
             base_component: BaseComponent::from(Properties {
-                text: crate::property::Text { full: " ".repeat(width), ..Default::default() },
+                text: crate::property::Text {
+                    full: " ".repeat(width),
+                    ..Default::default()
+                },
                 ..Default::default()
             }),
         }
@@ -42,7 +41,6 @@ impl Component for Padding {
     fn name(&self) -> Option<&str> {
         self.base_component.get_name()
     }
-
 }
 
 impl Widget for Padding {

@@ -18,11 +18,7 @@ impl Options {
 }
 
 impl Default for Options {
-
     fn default() -> Self {
-        Self {
-            notify: &|_| {}
-        }
+        Self { notify: &|_| {} }
     }
-
 }

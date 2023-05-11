@@ -91,4 +91,3 @@ fn max_len(text: String, len: usize) -> String {
         text
     }
 }
-

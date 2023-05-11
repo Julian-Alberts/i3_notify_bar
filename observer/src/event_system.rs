@@ -21,10 +21,10 @@ impl<E> EventSystem<E> {
     }
 }
 
-impl <E> Default for EventSystem<E> {
+impl<E> Default for EventSystem<E> {
     fn default() -> Self {
         Self {
-            wrapped_observers: Vec::default()
+            wrapped_observers: Vec::default(),
         }
     }
 }
@@ -49,10 +49,10 @@ impl<E> SingleEventSystem<E> {
     }
 }
 
-impl <E> Default for SingleEventSystem<E> {
+impl<E> Default for SingleEventSystem<E> {
     fn default() -> Self {
         Self {
-            wrapped_observer: None
+            wrapped_observer: None,
         }
     }
 }

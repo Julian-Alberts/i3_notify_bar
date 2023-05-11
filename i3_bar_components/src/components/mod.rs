@@ -1,16 +1,16 @@
 mod button;
 mod button_group;
 mod label;
-pub mod prelude;
 mod padding;
+pub mod prelude;
 mod progress_bar;
 
 pub use button::Button;
 pub use button_group::{ButtonGroup, GroupButton};
 pub use label::Label;
 use log::debug;
-pub use progress_bar::ProgressBar;
 pub use padding::Padding;
+pub use progress_bar::ProgressBar;
 
 use crate::property::Properties;
 

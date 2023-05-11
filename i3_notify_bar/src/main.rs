@@ -210,51 +210,51 @@ mod logger {
     use simplelog::{ColorChoice, CombinedLogger, Config, SharedLogger, TermLogger, WriteLogger};
 
     pub fn init(level_filter: LevelFilter, log_file: &Option<String>) {
-        let logger: Box<dyn SharedLogger> = match &log_file {
-            Some(path) => {
-                let path = Path::new(path);
-                if let Some(parent) = path.parent() {
-                    match std::fs::create_dir_all(parent) {
-                        Ok(()) => {}
-                        Err(e) => {
-                            log::error!(
-                                "Failed to create folder {} Error: {}",
-                                parent
-                                    .to_str()
-                                    .unwrap_or(r#""File name is not valid UTF-8""#),
-                                e
-                            );
-                            super::print_error(format!(
-                                "Error trying to create config folder at {} Error: {}",
-                                parent
-                                    .to_str()
-                                    .unwrap_or(r#""File name is not valid UTF-8""#),
-                                e
-                            ))
-                        }
-                    }
-                }
-                let file = OpenOptions::new().create(true).append(true).open(path);
-                match file {
-                    Ok(file) => WriteLogger::new(level_filter, Config::default(), file),
-                    Err(_) => TermLogger::new(
-                        level_filter,
-                        Config::default(),
-                        simplelog::TerminalMode::Stderr,
-                        ColorChoice::Auto,
-                    ),
-                }
+        let logger: Box<dyn SharedLogger> = if let Some(path) = &log_file {
+            let path = Path::new(path);
+            if let Some(parent) = path.parent() {
+                create_folder(parent)
             }
-            None => TermLogger::new(
+            let file = OpenOptions::new().create(true).append(true).open(path);
+            match file {
+                Ok(file) => WriteLogger::new(level_filter, Config::default(), file),
+                Err(_) => TermLogger::new(
+                    level_filter,
+                    Config::default(),
+                    simplelog::TerminalMode::Stderr,
+                    ColorChoice::Auto,
+                ),
+            }
+        } else {
+            TermLogger::new(
                 level_filter,
                 Config::default(),
                 simplelog::TerminalMode::Stderr,
                 ColorChoice::Auto,
-            ),
+            )
         };
 
         if CombinedLogger::init(vec![logger]).is_err() {
             error!("Could not init logger")
+        }
+    }
+
+    fn create_folder(parent: &Path) {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            log::error!(
+                "Failed to create folder {} Error: {}",
+                parent
+                    .to_str()
+                    .unwrap_or(r#""File name is not valid UTF-8""#),
+                e
+            );
+            super::print_error(format!(
+                "Error trying to create config folder at {} Error: {}",
+                parent
+                    .to_str()
+                    .unwrap_or(r#""File name is not valid UTF-8""#),
+                e
+            ))
         }
     }
 }

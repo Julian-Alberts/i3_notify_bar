@@ -68,7 +68,6 @@ impl Component for ProgressBar {
     fn name(&self) -> Option<&str> {
         self.base_component.get_name()
     }
-
 }
 
 impl Widget for ProgressBar {

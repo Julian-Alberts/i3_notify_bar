@@ -1,20 +1,19 @@
 use super::{prelude::*, BaseComponent};
 use crate::{
-    component_manager::ManageComponents,
-    property::Properties,
-    protocol::ClickEvent, string::ComponentString,
+    component_manager::ManageComponents, property::Properties, protocol::ClickEvent,
+    string::ComponentString,
 };
 
 pub struct Label {
     base_component: BaseComponent,
-    text: Box<dyn ComponentString>
+    text: Box<dyn ComponentString>,
 }
 
 impl Label {
     pub fn new(text: Box<dyn ComponentString>) -> Self {
         Self {
             base_component: BaseComponent::from(Properties::default()),
-            text
+            text,
         }
     }
 
@@ -44,7 +43,6 @@ impl Component for Label {
     fn name(&self) -> Option<&str> {
         self.base_component.get_name()
     }
-
 }
 
 impl Widget for Label {

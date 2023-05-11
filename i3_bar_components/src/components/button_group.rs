@@ -11,13 +11,22 @@ pub struct ButtonGroup<K: Copy + PartialEq + 'static> {
     description: Option<Label>,
     buttons: Vec<GroupButton<K>>,
     selected: Arc<Mutex<K>>,
-    name: Option<String>
+    name: Option<String>,
 }
 
 impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
-    pub fn new(mut buttons: Vec<GroupButton<K>>, selected: Arc<Mutex<K>>, description: Option<Label>) -> Self {
+    pub fn new(
+        mut buttons: Vec<GroupButton<K>>,
+        selected: Arc<Mutex<K>>,
+        description: Option<Label>,
+    ) -> Self {
         buttons.sort_by(|a, b| a.pos.cmp(&b.pos));
-        let mut button_group = Self { buttons, selected, name: None, description };
+        let mut button_group = Self {
+            buttons,
+            selected,
+            name: None,
+            description,
+        };
         let selected = *button_group.selected.lock().unwrap();
         button_group.select(selected);
         button_group
@@ -83,9 +92,7 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
     }
 
     fn update(&mut self, dt: f64) {
-        self.buttons.iter_mut().for_each(|btn| {
-            btn.update(dt)
-        });
+        self.buttons.iter_mut().for_each(|btn| btn.update(dt));
         if let Some(description) = self.description.as_mut() {
             description.update(dt);
         }

@@ -1,8 +1,11 @@
-use crate::{component_manager::ManageComponents, property::Properties, protocol::ClickEvent, string::ComponentString};
+use crate::{
+    component_manager::ManageComponents, property::Properties, protocol::ClickEvent,
+    string::ComponentString,
+};
 
 use super::{prelude::*, BaseComponent};
 
-type ClickHandler = dyn Fn(&mut Button, &mut dyn ManageComponents, &ClickEvent) + 'static; 
+type ClickHandler = dyn Fn(&mut Button, &mut dyn ManageComponents, &ClickEvent) + 'static;
 
 pub struct Button {
     base_component: BaseComponent,
@@ -21,7 +24,7 @@ impl Button {
                 ..Default::default()
             }),
             on_click: Box::new(|_, _, _| {}),
-            text
+            text,
         }
     }
 
@@ -58,7 +61,6 @@ impl Component for Button {
     fn name(&self) -> Option<&str> {
         self.base_component.get_name()
     }
-
 }
 
 impl Widget for Button {
@@ -85,8 +87,7 @@ mod tests {
     fn on_button_click() {
         let mut button = Button::new(String::from("test").into());
         button.set_on_click(|btn, _, _| {
-            btn.get_base_component_mut().get_properties_mut().name =
-                Some(String::from("clicked"));
+            btn.get_base_component_mut().get_properties_mut().name = Some(String::from("clicked"));
         });
 
         let ce: ClickEvent = serde_json::from_str(
@@ -108,10 +109,7 @@ mod tests {
 
         button.event(&mut ComponentManagerBuilder::new().build(), &ce);
         assert_eq!(
-            button
-                .get_base_component_mut()
-                .get_properties_mut()
-                .name,
+            button.get_base_component_mut().get_properties_mut().name,
             Some(String::from("clicked"))
         )
     }
