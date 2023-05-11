@@ -1,3 +1,4 @@
+#![deny(clippy::unwrap_used)]
 mod args;
 mod components;
 mod config_parser;

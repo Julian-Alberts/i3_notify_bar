@@ -57,6 +57,7 @@ fn init_template_manager() -> MiniTemplate {
     let mut tplm = MiniTemplateBuilder::default()
         .with_default_modifiers()
         .with_modifier("date_time", &date_modifier)
+        .with_modifier("max_len", &max_len)
         .build();
     if tplm
         .add_template(
@@ -81,3 +82,13 @@ fn date_modifier(time: i64, format: Option<&str>) -> String {
         time.to_rfc3339_opts(chrono::SecondsFormat::Secs, false)
     }
 }
+
+#[mini_template::macros::create_modifier]
+fn max_len(text: String, len: usize) -> String {
+    if text.len() > len {
+        text[..len].to_string()
+    } else {
+        text
+    }
+}
+

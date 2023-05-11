@@ -1,3 +1,6 @@
+# -.-.-
+Added max_len modifier
+
 ## 1.7.2
 Updated clap
 Improved error handling
