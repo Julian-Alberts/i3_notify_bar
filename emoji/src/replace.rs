@@ -230,14 +230,14 @@ mod tests {
 
     #[test]
     fn text_with_umlaut() {
-        super::load_emoji_file(Path::new("emojis"));
+        super::load_emoji_file(Path::new("../i3_notify_bar/emojis"));
         let text = String::from("Geht nach Brüssel");
         assert_eq!(&super::handle(text)[..], "Geht nach Brüssel");
     }
 
     #[test]
     fn text_with_single_char_emoji() {
-        super::load_emoji_file(Path::new("emojis"));
+        super::load_emoji_file(Path::new("../i3_notify_bar/emojis"));
         let text = String::from("Hello \u{1F609} world!");
         assert_eq!(
             super::handle(text),
