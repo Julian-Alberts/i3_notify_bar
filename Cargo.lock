@@ -771,6 +771,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "453ad9f582a441959e5f0d088b02ce04cfe8d51a8eaf077f12ac6d3e94164ca6"
 
 [[package]]
+name = "jbe"
+version = "0.1.0"
+source = "git+https://github.com/Julian-Alberts/JBE.git#9f2833a2e4913e8513451d4199e7592683ce2fc5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.62"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -880,6 +890,7 @@ dependencies = [
 name = "notify_server"
 version = "0.1.0"
 dependencies = [
+ "jbe",
  "log",
  "observer",
  "zbus",

@@ -7,7 +7,7 @@ use zbus::blocking::{Connection, ConnectionBuilder};
 use zbus::zvariant::Value;
 use zbus::{dbus_interface, SignalContext};
 
-use crate::notification::Notification;
+use crate::notification::{Notification, NotificationBuilder};
 use crate::Event;
 
 pub struct NotifyServer {
@@ -66,46 +66,9 @@ impl NotifyServerInterface {
             .serve_at("/org/freedesktop/Notifications", self)?
             .build()
     }
-
-    fn create_new_notification(
-        &mut self,
-        app_name: String,
-        replace_id: u32,
-        app_icon: String,
-        summary: String,
-        body: String,
-        actions: Vec<String>,
-        hints: HashMap<String, Value>,
-        expire_timeout: i32,
-    ) -> Notification {
-        match replace_id {
-            0 => {
-                self.last_id += 1;
-                Notification::new(
-                    app_name,
-                    self.last_id,
-                    app_icon,
-                    summary,
-                    body,
-                    actions,
-                    hints,
-                    expire_timeout,
-                )
-            }
-            id => Notification::new(
-                app_name,
-                id,
-                app_icon,
-                summary,
-                body,
-                actions,
-                hints,
-                expire_timeout,
-            ),
-        }
-    }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[dbus_interface(name = "org.freedesktop.Notifications")]
 impl NotifyServerInterface {
     fn get_capabilities(&self) -> Vec<&str> {
@@ -118,7 +81,7 @@ impl NotifyServerInterface {
             "persistence",
         ]
     }
-
+    
     fn notify(
         &mut self,
         app_name: String,
@@ -130,17 +93,41 @@ impl NotifyServerInterface {
         hints: HashMap<String, Value>,
         expire_timeout: i32,
     ) -> u32 {
-        let notification = self.create_new_notification(
-            app_name,
-            replaces_id,
-            app_icon,
-            summary,
-            body,
-            actions,
-            hints,
-            expire_timeout,
-        );
-        let id = notification.id;
+        let mut builder = NotificationBuilder::default()
+            .with_app_name(app_name)
+            .with_app_icon(app_icon)
+            .with_summary(summary)
+            .with_body(body)
+            .with_expire_timeout(expire_timeout);
+        let id = match replaces_id {
+            0 => {
+                self.last_id += 1;
+                self.last_id
+            },
+            id => id
+        };
+        builder.set_id(id);
+        hints.into_iter().for_each(|(key, hint)| {
+            if &key[..] == "urgency" {
+                builder.set_urgency(hint.into())
+            }
+        });
+        
+        let mut actions_vec = Vec::with_capacity(actions.len() / 2);
+        // TODO change to group_by once https://github.com/rust-lang/rust/issues/80552 is stable
+        let mut actions_iter = actions.into_iter();
+        while let Some(key) = actions_iter.next() {
+            let Some(text) = actions_iter.next() else {
+                continue;
+            };
+            actions_vec.push(crate::notification::Action {
+                key,
+                text
+            });
+        }
+        builder.set_actions(actions_vec);
+        
+        let notification = builder.build();
 
         self.event_system
             .lock()

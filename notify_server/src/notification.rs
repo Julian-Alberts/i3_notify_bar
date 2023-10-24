@@ -1,68 +1,54 @@
 use std::{collections::HashMap, str::FromStr};
 use zbus::zvariant::Value;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, jbe::Builder)]
 pub struct Notification {
+    #[builder({default: String::default()})]
     pub app_name: String,
+    #[builder({default: 0})]
     pub id: u32,
+    #[builder({default: String::default()})]
     pub app_icon: String,
+    #[builder({default: String::default()})]
     pub summary: String,
+    #[builder({default: String::default()})]
     pub body: String,
+    #[builder({default: Urgency::Normal})]
     pub urgency: Urgency,
+    #[builder({default: Vec::default()})]
     pub actions: Vec<Action>,
+    #[builder({default: 0})]
     pub expire_timeout: i32,
-}
-
-impl Notification {
-    pub fn new(
-        app_name: String,
-        id: u32,
-        app_icon: String,
-        summary: String,
-        body: String,
-        mut actions_array: Vec<String>,
-        hints: HashMap<String, Value>,
-        expire_timeout: i32,
-    ) -> Self {
-        let mut urgency = Urgency::Normal;
-
-        hints.into_iter().for_each(|(key, hint)| {
-            if &key[..] == "urgency" {
-                urgency = get_urgency(hint)
-            }
-        });
-
-        let mut actions = Vec::with_capacity(actions_array.len() / 2);
-
-        while !actions_array.is_empty() {
-            let key = actions_array.remove(0);
-            if actions_array.is_empty() {
-                break;
-            }
-            let text = actions_array.remove(0);
-            actions.push(Action { key, text });
-        }
-
-        Self {
-            app_name,
-            id,
-            app_icon,
-            summary,
-            body,
-            actions,
-            urgency,
-            expire_timeout,
-        }
-    }
 }
 
 unsafe impl Sync for Notification {}
 
-#[derive(Debug, Clone, PartialEq, Copy, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Copy, Eq, Hash, Default)]
 pub enum Urgency {
     Low = 0,
+    #[default]
     Normal = 1,
     Critical = 2,
+}
+
+impl From<u8> for Urgency {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Self::Low,
+            1 => Self::Normal,
+            2 => Self::Critical,
+            _ => Default::default(),
+        }
+    }
+}
+
+impl From<Value<'_>> for Urgency {
+    fn from(value: Value) -> Self {
+        match value {
+            Value::U8(v) => v.into(),
+            _ => Default::default()
+        }
+    }
 }
 
 impl FromStr for Urgency {

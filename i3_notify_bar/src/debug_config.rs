@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use notify_server::notification::Notification;
+use notify_server::notification::{Notification, NotificationBuilder, Urgency};
 
 use crate::{
     args::DebugConfig,
@@ -20,16 +20,16 @@ pub fn debug_config(config: &[Definition], emoji_mode: EmojiMode, debug_config: 
         urgency: _,
     } = debug_config;
 
-    let notification = Notification::new(
-        app_name,
-        id,
-        app_icon,
-        summary,
-        body,
-        Vec::new(),
-        std::collections::HashMap::new(),
-        expire_timeout,
-    );
+    let notification = NotificationBuilder::default()
+        .with_app_name(app_name)
+        .with_id(id)
+        .with_app_icon(app_icon)
+        .with_summary(summary)
+        .with_body(body)
+        .with_actions(Vec::default())
+        .with_urgency(Urgency::default())
+        .with_expire_timeout(expire_timeout)
+        .build();
 
     let mut notification_data = NotificationData::new(&notification, emoji_mode);
 
