@@ -91,7 +91,7 @@ impl Component for ActionBar {
         if let Some(button) = button {
             self.notification_manager
                 .lock()
-                .unwrap()
+                .expect("Could not lock notification bar")
                 .action_invoked(self.notification_id, &button.key)
         }
     }

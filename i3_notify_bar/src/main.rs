@@ -95,7 +95,7 @@ fn run(
         debug!("{}", ce.get_button().to_string());
     });
 
-    let notify_server = notify_server::NotifyServer::start().unwrap();
+    let notify_server = notify_server::NotifyServer::start().expect("Error starting notification server.");
     let notification_manager = NotificationManager::new(
         config,
         emoji_mode,

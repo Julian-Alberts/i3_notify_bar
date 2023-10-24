@@ -137,7 +137,7 @@ impl NotificationComponent {
         if let Some(action) = action {
             self.notification_manager
                 .lock()
-                .unwrap()
+                .expect("Could not lock notification manager")
                 .action_invoked(self.id, &action.key)
         }
     }

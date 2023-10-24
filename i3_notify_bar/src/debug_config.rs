@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use notify_server::notification::{Notification, NotificationBuilder, Urgency};
+use notify_server::notification::{NotificationBuilder, Urgency};
 
 use crate::{
     args::DebugConfig,

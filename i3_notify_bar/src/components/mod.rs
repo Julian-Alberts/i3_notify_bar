@@ -66,7 +66,7 @@ fn open_menu(
         };
         notification_manager
             .lock()
-            .unwrap()
+            .expect("Could not lock notification manager")
             .close_all_notifications(CloseReason::Dismissed);
     });
     let group = min_urgency_selector::init(selected);

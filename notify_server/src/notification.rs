@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{str::FromStr};
 use zbus::zvariant::Value;
 
 #[derive(Debug, Clone, PartialEq, jbe::Builder)]
@@ -90,15 +90,6 @@ impl PartialOrd for Urgency {
             std::cmp::Ordering::Equal
         };
         Some(result)
-    }
-}
-
-fn get_urgency(value: Value) -> Urgency {
-    match value {
-        Value::U8(0) => Urgency::Low,
-        Value::U8(1) => Urgency::Normal,
-        Value::U8(2) => Urgency::Critical,
-        _ => Urgency::Normal,
     }
 }
 

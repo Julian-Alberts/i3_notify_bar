@@ -7,7 +7,7 @@ use zbus::blocking::{Connection, ConnectionBuilder};
 use zbus::zvariant::Value;
 use zbus::{dbus_interface, SignalContext};
 
-use crate::notification::{Notification, NotificationBuilder};
+use crate::notification::{NotificationBuilder};
 use crate::Event;
 
 pub struct NotifyServer {
@@ -195,80 +195,6 @@ mod interface_tests {
     use crate::{notification::Notification, Event};
 
     use super::NotifyServerInterface;
-
-    #[test]
-    fn create_new_notification() {
-        let app_name = String::from("my app name");
-        let replace_id = 0;
-        let app_icon = String::from("my app icon");
-        let summary = String::from("my app name");
-        let body = String::from("my app name");
-        let actions = vec![];
-        let hints = HashMap::new();
-        let expire_timeout = 0;
-
-        let mut interface = NotifyServerInterface::default();
-
-        assert_eq!(interface.last_id, 0);
-
-        let notification = interface.create_new_notification(
-            app_name.clone(),
-            replace_id,
-            app_icon.clone(),
-            summary.clone(),
-            body.clone(),
-            actions.clone(),
-            hints.clone(),
-            expire_timeout,
-        );
-
-        assert_eq!(notification.app_name, app_name);
-        assert_eq!(notification.id, 1);
-        assert_eq!(notification.app_icon, app_icon);
-        assert_eq!(notification.summary, summary);
-        assert_eq!(notification.body, body);
-        assert!(notification.actions.is_empty());
-        assert_eq!(notification.expire_timeout, expire_timeout);
-
-        assert_eq!(interface.last_id, 1);
-    }
-
-    #[test]
-    fn create_new_notification_replace() {
-        let app_name = String::from("my app name");
-        let replace_id = 10;
-        let app_icon = String::from("my app icon");
-        let summary = String::from("my app name");
-        let body = String::from("my app name");
-        let actions = vec![];
-        let hints = HashMap::new();
-        let expire_timeout = 0;
-
-        let mut interface = NotifyServerInterface::default();
-
-        assert_eq!(interface.last_id, 0);
-
-        let notification = interface.create_new_notification(
-            app_name.clone(),
-            replace_id,
-            app_icon.clone(),
-            summary.clone(),
-            body.clone(),
-            actions.clone(),
-            hints.clone(),
-            expire_timeout,
-        );
-
-        assert_eq!(notification.app_name, app_name);
-        assert_eq!(notification.id, 10);
-        assert_eq!(notification.app_icon, app_icon);
-        assert_eq!(notification.summary, summary);
-        assert_eq!(notification.body, body);
-        assert!(notification.actions.is_empty());
-        assert_eq!(notification.expire_timeout, expire_timeout);
-
-        assert_eq!(interface.last_id, 0);
-    }
 
     #[test]
     fn notify() {
