@@ -40,10 +40,8 @@ impl ComponentManager {
         self.handle_events();
         self.handle_messenges();
         self.update_components(dt);
-        let blocks = self.build_json();
-
-        if self.out_writer.write_all(&blocks).is_err() {
-            error!("Could not write bytes: {:#?}", blocks);
+        if let Err(err) = self.build_json() {
+            error!("Could not write bytes: {:#?}", err);
             return;
         }
         if self.out_writer.flush().is_err() {
@@ -81,27 +79,25 @@ impl ComponentManager {
         self.get_layer_mut().iter_mut().for_each(|c| c.update(dt));
     }
 
-    fn build_json(&mut self) -> Vec<u8> {
-        let mut blocks = self
-            .get_layer_mut()
-            .iter_mut()
+    fn build_json(&mut self) -> std::io::Result<()> {
+        let write = &mut self.out_writer.lock();
+        write.write_all(&[b'['])?;
+        self
+            .get_layer()
+            .iter()
             .fold(Vec::new(), |mut blocks, c| {
-                c.collect_base_components_mut(&mut blocks);
+                c.collect_base_components(&mut blocks);
                 blocks
             })
-            .iter_mut()
+            .iter()
             .enumerate()
-            .fold(vec![b'['], |mut blocks, (index, block)| {
+            .try_for_each(|(index, block)| {
                 if index != 0 {
-                    blocks.push(b',');
+                    write.write_all(&[b','])?;
                 }
-                blocks.extend(block.serialize_cache());
-                blocks
-            });
-        blocks.push(b']');
-        blocks.push(b',');
-        blocks.push(10);
-        blocks
+                block.serialize_cache(write)
+            })?;
+        write.write_all(&[b']', b',', 10])
     }
 
     pub fn get_component_mut<'a, T: Component>(&'a mut self, name: &str) -> Option<&'a mut T> {

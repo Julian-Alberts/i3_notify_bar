@@ -11,15 +11,16 @@ use notify_server::{notification::Action, CloseReason};
 
 use crate::{
     icons,
-    notification_bar::{NotificationData, NotificationManager},
+    notification_bar::{NotificationData, NotificationManager}, rule::Style,
 };
 
-use super::{action_bar::ActionBar, close_type::CloseType};
+use super::action_bar::ActionBar;
 
 pub struct NotificationComponent {
-    close_type: CloseType,
     label: Label,
     id: u32,
+    close_button: Button,
+    close_timer: Option<ProgressBar>,
     name: String,
     notification_manager: Arc<Mutex<NotificationManager>>,
     actions: Vec<Action>,
@@ -35,25 +36,9 @@ impl NotificationComponent {
         move_chars_per_sec: usize,
         notification_manager: Arc<Mutex<NotificationManager>>,
     ) -> NotificationComponent {
-        let close_type = match nd.expire_timeout {
-            -1 => {
-                let mut b = Button::new(format!(" {} ", icons::X_ICON).into());
-                b.set_seperator(false);
-                b.set_separator_block_width(0);
-                nd.style.iter().for_each(|s| {
-                    s.apply(b.get_base_component_mut());
-                });
-                CloseType::Button(b)
-            }
-            _ => {
-                let mut t = ProgressBar::new(nd.expire_timeout as u64);
-                t.set_seperator(false);
-                t.set_separator_block_width(0);
-                nd.style.iter().for_each(|s| {
-                    s.apply(t.get_base_component_mut());
-                });
-                CloseType::Timer(Box::new(t))
-            }
+        let close_timer = match nd.expire_timeout {
+            -1 => None,
+            _ => Some(create_timer(nd.style.as_slice(), nd.expire_timeout as u64))
         };
 
         let animated_notification_text =
@@ -71,8 +56,9 @@ impl NotificationComponent {
         });
 
         Self {
-            close_type,
             label,
+            close_button: create_button(nd.style.as_slice()),
+            close_timer,
             id: nd.id,
             notification_manager,
             actions: nd.actions.clone(),
@@ -88,27 +74,11 @@ impl NotificationComponent {
             notification_data_to_animated_text(nd, self.max_width, self.move_chars_per_sec).into(),
         );
         self.label.update(0.);
-        let close_type = match nd.expire_timeout {
-            -1 => {
-                let mut b = Button::new(String::from(" X ").into());
-                b.set_seperator(false);
-                b.set_separator_block_width(0);
-                nd.style.iter().for_each(|s| {
-                    s.apply(b.get_base_component_mut());
-                });
-                CloseType::Button(b)
-            }
-            _ => {
-                let mut t = ProgressBar::new(nd.expire_timeout as u64);
-                t.set_seperator(false);
-                t.set_separator_block_width(0);
-                nd.style.iter().for_each(|s| {
-                    s.apply(t.get_base_component_mut());
-                });
-                CloseType::Timer(Box::new(t))
-            }
+        let close_timer = match nd.expire_timeout {
+            -1 => None,
+            _ => Some(create_timer(nd.style.as_slice(), nd.expire_timeout as u64)),
         };
-        self.close_type = close_type;
+        self.close_timer = close_timer;
     }
 
     fn on_close_button_click(&self) {
@@ -146,7 +116,9 @@ impl NotificationComponent {
 impl Component for NotificationComponent {
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
         self.label.collect_base_components(base_components);
-        self.close_type.collect_base_components(base_components);
+        self.close_timer.as_ref().map(|t| t.collect_base_components(base_components));
+        self.right_padding.collect_base_components(base_components);
+        self.close_button.collect_base_components(base_components);
         self.right_padding.collect_base_components(base_components)
     }
 
@@ -155,31 +127,27 @@ impl Component for NotificationComponent {
         base_components: &mut Vec<&'a mut BaseComponent>,
     ) {
         self.label.collect_base_components_mut(base_components);
-        self.close_type.collect_base_components_mut(base_components);
+        self.close_timer.as_mut().map(|t| t.collect_base_components_mut(base_components));
+        self.close_button.collect_base_components_mut(base_components);
         self.right_padding
             .collect_base_components_mut(base_components)
     }
 
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
-        if self.close_type.is_button()
-            && ce.get_button() == 1
-            && ce.get_instance()
-                == self
-                    .close_type
-                    .get_base_component()
-                    .get_properties()
-                    .instance
-        {
-            self.on_close_button_click()
-        } else if ce.get_button() == 3 {
-            self.on_notification_right_click(mc)
-        } else if ce.get_button() == 1 {
-            self.on_notification_click()
+        match ce.get_button() {
+            // Button clicked
+            1 if self.close_button.get_base_component().get_properties().instance == ce.get_instance() => 
+                self.on_close_button_click(),
+            // Notification clicked
+            1 => self.on_notification_click(),
+            // Notification right click
+            3 => self.on_notification_right_click(mc),
+            _ => {}
         }
     }
 
     fn update(&mut self, dt: f64) {
-        if self.close_type.is_timer() && self.close_type.is_finished() {
+        if self.close_timer.as_ref().map(|t| t.is_finished()).unwrap_or(false) {
             match self.notification_manager.lock() {
                 Ok(nm) => nm,
                 Err(_) => {
@@ -191,12 +159,33 @@ impl Component for NotificationComponent {
         }
 
         self.label.update(dt);
-        self.close_type.update(dt);
+        self.close_button.update(dt);
+        self.close_timer.as_mut().map(|t| t.update(dt));
     }
 
     fn name(&self) -> Option<&str> {
         Some(&self.name[..])
     }
+}
+
+fn create_button(style: &[Style]) -> Button {
+    let mut b = Button::new(format!(" {} ", icons::X_ICON).into());
+    b.set_seperator(false);
+    b.set_separator_block_width(0);
+    style.iter().for_each(|s| {
+        s.apply(b.get_base_component_mut());
+    });
+    b
+}
+
+fn create_timer(style: &[Style], expire: u64) -> ProgressBar {
+    let mut t = ProgressBar::new(expire);
+    t.set_seperator(false);
+    t.set_separator_block_width(0);
+    style.iter().for_each(|s| {
+        s.apply(t.get_base_component_mut());
+    });
+    t
 }
 
 pub fn notification_id_to_notification_compnent_name(id: u32) -> String {

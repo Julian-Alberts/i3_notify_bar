@@ -12,12 +12,13 @@ use log::debug;
 pub use padding::Padding;
 pub use progress_bar::ProgressBar;
 
+use std::{sync::Mutex, io::Write};
+
 use crate::property::Properties;
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, Default)]
 pub struct BaseComponent {
     properties: Properties,
-    serialized: Option<Vec<u8>>,
 }
 
 impl BaseComponent {
@@ -25,25 +26,21 @@ impl BaseComponent {
         Self::default()
     }
 
-    pub fn serialize_cache(&mut self) -> &[u8] {
+    pub fn serialize_cache(&self, write: &mut impl Write) -> std::io::Result<()> {
         let properties = &self.properties;
-        self.serialized.get_or_insert_with(|| {
-            match serde_json::to_string(properties) {
+        let block = match serde_json::to_vec(properties) {
                 Ok(b) => b,
                 Err(_) => {
                     debug!("Could not serialize block {:#?}", properties);
-                    todo!("return error")
+                    todo!("return error");
                 }
-            }
-            .as_bytes()
-            .to_vec()
-        })
+            };
+        write.write_all(block.as_slice())
     }
 
     /// Returns a mutable reference to the properties
     /// Try to limit calls to this method. Calling this method marks the block as dirty and forces serialization even if no value has been changed.
     pub fn get_properties_mut(&mut self) -> &mut Properties {
-        self.serialized = None;
         &mut self.properties
     }
 
@@ -96,7 +93,6 @@ impl From<Properties> for BaseComponent {
     fn from(block: Properties) -> Self {
         Self {
             properties: block,
-            serialized: None,
         }
     }
 }
