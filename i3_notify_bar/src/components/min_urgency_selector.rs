@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use i3_bar_components::components::{prelude::Widget, Button, ButtonGroup, GroupButton, Label};
 
@@ -27,7 +27,7 @@ const BUTTON_CONFIG: [ButtonConfig; 4] = [
     },
 ];
 
-pub fn init(selected: Arc<Mutex<MinimalUrgency>>) -> ButtonGroup<MinimalUrgency> {
+pub fn init(selected: Arc<RwLock<MinimalUrgency>>) -> ButtonGroup<MinimalUrgency> {
     let buttons = BUTTON_CONFIG.iter().fold(
         Vec::with_capacity(BUTTON_CONFIG.len()),
         |mut vec, config| {

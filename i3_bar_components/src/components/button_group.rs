@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 use crate::{component_manager::ManageComponents, property::Color, protocol::ClickEvent};
 
@@ -10,14 +10,14 @@ use super::{
 pub struct ButtonGroup<K: Copy + PartialEq + 'static> {
     description: Option<Label>,
     buttons: Vec<GroupButton<K>>,
-    selected: Arc<Mutex<K>>,
+    selected: Arc<RwLock<K>>,
     name: Option<String>,
 }
 
 impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
     pub fn new(
         mut buttons: Vec<GroupButton<K>>,
-        selected: Arc<Mutex<K>>,
+        selected: Arc<RwLock<K>>,
         description: Option<Label>,
     ) -> Self {
         buttons.sort_by(|a, b| a.pos.cmp(&b.pos));
@@ -27,13 +27,13 @@ impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
             name: None,
             description,
         };
-        let selected = *button_group.selected.lock().unwrap();
+        let selected = *button_group.selected.read().unwrap();
         button_group.select(selected);
         button_group
     }
 
     pub fn select(&mut self, selected_key: K) {
-        let current_selected = *self.selected.lock().unwrap();
+        let current_selected = *self.selected.read().unwrap();
         self.buttons.iter_mut().for_each(|button| {
             if button.key == selected_key {
                 button.select();
@@ -41,7 +41,7 @@ impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
                 button.deselect()
             }
         });
-        if let Ok(mut s) = self.selected.lock() {
+        if let Ok(mut s) = self.selected.write() {
             *s = selected_key
         }
     }

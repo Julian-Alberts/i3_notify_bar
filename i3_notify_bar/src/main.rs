@@ -24,7 +24,7 @@ use rule::Definition;
 use std::{
     io::BufReader,
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
@@ -84,7 +84,7 @@ fn run(
     animation_chars_per_second: usize,
     refresh_rate: u64,
 ) {
-    let minimal_urgency = Arc::new(Mutex::new(MinimalUrgency::All));
+    let minimal_urgency = Arc::new(RwLock::new(MinimalUrgency::All));
 
     let mut component_manager = ComponentManagerBuilder::new()
         .with_click_events(true)
@@ -166,7 +166,7 @@ fn read_config(config_file: Option<&Path>) -> Vec<crate::rule::Definition> {
             let config_file = match std::fs::File::open(path) {
                 Ok(f) => f,
                 Err(e) => {
-                    error!("Could not open file {:?} error: {:#?}", path, e);
+                    error!("Could not open file {:#?} error: {:#?}", path, e);
                     return Vec::new();
                 }
             };

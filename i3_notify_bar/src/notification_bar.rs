@@ -22,7 +22,7 @@ pub struct NotificationManager {
     events: Vec<NotificationEvent>,
     definitions: Vec<Definition>,
     default_emoji_mode: EmojiMode,
-    minimum_urgency: Arc<Mutex<MinimalUrgency>>,
+    minimum_urgency: Arc<RwLock<MinimalUrgency>>,
     notify_server: NotifyServer,
 }
 
@@ -30,7 +30,7 @@ impl NotificationManager {
     pub fn new(
         definitions: Vec<Definition>,
         default_emoji_mode: EmojiMode,
-        minimum_urgency: Arc<Mutex<MinimalUrgency>>,
+        minimum_urgency: Arc<RwLock<MinimalUrgency>>,
         notify_server: NotifyServer,
     ) -> Arc<Mutex<Self>> {
         let manager = Self {
@@ -72,7 +72,7 @@ impl NotificationManager {
 
         if *self
             .minimum_urgency
-            .lock()
+            .read()
             .expect("Could not access urgency")
             > notification.urgency
         {

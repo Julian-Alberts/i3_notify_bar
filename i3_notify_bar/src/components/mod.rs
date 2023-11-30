@@ -3,7 +3,7 @@ mod close_type;
 mod min_urgency_selector;
 mod notification;
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use i3_bar_components::{
     components::{Button, Padding},
@@ -21,7 +21,7 @@ use crate::{
 };
 
 pub fn menu_button_open(
-    selected: Arc<Mutex<MinimalUrgency>>,
+    selected: Arc<RwLock<MinimalUrgency>>,
     notification_manager: Arc<Mutex<NotificationManager>>,
 ) -> Button {
     let icon = icons::get_icon("menu").map_or(String::from(" menu "), |c| format!(" {} ", c));
@@ -51,7 +51,7 @@ fn close_menu(_: &mut Button, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
 fn open_menu(
     mc: &mut dyn ManageComponents,
     ce: &ClickEvent,
-    selected: Arc<Mutex<MinimalUrgency>>,
+    selected: Arc<RwLock<MinimalUrgency>>,
     notification_manager: Arc<Mutex<NotificationManager>>,
 ) {
     if ce.get_button() != 1 {

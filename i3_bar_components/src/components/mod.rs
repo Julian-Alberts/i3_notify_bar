@@ -12,7 +12,7 @@ use log::debug;
 pub use padding::Padding;
 pub use progress_bar::ProgressBar;
 
-use std::{io::Write, sync::Mutex};
+use std::io::Write;
 
 use crate::property::Properties;
 

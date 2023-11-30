@@ -1,4 +1,7 @@
-use std::{env, path::{PathBuf, Path}};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 use log::info;
 
