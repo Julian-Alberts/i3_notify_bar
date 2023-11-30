@@ -7,7 +7,7 @@ use zbus::blocking::{Connection, ConnectionBuilder};
 use zbus::zvariant::Value;
 use zbus::{dbus_interface, SignalContext};
 
-use crate::notification::{NotificationBuilder};
+use crate::notification::NotificationBuilder;
 use crate::Event;
 
 pub struct NotifyServer {
@@ -81,7 +81,7 @@ impl NotifyServerInterface {
             "persistence",
         ]
     }
-    
+
     fn notify(
         &mut self,
         app_name: String,
@@ -103,8 +103,8 @@ impl NotifyServerInterface {
             0 => {
                 self.last_id += 1;
                 self.last_id
-            },
-            id => id
+            }
+            id => id,
         };
         builder.set_id(id);
         hints.into_iter().for_each(|(key, hint)| {
@@ -112,7 +112,7 @@ impl NotifyServerInterface {
                 builder.set_urgency(hint.into())
             }
         });
-        
+
         let mut actions_vec = Vec::with_capacity(actions.len() / 2);
         // TODO change to group_by once https://github.com/rust-lang/rust/issues/80552 is stable
         let mut actions_iter = actions.into_iter();
@@ -120,13 +120,10 @@ impl NotifyServerInterface {
             let Some(text) = actions_iter.next() else {
                 continue;
             };
-            actions_vec.push(crate::notification::Action {
-                key,
-                text
-            });
+            actions_vec.push(crate::notification::Action { key, text });
         }
         builder.set_actions(actions_vec);
-        
+
         let notification = builder.build();
 
         self.event_system

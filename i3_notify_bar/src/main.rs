@@ -94,7 +94,8 @@ fn run(
         debug!("{}", ce.get_button().to_string());
     });
 
-    let notify_server = notify_server::NotifyServer::start().expect("Error starting notification server.");
+    let notify_server =
+        notify_server::NotifyServer::start().expect("Error starting notification server.");
     let notification_manager = NotificationManager::new(
         config,
         emoji_mode,
@@ -159,13 +160,13 @@ fn run(
     }
 }
 
-fn read_config(config_file: &Option<String>) -> Vec<crate::rule::Definition> {
+fn read_config(config_file: Option<&Path>) -> Vec<crate::rule::Definition> {
     match config_file {
         Some(path) => {
             let config_file = match std::fs::File::open(path) {
                 Ok(f) => f,
                 Err(e) => {
-                    error!("Could not open file {} error: {:#?}", path, e);
+                    error!("Could not open file {:?} error: {:#?}", path, e);
                     return Vec::new();
                 }
             };
@@ -208,9 +209,8 @@ mod logger {
     use log::{error, LevelFilter};
     use simplelog::{ColorChoice, CombinedLogger, Config, SharedLogger, TermLogger, WriteLogger};
 
-    pub fn init(level_filter: LevelFilter, log_file: &Option<String>) {
+    pub fn init(level_filter: LevelFilter, log_file: Option<&Path>) {
         let logger: Box<dyn SharedLogger> = if let Some(path) = &log_file {
-            let path = Path::new(path);
             if let Some(parent) = path.parent() {
                 create_folder(parent)
             }

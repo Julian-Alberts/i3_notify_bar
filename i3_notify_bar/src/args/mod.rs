@@ -1,7 +1,9 @@
+use std::path::PathBuf;
+
 use clap::Parser;
-use notify_server::notification::Urgency;
-use log::LevelFilter;
 use emoji::EmojiMode;
+use log::LevelFilter;
+use notify_server::notification::Urgency;
 
 mod cli;
 
@@ -12,12 +14,12 @@ pub fn load() -> Args {
 pub struct Args {
     pub emoji_mode: EmojiMode,
     pub log_level: LevelFilter,
-    pub log_file: Option<String>,
-    pub emoji_file: Option<String>,
+    pub log_file: Option<PathBuf>,
+    pub emoji_file: Option<PathBuf>,
     pub refresh_rate: u64,
     pub max_text_length: usize,
     pub animation_chars_per_second: usize,
-    pub config_file: Option<String>,
+    pub config_file: Option<PathBuf>,
     pub command: Command,
 }
 
@@ -39,29 +41,28 @@ pub struct DebugConfig {
 }
 
 impl From<cli::Args> for Args {
-
     fn from(cli_args: cli::Args) -> Self {
         Args {
             emoji_mode: cli_args.emoji_mode,
             log_level: cli_args.log_level,
-            log_file: cli_args.log_file,
-            emoji_file: cli_args.emoji_file,
+            log_file: cli_args.log_file.map(Into::into),
+            emoji_file: cli_args.emoji_file.map(Into::into),
             refresh_rate: cli_args.refresh_rate,
             max_text_length: cli_args.max_text_length,
             animation_chars_per_second: cli_args.animation_chars_per_second,
-            config_file: cli_args.config_file,
-            command: cli_args.command.into()
+            config_file: cli_args.config_file.map(Into::into),
+            command: cli_args.command.into(),
         }
     }
-    
 }
 
 impl From<Option<cli::Command>> for Command {
     fn from(c: Option<cli::Command>) -> Self {
         c.map(|c| match c {
             cli::Command::DebugConfig(dc) => Command::DebugConfig(dc.into()),
-            cli::Command::Run => Command::Run
-        }).unwrap_or_default()
+            cli::Command::Run => Command::Run,
+        })
+        .unwrap_or_default()
     }
 }
 
@@ -78,4 +79,3 @@ impl From<cli::DebugConfig> for DebugConfig {
         }
     }
 }
-

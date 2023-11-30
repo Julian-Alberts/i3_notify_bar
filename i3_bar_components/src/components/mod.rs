@@ -12,7 +12,7 @@ use log::debug;
 pub use padding::Padding;
 pub use progress_bar::ProgressBar;
 
-use std::{sync::Mutex, io::Write};
+use std::{io::Write, sync::Mutex};
 
 use crate::property::Properties;
 
@@ -29,12 +29,12 @@ impl BaseComponent {
     pub fn serialize_cache(&self, write: &mut impl Write) -> std::io::Result<()> {
         let properties = &self.properties;
         let block = match serde_json::to_vec(properties) {
-                Ok(b) => b,
-                Err(_) => {
-                    debug!("Could not serialize block {:#?}", properties);
-                    todo!("return error");
-                }
-            };
+            Ok(b) => b,
+            Err(_) => {
+                debug!("Could not serialize block {:#?}", properties);
+                todo!("return error");
+            }
+        };
         write.write_all(block.as_slice())
     }
 
@@ -91,8 +91,6 @@ impl BaseComponent {
 
 impl From<Properties> for BaseComponent {
     fn from(block: Properties) -> Self {
-        Self {
-            properties: block,
-        }
+        Self { properties: block }
     }
 }

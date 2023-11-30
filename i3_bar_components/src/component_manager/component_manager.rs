@@ -82,8 +82,7 @@ impl ComponentManager {
     fn build_json(&mut self) -> std::io::Result<()> {
         let write = &mut self.out_writer.lock();
         write.write_all(&[b'['])?;
-        self
-            .get_layer()
+        self.get_layer()
             .iter()
             .fold(Vec::new(), |mut blocks, c| {
                 c.collect_base_components(&mut blocks);

@@ -11,7 +11,8 @@ use notify_server::{notification::Action, CloseReason};
 
 use crate::{
     icons,
-    notification_bar::{NotificationData, NotificationManager}, rule::Style,
+    notification_bar::{NotificationData, NotificationManager},
+    rule::Style,
 };
 
 use super::action_bar::ActionBar;
@@ -38,7 +39,7 @@ impl NotificationComponent {
     ) -> NotificationComponent {
         let close_timer = match nd.expire_timeout {
             -1 => None,
-            _ => Some(create_timer(nd.style.as_slice(), nd.expire_timeout as u64))
+            _ => Some(create_timer(nd.style.as_slice(), nd.expire_timeout as u64)),
         };
 
         let animated_notification_text =
@@ -116,7 +117,9 @@ impl NotificationComponent {
 impl Component for NotificationComponent {
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
         self.label.collect_base_components(base_components);
-        self.close_timer.as_ref().map(|t| t.collect_base_components(base_components));
+        self.close_timer
+            .as_ref()
+            .map(|t| t.collect_base_components(base_components));
         self.right_padding.collect_base_components(base_components);
         self.close_button.collect_base_components(base_components);
         self.right_padding.collect_base_components(base_components)
@@ -127,8 +130,11 @@ impl Component for NotificationComponent {
         base_components: &mut Vec<&'a mut BaseComponent>,
     ) {
         self.label.collect_base_components_mut(base_components);
-        self.close_timer.as_mut().map(|t| t.collect_base_components_mut(base_components));
-        self.close_button.collect_base_components_mut(base_components);
+        self.close_timer
+            .as_mut()
+            .map(|t| t.collect_base_components_mut(base_components));
+        self.close_button
+            .collect_base_components_mut(base_components);
         self.right_padding
             .collect_base_components_mut(base_components)
     }
@@ -136,8 +142,15 @@ impl Component for NotificationComponent {
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
         match ce.get_button() {
             // Button clicked
-            1 if self.close_button.get_base_component().get_properties().instance == ce.get_instance() => 
-                self.on_close_button_click(),
+            1 if self
+                .close_button
+                .get_base_component()
+                .get_properties()
+                .instance
+                == ce.get_instance() =>
+            {
+                self.on_close_button_click()
+            }
             // Notification clicked
             1 => self.on_notification_click(),
             // Notification right click
@@ -147,7 +160,12 @@ impl Component for NotificationComponent {
     }
 
     fn update(&mut self, dt: f64) {
-        if self.close_timer.as_ref().map(|t| t.is_finished()).unwrap_or(false) {
+        if self
+            .close_timer
+            .as_ref()
+            .map(|t| t.is_finished())
+            .unwrap_or(false)
+        {
             match self.notification_manager.lock() {
                 Ok(nm) => nm,
                 Err(_) => {

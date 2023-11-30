@@ -70,7 +70,12 @@ impl NotificationManager {
             notification_template_data
         );
 
-        if *self.minimum_urgency.lock().expect("Could not access urgency") > notification.urgency {
+        if *self
+            .minimum_urgency
+            .lock()
+            .expect("Could not access urgency")
+            > notification.urgency
+        {
             return;
         }
 
@@ -145,7 +150,7 @@ impl NotificationManager {
     pub fn action_invoked(&mut self, id: u32, action: &str) {
         async_std::task::block_on(self.notify_server.action_invoked(id, action)).ok();
     }
-    
+
     //TODO Rewrite as async
     pub fn notification_closed(&mut self, id: u32, reason: &CloseReason) {
         async_std::task::block_on(self.notify_server.notification_closed(id, reason)).ok();

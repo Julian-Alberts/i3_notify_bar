@@ -74,7 +74,7 @@ fn init_template_manager() -> MiniTemplate {
 #[mini_template::macros::create_modifier]
 fn date_modifier(time: i64, format: Option<&str>) -> String {
     let LocalResult::Single(time) = chrono::Local.timestamp_opt(time, 0) else {
-        return format!("Error while reading time UNIX time <{time}>")
+        return format!("Error while reading time UNIX time <{time}>");
     };
     if let Some(fmt) = format {
         time.format(fmt).to_string()

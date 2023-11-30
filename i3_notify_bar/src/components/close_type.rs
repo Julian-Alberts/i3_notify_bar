@@ -1,9 +1,6 @@
 use i3_bar_components::component_manager::ManageComponents;
 use i3_bar_components::{
-    components::{
-        prelude::Component,
-        BaseComponent, Button, ProgressBar,
-    },
+    components::{prelude::Component, BaseComponent, Button, ProgressBar},
     protocol::ClickEvent,
 };
 
@@ -19,7 +16,9 @@ impl Component for CloseType {
     }
 
     fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
-        self.timer.as_ref().map(|t| t.collect_base_components(base_components));
+        self.timer
+            .as_ref()
+            .map(|t| t.collect_base_components(base_components));
         self.button.collect_base_components(base_components);
     }
 
@@ -27,7 +26,9 @@ impl Component for CloseType {
         &'a mut self,
         base_components: &mut Vec<&'a mut BaseComponent>,
     ) {
-        self.timer.as_mut().map(|t| t.collect_base_components_mut(base_components));
+        self.timer
+            .as_mut()
+            .map(|t| t.collect_base_components_mut(base_components));
         self.button.collect_base_components_mut(base_components);
     }
 
@@ -40,4 +41,3 @@ impl Component for CloseType {
         None
     }
 }
-

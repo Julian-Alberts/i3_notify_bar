@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::{env, path::{PathBuf, Path}};
 
 use log::info;
 
@@ -13,15 +13,15 @@ fn home_dir() -> Option<String> {
 }
 
 pub struct PathManager {
-    log_file: Option<String>,
-    config_file: Option<String>,
-    emoji_file: Option<String>,
+    log_file: Option<PathBuf>,
+    config_file: Option<PathBuf>,
+    emoji_file: Option<PathBuf>,
 }
 
 impl Default for PathManager {
     fn default() -> Self {
         let home_dir = match home_dir() {
-            Some(h) => h,
+            Some(h) => PathBuf::from(h),
             None => {
                 return PathManager {
                     config_file: None,
@@ -30,45 +30,41 @@ impl Default for PathManager {
                 }
             }
         };
-        let mut log_file = PathBuf::from(home_dir.clone());
-        log_file.push(".config/i3_notify_bar/log");
 
-        let mut config_file = PathBuf::from(home_dir.clone());
-        config_file.push(".config/i3_notify_bar/config");
-
-        let mut emoji_file = PathBuf::from(home_dir);
-        emoji_file.push(".config/i3_notify_bar/emojis");
+        let log_file = home_dir.join(".config/i3_notify_bar/log");
+        let config_file = home_dir.join(".config/i3_notify_bar/config");
+        let emoji_file = home_dir.join(".config/i3_notify_bar/emojis");
 
         PathManager {
-            log_file: log_file.to_str().map(str::to_owned),
-            config_file: config_file.to_str().map(str::to_owned),
-            emoji_file: emoji_file.to_str().map(str::to_owned),
+            log_file: Some(log_file),
+            config_file: Some(config_file),
+            emoji_file: Some(emoji_file),
         }
     }
 }
 
 impl PathManager {
-    pub fn set_log_file(&mut self, file: String) {
+    pub fn set_log_file(&mut self, file: PathBuf) {
         self.log_file = Some(file);
     }
 
-    pub fn log_file(&self) -> &Option<String> {
-        &self.log_file
+    pub fn log_file(&self) -> Option<&Path> {
+        self.log_file.as_deref()
     }
 
-    pub fn set_config_file(&mut self, file: String) {
+    pub fn set_config_file(&mut self, file: PathBuf) {
         self.config_file = Some(file);
     }
 
-    pub fn config_file(&self) -> &Option<String> {
-        &self.config_file
+    pub fn config_file(&self) -> Option<&Path> {
+        self.config_file.as_deref()
     }
 
-    pub fn set_emoji_file(&mut self, file: String) {
+    pub fn set_emoji_file(&mut self, file: PathBuf) {
         self.emoji_file = Some(file)
     }
 
-    pub fn emoji_file(&self) -> &Option<String> {
-        &self.emoji_file
+    pub fn emoji_file(&self) -> Option<&Path> {
+        self.emoji_file.as_deref()
     }
 }

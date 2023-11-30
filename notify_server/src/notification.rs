@@ -1,4 +1,4 @@
-use std::{str::FromStr};
+use std::str::FromStr;
 use zbus::zvariant::Value;
 
 #[derive(Debug, Clone, PartialEq, jbe::Builder)]
@@ -46,7 +46,7 @@ impl From<Value<'_>> for Urgency {
     fn from(value: Value) -> Self {
         match value {
             Value::U8(v) => v.into(),
-            _ => Default::default()
+            _ => Default::default(),
         }
     }
 }
