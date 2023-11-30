@@ -10,7 +10,6 @@ mod rule;
 mod template;
 
 use args::Args;
-use clap::Parser;
 use components::{notification_id_to_notification_compnent_name, NotificationComponent};
 use emoji::EmojiMode;
 use i3_bar_components::{
@@ -45,7 +44,7 @@ async fn main() {
         animation_chars_per_second,
         config_file,
         command,
-    } = Args::parse();
+    } = args::load();
 
     if let Some(file) = config_file {
         path_manager.set_config_file(file)
@@ -67,14 +66,14 @@ async fn main() {
     drop(path_manager);
 
     match command {
-        Some(args::Command::Run) | None => run(
+        args::Command::Run => run(
             config,
             emoji_mode,
             max_text_length,
             animation_chars_per_second,
             refresh_rate,
         ),
-        Some(args::Command::DebugConfig(dc)) => debug_config::debug_config(&config, emoji_mode, dc),
+        args::Command::DebugConfig(dc) => debug_config::debug_config(&config, emoji_mode, dc),
     }
 }
 

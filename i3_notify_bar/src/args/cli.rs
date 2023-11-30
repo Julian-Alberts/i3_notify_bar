@@ -4,7 +4,7 @@ use notify_server::notification::Urgency;
 use emoji::EmojiMode;
 
 #[derive(clap::Parser)]
-#[clap(version = include_str!("../version.txt"), author = "Julian Alberts")]
+#[clap(version = include_str!("../../version.txt"), author = "Julian Alberts")]
 pub struct Args {
     /// "Allowed values: "ignore", "remove", "replace"
     #[cfg(emoji_mode_replace)]
