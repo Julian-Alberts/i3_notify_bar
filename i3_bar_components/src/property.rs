@@ -1,81 +1,29 @@
-use serde::ser::SerializeStruct;
-
-macro_rules! serialize_field {
-    ($field_name: expr => $name: literal, $state: ident) => {
-        if let Some(value) = &$field_name {
-            $state.serialize_field($name, value)?;
-        }
-    };
-    ($field_name: expr => $name: literal?, $state: ident) => {
-        $state.serialize_field($name, &$field_name)?;
-    };
-}
-
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, serde::Serialize)]
 pub struct Properties {
+    #[serde(flatten)]
     pub text: Text,
+    #[serde(flatten)]
     pub color: Color,
+    #[serde(flatten)]
     pub border: Border,
+    #[serde(flatten)]
     pub separator: Separator,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub min_width: Option<usize>,
     pub align: Align,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub instance: Option<u32>,
     pub urgent: bool,
     pub markup: Markup,
 }
 
-impl serde::Serialize for Properties {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("Properties", 17)?;
-
-        state.serialize_field("full_text", &self.text.full)?;
-        serialize_field!(self.text.short => "short_text", state);
-
-        serialize_field!(self.color.text => "color", state);
-        serialize_field!(self.color.background => "background", state);
-
-        serialize_field!(self.border.color => "border", state);
-        serialize_field!(self.border.top => "border_top", state);
-        serialize_field!(self.border.right => "border_right", state);
-        serialize_field!(self.border.bottom => "border_bottom", state);
-        serialize_field!(self.border.left => "border_left", state);
-
-        serialize_field!(self.separator.show => "separator"?, state);
-        serialize_field!(self.separator.block_width => "separator_block_width", state);
-
-        serialize_field!(self.min_width => "min_width", state);
-
-        match self.align {
-            Align::Left => {}
-            Align::Center => state.serialize_field("align", "center")?,
-            Align::Right => state.serialize_field("align", "right")?,
-        }
-
-        serialize_field!(self.name => "name", state);
-        serialize_field!(self.instance => "instance", state);
-
-        if let Some(value) = &self.instance {
-            state.serialize_field("instance", &value.to_string())?;
-        }
-
-        serialize_field!(self.urgent => "urgent"? ,state);
-
-        match self.markup {
-            Markup::Pango => state.serialize_field("markup", "pango")?,
-            Markup::None => {}
-        }
-
-        state.end()
-    }
-}
-
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, serde::Serialize)]
 pub struct Text {
+    #[serde(rename = "full_text")]
     pub full: String,
+    #[serde(rename = "short_text", skip_serializing_if = "Option::is_none")]
     pub short: Option<String>,
 }
 
@@ -85,18 +33,25 @@ impl From<String> for Text {
     }
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, serde::Serialize)]
 pub struct Color {
+    #[serde(rename = "color", skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    #[serde(rename = "background", skip_serializing_if = "Option::is_none")]
     pub background: Option<String>,
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, serde::Serialize)]
 pub struct Border {
+    #[serde(rename = "border", skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
+    #[serde(rename = "border_top", skip_serializing_if = "Option::is_none")]
     pub top: Option<usize>,
+    #[serde(rename = "border_right", skip_serializing_if = "Option::is_none")]
     pub right: Option<usize>,
+    #[serde(rename = "border_bottom", skip_serializing_if = "Option::is_none")]
     pub bottom: Option<usize>,
+    #[serde(rename = "border_left", skip_serializing_if = "Option::is_none")]
     pub left: Option<usize>,
 }
 
@@ -124,33 +79,33 @@ impl From<usize> for Border {
     }
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, serde::Serialize)]
 pub struct Separator {
+    #[serde(rename = "separator")]
     pub show: bool,
+    #[serde(
+        rename = "separator_block_width",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub block_width: Option<usize>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default, serde::Serialize)]
 pub enum Align {
+    #[default]
+    #[serde(rename = "left")]
     Left,
+    #[serde(rename = "center")]
     Center,
+    #[serde(rename = "right")]
     Right,
 }
 
-impl Default for Align {
-    fn default() -> Self {
-        Self::Left
-    }
-}
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq, serde::Serialize)]
 pub enum Markup {
+    #[serde(rename = "pango")]
     Pango,
+    #[default]
+    #[serde(rename = "none")]
     None,
-}
-
-impl Default for Markup {
-    fn default() -> Self {
-        Self::None
-    }
 }
