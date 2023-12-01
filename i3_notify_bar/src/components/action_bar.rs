@@ -79,14 +79,14 @@ impl Component for ActionBar {
                 .get_base_component()
                 .get_properties()
                 .instance
+                .as_deref()
         {
             mc.pop_layer()
         }
 
-        let button = self
-            .buttons
-            .iter()
-            .find(|b| b.get_base_component().get_properties().instance == event.get_instance());
+        let button = self.buttons.iter().find(|b| {
+            b.get_base_component().get_properties().instance.as_deref() == event.get_instance()
+        });
 
         if let Some(button) = button {
             self.notification_manager

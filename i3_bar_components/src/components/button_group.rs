@@ -76,7 +76,13 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
     fn event(&mut self, _: &mut dyn ManageComponents, event: &ClickEvent) {
         let buttons = &mut self.buttons;
         let selected = buttons.iter_mut().find_map(|button| {
-            if button.get_base_component().get_properties().instance == event.get_instance() {
+            if button
+                .get_base_component()
+                .get_properties()
+                .instance
+                .as_deref()
+                == event.get_instance()
+            {
                 return Some(button.key);
             }
             None

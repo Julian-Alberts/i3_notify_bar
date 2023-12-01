@@ -147,6 +147,7 @@ impl Component for NotificationComponent {
                 .get_base_component()
                 .get_properties()
                 .instance
+                .as_deref()
                 == ce.get_instance() =>
             {
                 self.on_close_button_click()

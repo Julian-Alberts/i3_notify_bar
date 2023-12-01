@@ -69,8 +69,8 @@ impl ClickEvent {
         &self.name
     }
 
-    pub fn get_instance(&self) -> Option<u32> {
-        self.instance.as_ref()?.parse().ok()
+    pub fn get_instance(&self) -> Option<&str> {
+        self.instance.as_deref()
     }
 
     pub fn get_button(&self) -> usize {

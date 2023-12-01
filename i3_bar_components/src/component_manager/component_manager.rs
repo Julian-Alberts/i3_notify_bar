@@ -66,7 +66,7 @@ impl ComponentManager {
                 trace!("Blocks: {:?}", blocks);
                 blocks
                     .iter()
-                    .any(|b| b.get_properties().instance == element_id)
+                    .any(|b| b.get_properties().instance.as_deref() == element_id)
             });
 
             if let Some(comp) = comp {
@@ -167,7 +167,7 @@ impl ManageComponents for ComponentManager {
         comp.collect_base_components_mut(&mut base_components);
 
         base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id);
+            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
             self.next_instance_id += 1;
         });
 
@@ -179,7 +179,7 @@ impl ManageComponents for ComponentManager {
         comp.collect_base_components_mut(&mut base_components);
 
         base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id);
+            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
             self.next_instance_id += 1;
         });
 
@@ -202,7 +202,7 @@ impl ManageComponents for ComponentManager {
         comp.collect_base_components_mut(&mut base_components);
 
         base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id);
+            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
             self.next_instance_id += 1;
         });
 
