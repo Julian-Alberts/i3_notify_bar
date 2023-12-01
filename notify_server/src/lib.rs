@@ -7,8 +7,18 @@ pub use crate::notify_server::{Message as NotificationMessage, NotifyServer};
 pub use events::Event;
 pub use observer::Observer;
 
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NotificationId(u32);
+
 pub struct Options {
     notify: &'static dyn Fn(&mut notification::Notification),
+}
+
+impl From<u32> for NotificationId {
+    fn from(id: u32) -> NotificationId {
+        NotificationId(id)
+    }
 }
 
 impl Options {

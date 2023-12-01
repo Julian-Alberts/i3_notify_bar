@@ -58,7 +58,7 @@ impl NotifyServerInterface {
         event_system.set_observer(observer);
     }
 
-    // Calling this method in tests could break the notification service of operating systems.
+    // Calling this method in tests could break the notification service of the current operating system.
     #[cfg(not(test))]
     pub fn run(self) -> zbus::Result<Connection> {
         ConnectionBuilder::session()?
@@ -137,11 +137,11 @@ impl NotifyServerInterface {
         self.event_system
             .lock()
             .unwrap()
-            .notify(&Event::Close(id, CloseReason::Undeined))
+            .notify(&Event::Close(id.into(), CloseReason::Undefined))
     }
 
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
-        ("test", "Julian Alberts", "0.1", "1.2")
+        ("i3_notify_bar_notification_server", "Julian Alberts", "0.1", "1.2")
     }
 
     #[dbus_interface(signal)]
@@ -173,7 +173,7 @@ pub enum CloseReason {
     Expired = 1,
     Dismissed = 2,
     Closed = 3,
-    Undeined = 4,
+    Undefined = 4,
 }
 
 pub enum Message {

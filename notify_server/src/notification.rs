@@ -65,31 +65,10 @@ impl FromStr for Urgency {
 }
 
 impl PartialOrd for Urgency {
-    fn ge(&self, other: &Self) -> bool {
-        (*self as usize) >= *other as usize
-    }
-
-    fn gt(&self, other: &Self) -> bool {
-        (*self as usize) > *other as usize
-    }
-
-    fn le(&self, other: &Self) -> bool {
-        (*self as usize) <= *other as usize
-    }
-
-    fn lt(&self, other: &Self) -> bool {
-        (*self as usize) < *other as usize
-    }
-
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let result = if self > other {
-            std::cmp::Ordering::Greater
-        } else if self < other {
-            std::cmp::Ordering::Less
-        } else {
-            std::cmp::Ordering::Equal
-        };
-        Some(result)
+        let self_int = *self as usize;
+        let other_int = *other as usize;
+        self_int.partial_cmp(&other_int)
     }
 }
 
