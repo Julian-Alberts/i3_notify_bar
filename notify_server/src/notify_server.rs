@@ -8,7 +8,7 @@ use zbus::zvariant::Value;
 use zbus::{dbus_interface, SignalContext};
 
 use crate::notification::NotificationBuilder;
-use crate::Event;
+use crate::{Event, NotificationId};
 
 pub struct NotifyServer {
     interface_ref: InterfaceRef<NotifyServerInterface>,
@@ -33,12 +33,20 @@ impl NotifyServer {
         self.interface_ref.get_mut().add_observer(observer)
     }
 
-    pub async fn action_invoked(&self, id: u32, action: &str) -> zbus::Result<()> {
+    pub async fn action_invoked(
+        &self,
+        NotificationId(id): NotificationId,
+        action: &str,
+    ) -> zbus::Result<()> {
         let context = self.interface_ref.signal_context();
         NotifyServerInterface::action_invoked(context, id, action).await
     }
 
-    pub async fn notification_closed(&mut self, id: u32, reason: &CloseReason) -> zbus::Result<()> {
+    pub async fn notification_closed(
+        &mut self,
+        NotificationId(id): NotificationId,
+        reason: &CloseReason,
+    ) -> zbus::Result<()> {
         let context = self.interface_ref.signal_context();
         NotifyServerInterface::notification_closed(context, id, *reason as u32).await
     }
@@ -106,7 +114,7 @@ impl NotifyServerInterface {
             }
             id => id,
         };
-        builder.set_id(id);
+        builder.set_id(id.into());
         hints.into_iter().for_each(|(key, hint)| {
             if &key[..] == "urgency" {
                 builder.set_urgency(hint.into())
@@ -141,7 +149,12 @@ impl NotifyServerInterface {
     }
 
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
-        ("i3_notify_bar_notification_server", "Julian Alberts", "0.1", "1.2")
+        (
+            "i3_notify_bar_notification_server",
+            "Julian Alberts",
+            "0.1",
+            "1.2",
+        )
     }
 
     #[dbus_interface(signal)]

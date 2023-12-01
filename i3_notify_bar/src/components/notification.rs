@@ -7,7 +7,7 @@ use i3_bar_components::{
     ManageComponents,
 };
 use log::debug;
-use notify_server::{notification::Action, CloseReason};
+use notify_server::{notification::Action, CloseReason, NotificationId};
 
 use crate::{
     icons,
@@ -19,7 +19,7 @@ use super::action_bar::ActionBar;
 
 pub struct NotificationComponent {
     label: Label,
-    id: u32,
+    id: NotificationId,
     close_button: Button,
     close_timer: Option<ProgressBar>,
     name: String,
@@ -206,7 +206,7 @@ fn create_timer(style: &[Style], expire: u64) -> ProgressBar {
     t
 }
 
-pub fn notification_id_to_notification_compnent_name(id: u32) -> String {
+pub fn notification_id_to_notification_compnent_name(id: NotificationId) -> String {
     format!("i3_notify_bar_notification_component:{}", id)
 }
 

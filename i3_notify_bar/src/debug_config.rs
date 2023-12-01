@@ -22,7 +22,7 @@ pub fn debug_config(config: &[Definition], emoji_mode: EmojiMode, debug_config: 
 
     let notification = NotificationBuilder::default()
         .with_app_name(app_name)
-        .with_id(id)
+        .with_id(id.into())
         .with_app_icon(app_icon)
         .with_summary(summary)
         .with_body(body)

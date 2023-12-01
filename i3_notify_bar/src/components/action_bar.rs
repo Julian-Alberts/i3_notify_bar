@@ -10,14 +10,14 @@ use crate::{icons, notification_bar::NotificationManager};
 pub struct ActionBar {
     buttons: Vec<ActionButton>,
     close_btn: Button,
-    notification_id: u32,
+    notification_id: notify_server::NotificationId,
     notification_manager: Arc<Mutex<NotificationManager>>,
 }
 
 impl ActionBar {
     pub fn new(
         actions: &[Action],
-        notification_id: u32,
+        notification_id: notify_server::NotificationId,
         notification_manager: Arc<Mutex<NotificationManager>>,
     ) -> Self {
         let buttons = actions

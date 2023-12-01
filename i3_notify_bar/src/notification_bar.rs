@@ -11,6 +11,7 @@ use mini_template::macros::ValueContainer;
 use notify_server::notification::Action as NotificationAction;
 use notify_server::notification::Urgency;
 use notify_server::CloseReason;
+use notify_server::NotificationId;
 use notify_server::NotifyServer;
 use notify_server::{notification::Notification, Event, Observer};
 use serde::Serialize;
@@ -128,7 +129,7 @@ impl NotificationManager {
         std::mem::take(&mut self.events)
     }
 
-    pub fn remove(&mut self, id: u32, close_reason: &CloseReason) {
+    pub fn remove(&mut self, id: NotificationId, close_reason: &CloseReason) {
         let filtered_notifications = self
             .notifications
             .iter()
@@ -147,12 +148,12 @@ impl NotificationManager {
     }
 
     //TODO Rewrite as async
-    pub fn action_invoked(&mut self, id: u32, action: &str) {
+    pub fn action_invoked(&mut self, id: notify_server::NotificationId, action: &str) {
         async_std::task::block_on(self.notify_server.action_invoked(id, action)).ok();
     }
 
     //TODO Rewrite as async
-    pub fn notification_closed(&mut self, id: u32, reason: &CloseReason) {
+    pub fn notification_closed(&mut self, id: notify_server::NotificationId, reason: &CloseReason) {
         async_std::task::block_on(self.notify_server.notification_closed(id, reason)).ok();
     }
 
@@ -270,14 +271,14 @@ pub fn execute_rules_inner(
 
 #[derive(Debug)]
 pub enum NotificationEvent {
-    Remove(u32),
+    Remove(notify_server::NotificationId),
     Add(Arc<RwLock<NotificationData>>),
     Update(Arc<RwLock<NotificationData>>),
 }
 
 #[derive(Debug)]
 pub struct NotificationData {
-    pub id: u32,
+    pub id: notify_server::NotificationId,
     pub expire_timeout: i32,
     pub icon: char,
     pub text: String,

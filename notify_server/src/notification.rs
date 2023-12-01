@@ -1,12 +1,14 @@
 use std::str::FromStr;
 use zbus::zvariant::Value;
 
+use crate::NotificationId;
+
 #[derive(Debug, Clone, PartialEq, jbe::Builder)]
 pub struct Notification {
     #[builder({default: String::default()})]
     pub app_name: String,
-    #[builder({default: 0})]
-    pub id: u32,
+    #[builder({default: 0.into()})]
+    pub id: NotificationId,
     #[builder({default: String::default()})]
     pub app_icon: String,
     #[builder({default: String::default()})]

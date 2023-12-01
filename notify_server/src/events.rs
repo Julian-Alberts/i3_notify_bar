@@ -1,4 +1,4 @@
-use crate::{NotificationId, notification::Notification, CloseReason};
+use crate::{notification::Notification, CloseReason, NotificationId};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
