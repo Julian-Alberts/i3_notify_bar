@@ -115,12 +115,10 @@ pub enum Style {
 }
 
 impl Style {
-    pub fn apply(&self, base_component: &mut i3_bar_components::components::BaseComponent) {
+    pub fn apply(&self, base_component: &mut impl i3_bar_components::components::prelude::Color) {
         match self {
-            Style::Background(c) => {
-                base_component.get_properties_mut().color.background = Some(c.to_owned())
-            }
-            Style::Text(c) => base_component.get_properties_mut().color.text = Some(c.to_owned()),
+            Style::Background(c) => base_component.set_color_background(Some(c.to_owned())),
+            Style::Text(c) => base_component.set_color_text(Some(c.to_owned())),
         }
     }
 }
@@ -141,7 +139,7 @@ mod tests {
                 app_icon: "".to_owned(),
                 body: "".to_owned(),
                 expire_timeout: 0,
-                id: 0,
+                id: 0.into(),
                 summary: "".to_owned(),
                 urgency: notify_server::notification::Urgency::Normal,
             }

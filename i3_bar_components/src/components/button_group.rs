@@ -1,9 +1,9 @@
 use std::sync::{Arc, RwLock};
 
-use crate::{component_manager::ManageComponents, property::Color, protocol::ClickEvent};
+use crate::{component_manager::ManageComponents, property::Properties, protocol::ClickEvent};
 
 use super::{
-    prelude::{Component, Widget},
+    prelude::{Color, *},
     Button, Label,
 };
 
@@ -52,37 +52,13 @@ impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
 }
 
 impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
-    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a super::BaseComponent>) {
-        if let Some(description) = &self.description {
-            description.collect_base_components(base_components);
-        }
-        self.buttons
-            .iter()
-            .for_each(|b| b.collect_base_components(base_components))
-    }
-
-    fn collect_base_components_mut<'a>(
-        &'a mut self,
-        base_components: &mut Vec<&'a mut super::BaseComponent>,
-    ) {
-        if let Some(description) = &mut self.description {
-            description.collect_base_components_mut(base_components);
-        }
-        self.buttons
-            .iter_mut()
-            .for_each(|b| b.collect_base_components_mut(base_components))
-    }
-
     fn event(&mut self, _: &mut dyn ManageComponents, event: &ClickEvent) {
+        let Some(clicked_element) = event.get_instance() else {
+            return;
+        };
         let buttons = &mut self.buttons;
         let selected = buttons.iter_mut().find_map(|button| {
-            if button
-                .get_base_component()
-                .get_properties()
-                .instance
-                .as_deref()
-                == event.get_instance()
-            {
+            if button.instance() == clicked_element {
                 return Some(button.key);
             }
             None
@@ -93,15 +69,15 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
         }
     }
 
-    fn name(&self) -> Option<&str> {
-        self.name.as_ref().map(|name| &name[..])
-    }
-
     fn update(&mut self, dt: f64) {
         self.buttons.iter_mut().for_each(|btn| btn.update(dt));
         if let Some(description) = self.description.as_mut() {
             description.update(dt);
         }
+    }
+
+    fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
+        Box::new(self.buttons.iter().map(|b| b.all_properties()).flatten())
     }
 }
 
@@ -117,55 +93,35 @@ impl<K: Copy + PartialEq + 'static> GroupButton<K> {
     }
 
     fn deselect(&mut self) {
-        let properties = &mut self.button.get_base_component_mut().get_properties_mut();
-        let color = &mut properties.color;
-        *color = Color {
-            background: None,
-            text: color.background.clone(),
-        };
+        let color = self.button.color_mut();
+        std::mem::swap(&mut color.text, &mut color.background);
     }
 
     fn select(&mut self) {
-        let properties = &mut self.button.get_base_component_mut().get_properties_mut();
-        let color = &mut properties.color;
-        *color = Color {
-            background: color.text.clone(),
-            text: Some(String::from("#333333")),
-        };
+        let color = self.button.color_mut();
+        std::mem::swap(&mut color.text, &mut color.background);
+    }
+}
+
+impl<K: Copy + PartialEq + 'static> SimpleComponent for GroupButton<K> {
+    fn properties_mut(&mut self) -> &mut crate::property::Properties {
+        self.button.properties_mut()
+    }
+    fn properties(&self) -> &crate::property::Properties {
+        self.button.properties()
     }
 }
 
 impl<K: Copy + PartialEq + 'static> Component for GroupButton<K> {
-    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a super::BaseComponent>) {
-        self.button.collect_base_components(base_components)
-    }
-
-    fn collect_base_components_mut<'a>(
-        &'a mut self,
-        base_components: &mut Vec<&'a mut super::BaseComponent>,
-    ) {
-        self.button.collect_base_components_mut(base_components)
-    }
-
     fn event(&mut self, cm: &mut dyn ManageComponents, event: &ClickEvent) {
         self.button.event(cm, event)
-    }
-
-    fn name(&self) -> Option<&str> {
-        self.button.name()
     }
 
     fn update(&mut self, dt: f64) {
         self.button.update(dt)
     }
-}
 
-impl<K: Copy + PartialEq + 'static> Widget for GroupButton<K> {
-    fn get_base_component(&self) -> &super::BaseComponent {
-        self.button.get_base_component()
-    }
-
-    fn get_base_component_mut(&mut self) -> &mut super::BaseComponent {
-        self.button.get_base_component_mut()
+    fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
+        Box::new([self.button.properties()].into_iter())
     }
 }

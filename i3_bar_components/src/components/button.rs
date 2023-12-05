@@ -36,45 +36,29 @@ impl Button {
     }
 }
 
+impl SimpleComponent for Button {
+    fn properties(&self) -> &crate::property::Properties {
+        self.base_component.properties()
+    }
+    fn properties_mut(&mut self) -> &mut crate::property::Properties {
+        self.base_component.properties_mut()
+    }
+}
+
 impl Component for Button {
     fn update(&mut self, dt: f64) {
         self.text.update(dt);
-        self.base_component.get_properties_mut().text.full = self.text.to_component_text();
+        self.set_full(self.text.to_component_text());
     }
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
         let self_ptr: *mut _ = self;
         let self_ref = unsafe { self_ptr.as_mut().unwrap() };
         (self.on_click)(self_ref, mc, ce);
     }
-
-    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
-        base_components.push(&self.base_component)
-    }
-
-    fn collect_base_components_mut<'a>(
-        &'a mut self,
-        base_components: &mut Vec<&'a mut BaseComponent>,
-    ) {
-        base_components.push(&mut self.base_component);
-    }
-
-    fn name(&self) -> Option<&str> {
-        self.base_component.get_name()
+    fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
+        Box::new([self.properties()].into_iter())
     }
 }
-
-impl Widget for Button {
-    fn get_base_component(&self) -> &BaseComponent {
-        &self.base_component
-    }
-
-    fn get_base_component_mut(&mut self) -> &mut BaseComponent {
-        &mut self.base_component
-    }
-}
-
-impl Seperator for Button {}
-impl SeperatorWidth for Button {}
 
 #[cfg(test)]
 mod tests {
@@ -87,7 +71,7 @@ mod tests {
     fn on_button_click() {
         let mut button = Button::new(String::from("test").into());
         button.set_on_click(|btn, _, _| {
-            btn.get_base_component_mut().get_properties_mut().name = Some(String::from("clicked"));
+            btn.properties_mut().name = Some(String::from("clicked"));
         });
 
         let ce: ClickEvent = serde_json::from_str(

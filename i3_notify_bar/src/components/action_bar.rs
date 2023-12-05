@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use i3_bar_components::components::{
-    prelude::{Component, Widget},
+    prelude::{Component, SimpleComponent},
     Button,
 };
 use notify_server::notification::Action;
@@ -44,24 +44,16 @@ impl ActionBar {
 }
 
 impl Component for ActionBar {
-    fn collect_base_components<'a>(
+    fn all_properties<'a>(
         &'a self,
-        base_components: &mut Vec<&'a i3_bar_components::components::BaseComponent>,
-    ) {
-        self.buttons
-            .iter()
-            .for_each(|b| b.collect_base_components(base_components));
-        self.close_btn.collect_base_components(base_components);
-    }
-
-    fn collect_base_components_mut<'a>(
-        &'a mut self,
-        base_components: &mut Vec<&'a mut i3_bar_components::components::BaseComponent>,
-    ) {
-        self.buttons
-            .iter_mut()
-            .for_each(|b| b.collect_base_components_mut(base_components));
-        self.close_btn.collect_base_components_mut(base_components);
+    ) -> Box<dyn Iterator<Item = &i3_bar_components::property::Properties> + 'a> {
+        Box::new(
+            self.buttons
+                .iter()
+                .map(Component::all_properties)
+                .flatten()
+                .chain(self.close_btn.all_properties()),
+        )
     }
 
     fn event(
@@ -69,24 +61,18 @@ impl Component for ActionBar {
         mc: &mut dyn i3_bar_components::ManageComponents,
         event: &i3_bar_components::protocol::ClickEvent,
     ) {
+        let Some(event_element) = event.get_instance() else {
+            return;
+        };
         if event.get_button() != 1 {
             return;
         }
 
-        if event.get_instance()
-            == self
-                .close_btn
-                .get_base_component()
-                .get_properties()
-                .instance
-                .as_deref()
-        {
+        if self.close_btn.instance() == event_element {
             mc.pop_layer()
         }
 
-        let button = self.buttons.iter().find(|b| {
-            b.get_base_component().get_properties().instance.as_deref() == event.get_instance()
-        });
+        let button = self.buttons.iter().find(|b| b.instance() == event_element);
 
         if let Some(button) = button {
             self.notification_manager
@@ -94,10 +80,6 @@ impl Component for ActionBar {
                 .expect("Could not lock notification bar")
                 .action_invoked(self.notification_id, &button.key)
         }
-    }
-
-    fn name(&self) -> Option<&str> {
-        Some("i3_notify_bar:action_bar")
     }
 
     fn update(&mut self, dt: f64) {
@@ -111,19 +93,20 @@ struct ActionButton {
     key: String,
 }
 
-impl Component for ActionButton {
-    fn collect_base_components<'a>(
-        &'a self,
-        base_components: &mut Vec<&'a i3_bar_components::components::BaseComponent>,
-    ) {
-        self.button.collect_base_components(base_components)
+impl SimpleComponent for ActionButton {
+    fn properties(&self) -> &i3_bar_components::property::Properties {
+        self.button.properties()
     }
+    fn properties_mut(&mut self) -> &mut i3_bar_components::property::Properties {
+        self.button.properties_mut()
+    }
+}
 
-    fn collect_base_components_mut<'a>(
-        &'a mut self,
-        base_components: &mut Vec<&'a mut i3_bar_components::components::BaseComponent>,
-    ) {
-        self.button.collect_base_components_mut(base_components)
+impl Component for ActionButton {
+    fn all_properties<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = &i3_bar_components::property::Properties> + 'a> {
+        Box::new([self.properties()].into_iter())
     }
 
     fn event(
@@ -133,19 +116,5 @@ impl Component for ActionButton {
     ) {
     }
 
-    fn name(&self) -> Option<&str> {
-        self.button.name()
-    }
-
     fn update(&mut self, _: f64) {}
-}
-
-impl Widget for ActionButton {
-    fn get_base_component(&self) -> &i3_bar_components::components::BaseComponent {
-        self.button.get_base_component()
-    }
-
-    fn get_base_component_mut(&mut self) -> &mut i3_bar_components::components::BaseComponent {
-        self.button.get_base_component_mut()
-    }
 }

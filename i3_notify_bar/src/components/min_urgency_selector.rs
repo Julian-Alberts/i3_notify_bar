@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use i3_bar_components::components::{prelude::Widget, Button, ButtonGroup, GroupButton, Label};
+use i3_bar_components::components::{Button, ButtonGroup, GroupButton, Label};
 
 use crate::notification_bar::MinimalUrgency;
 
@@ -50,10 +50,10 @@ struct ButtonConfig<'a> {
 
 impl<'a> From<&'a ButtonConfig<'a>> for Button {
     fn from(config: &'a ButtonConfig) -> Self {
+        use i3_bar_components::components::prelude::*;
         let mut button = Button::new(config.text.to_owned().into());
-        let properties = button.get_base_component_mut().get_properties_mut();
-        properties.color.text = Some(config.color.to_owned());
-        properties.border.color = Some(config.color.to_owned());
+        button.set_color_text(Some(config.color.to_owned()));
+        button.set_border_color(Some(config.color.to_owned()));
         button
     }
 }

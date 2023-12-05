@@ -14,7 +14,7 @@ use components::{notification_id_to_notification_compnent_name, NotificationComp
 use emoji::EmojiMode;
 use i3_bar_components::{
     component_manager::{ComponentManagerBuilder, ManageComponents},
-    components::Label,
+    components::{prelude::Urgent, Label},
     string::AnimatedString,
 };
 use log::{debug, error};
@@ -150,8 +150,8 @@ fn run(
                     "Removing notification {}",
                     notification_id_to_notification_compnent_name(*id)
                 );
-                component_manager
-                    .remove_by_name(&notification_id_to_notification_compnent_name(*id))
+                //component_manager
+                //    .remove_by_name(&notification_id_to_notification_compnent_name(*id))
             }
         });
 
@@ -184,7 +184,6 @@ fn read_config(config_file: Option<&Path>) -> Vec<crate::rule::Definition> {
 }
 
 fn print_error(data: String) -> ! {
-    use i3_bar_components::components::prelude::Component;
     let mut cm = ComponentManagerBuilder::new()
         .with_click_events(false)
         .build();
@@ -193,9 +192,7 @@ fn print_error(data: String) -> ! {
     let mut animated_data = AnimatedString::new(data);
     animated_data.set_max_width(50);
     let mut label = Label::new(animated_data.into());
-    let mut base_components = Vec::new();
-    label.collect_base_components_mut(&mut base_components);
-    base_components[0].get_properties_mut().urgent = true;
+    label.set_urgent(true);
     cm.add_component(Box::new(label));
     cm.update();
     loop {

@@ -5,11 +5,7 @@ mod notification;
 
 use std::sync::{Arc, Mutex, RwLock};
 
-use i3_bar_components::{
-    components::{Button, Padding},
-    protocol::ClickEvent,
-    ManageComponents,
-};
+use i3_bar_components::{components::Button, protocol::ClickEvent, ManageComponents};
 use log::debug;
 pub use min_urgency_selector::init;
 pub use notification::{notification_id_to_notification_compnent_name, NotificationComponent};
@@ -71,7 +67,6 @@ fn open_menu(
     });
     let group = min_urgency_selector::init(selected);
     mc.add_component(Box::new(close_all));
-    mc.add_component(Box::new(Padding::new(2)));
     mc.add_component(Box::new(group));
     mc.add_component(Box::new(menu_button_close()));
 }

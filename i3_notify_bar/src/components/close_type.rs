@@ -1,6 +1,6 @@
 use i3_bar_components::component_manager::ManageComponents;
 use i3_bar_components::{
-    components::{prelude::Component, BaseComponent, Button, ProgressBar},
+    components::{prelude::Component, Button, ProgressBar},
     protocol::ClickEvent,
 };
 
@@ -15,29 +15,22 @@ impl Component for CloseType {
         self.timer.as_mut().map(|t| t.update(dt));
     }
 
-    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
-        self.timer
-            .as_ref()
-            .map(|t| t.collect_base_components(base_components));
-        self.button.collect_base_components(base_components);
-    }
-
-    fn collect_base_components_mut<'a>(
-        &'a mut self,
-        base_components: &mut Vec<&'a mut BaseComponent>,
-    ) {
-        self.timer
-            .as_mut()
-            .map(|t| t.collect_base_components_mut(base_components));
-        self.button.collect_base_components_mut(base_components);
+    fn all_properties<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = &i3_bar_components::property::Properties> + 'a> {
+        Box::new(
+            [
+                self.timer.as_ref().map(Component::all_properties),
+                Some(self.button.all_properties()),
+            ]
+            .into_iter()
+            .filter_map(|a| a)
+            .flatten(),
+        )
     }
 
     fn event(&mut self, mc: &mut dyn ManageComponents, event: &ClickEvent) {
         self.timer.as_mut().map(|t| t.event(mc, event));
         self.button.event(mc, event);
-    }
-
-    fn name(&self) -> Option<&str> {
-        None
     }
 }

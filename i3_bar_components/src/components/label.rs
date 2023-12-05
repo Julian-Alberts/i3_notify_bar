@@ -22,39 +22,22 @@ impl Label {
     }
 }
 
+impl SimpleComponent for Label {
+    fn properties_mut(&mut self) -> &mut crate::property::Properties {
+        self.base_component.properties_mut()
+    }
+    fn properties(&self) -> &crate::property::Properties {
+        self.base_component.properties()
+    }
+}
+
 impl Component for Label {
     fn update(&mut self, dt: f64) {
         self.text.update(dt);
-        self.base_component.get_properties_mut().text.full = self.text.to_component_text()
+        self.set_full(self.text.to_component_text())
     }
     fn event(&mut self, _: &mut dyn ManageComponents, _: &ClickEvent) {}
-
-    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
-        base_components.push(&self.base_component)
-    }
-
-    fn collect_base_components_mut<'a>(
-        &'a mut self,
-        base_components: &mut Vec<&'a mut BaseComponent>,
-    ) {
-        base_components.push(&mut self.base_component)
-    }
-
-    fn name(&self) -> Option<&str> {
-        self.base_component.get_name()
+    fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
+        Box::new([self.properties()].into_iter())
     }
 }
-
-impl Widget for Label {
-    fn get_base_component(&self) -> &BaseComponent {
-        &self.base_component
-    }
-
-    fn get_base_component_mut(&mut self) -> &mut BaseComponent {
-        &mut self.base_component
-    }
-}
-
-impl Seperator for Label {}
-
-impl SeperatorWidth for Label {}

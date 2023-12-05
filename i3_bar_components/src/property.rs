@@ -1,3 +1,6 @@
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+pub struct Instance(usize);
+
 #[derive(Default, Debug, PartialEq, serde::Serialize)]
 pub struct Properties {
     #[serde(flatten)]
@@ -13,8 +16,7 @@ pub struct Properties {
     pub align: Align,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub instance: Option<String>,
+    pub instance: Instance,
     pub urgent: bool,
     pub markup: Markup,
 }
@@ -90,7 +92,7 @@ pub struct Separator {
     pub block_width: Option<usize>,
 }
 
-#[derive(Debug, PartialEq, Default, serde::Serialize)]
+#[derive(Debug, PartialEq, Clone, Copy, Default, serde::Serialize)]
 pub enum Align {
     #[default]
     #[serde(rename = "left")]
@@ -101,11 +103,25 @@ pub enum Align {
     Right,
 }
 
-#[derive(Debug, Default, PartialEq, serde::Serialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, serde::Serialize)]
 pub enum Markup {
     #[serde(rename = "pango")]
     Pango,
     #[default]
     #[serde(rename = "none")]
     None,
+}
+
+impl Default for Instance {
+    fn default() -> Self {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static INSTANCE: AtomicUsize = AtomicUsize::new(0);
+        Self(INSTANCE.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+impl PartialEq<usize> for Instance {
+    fn eq(&self, other: &usize) -> bool {
+        self.0 == *other
+    }
 }

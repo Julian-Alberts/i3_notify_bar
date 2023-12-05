@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use i3_bar_components::{
-    components::{prelude::*, BaseComponent, Button, Label, Padding, ProgressBar},
+    components::{prelude::*, BaseComponent, Button, Label, ProgressBar},
     protocol::ClickEvent,
     string::{AnimatedString, PartiallyAnimatedString},
     ManageComponents,
@@ -27,7 +27,6 @@ pub struct NotificationComponent {
     actions: Vec<Action>,
     max_width: usize,
     move_chars_per_sec: usize,
-    right_padding: Padding,
 }
 
 impl NotificationComponent {
@@ -46,14 +45,11 @@ impl NotificationComponent {
             notification_data_to_animated_text(nd, max_width, move_chars_per_sec);
         let mut label = Label::new(animated_notification_text.into());
 
-        label.set_seperator(false);
-        label.set_separator_block_width(0);
-
-        let mut right_padding = Padding::new(1);
+        label.set_show(false);
+        label.set_block_width(Some(0));
 
         nd.style.iter().for_each(|s| {
-            s.apply(label.get_base_component_mut());
-            s.apply(right_padding.get_base_component_mut());
+            s.apply(&mut label);
         });
 
         Self {
@@ -66,7 +62,6 @@ impl NotificationComponent {
             name: notification_id_to_notification_compnent_name(nd.id),
             max_width,
             move_chars_per_sec,
-            right_padding,
         }
     }
 
@@ -115,43 +110,28 @@ impl NotificationComponent {
 }
 
 impl Component for NotificationComponent {
-    fn collect_base_components<'a>(&'a self, base_components: &mut Vec<&'a BaseComponent>) {
-        self.label.collect_base_components(base_components);
-        self.close_timer
-            .as_ref()
-            .map(|t| t.collect_base_components(base_components));
-        self.right_padding.collect_base_components(base_components);
-        self.close_button.collect_base_components(base_components);
-        self.right_padding.collect_base_components(base_components)
-    }
-
-    fn collect_base_components_mut<'a>(
-        &'a mut self,
-        base_components: &mut Vec<&'a mut BaseComponent>,
-    ) {
-        self.label.collect_base_components_mut(base_components);
-        self.close_timer
-            .as_mut()
-            .map(|t| t.collect_base_components_mut(base_components));
-        self.close_button
-            .collect_base_components_mut(base_components);
-        self.right_padding
-            .collect_base_components_mut(base_components)
+    fn all_properties<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = &i3_bar_components::property::Properties> + 'a> {
+        Box::new(
+            [
+                Some(self.label.all_properties()),
+                self.close_timer.as_ref().map(Component::all_properties),
+                Some(self.close_button.all_properties()),
+            ]
+            .into_iter()
+            .filter_map(|a| a)
+            .flatten(),
+        )
     }
 
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
+        let Some(instance) = ce.get_instance() else {
+            return;
+        };
         match ce.get_button() {
             // Button clicked
-            1 if self
-                .close_button
-                .get_base_component()
-                .get_properties()
-                .instance
-                .as_deref()
-                == ce.get_instance() =>
-            {
-                self.on_close_button_click()
-            }
+            1 if self.close_button.instance() == instance => self.on_close_button_click(),
             // Notification clicked
             1 => self.on_notification_click(),
             // Notification right click
@@ -189,20 +169,20 @@ impl Component for NotificationComponent {
 
 fn create_button(style: &[Style]) -> Button {
     let mut b = Button::new(format!(" {} ", icons::X_ICON).into());
-    b.set_seperator(false);
-    b.set_separator_block_width(0);
+    b.set_show(false);
+    b.set_block_width(Some(0));
     style.iter().for_each(|s| {
-        s.apply(b.get_base_component_mut());
+        s.apply(&mut b);
     });
     b
 }
 
 fn create_timer(style: &[Style], expire: u64) -> ProgressBar {
     let mut t = ProgressBar::new(expire);
-    t.set_seperator(false);
-    t.set_separator_block_width(0);
+    t.set_show(false);
+    t.set_block_width(Some(0));
     style.iter().for_each(|s| {
-        s.apply(t.get_base_component_mut());
+        s.apply(&mut t);
     });
     t
 }

@@ -51,7 +51,8 @@ impl Header {
 #[derive(Deserialize, Debug)]
 pub struct ClickEvent {
     name: Option<String>,
-    instance: Option<String>,
+    #[serde(deserialize_with = "string_to_opt_usize")]
+    instance: Option<usize>,
     button: usize,
     modifiers: Option<Vec<String>>,
     x: usize,
@@ -69,8 +70,8 @@ impl ClickEvent {
         &self.name
     }
 
-    pub fn get_instance(&self) -> Option<&str> {
-        self.instance.as_deref()
+    pub fn get_instance(&self) -> Option<usize> {
+        self.instance
     }
 
     pub fn get_button(&self) -> usize {
@@ -123,4 +124,16 @@ pub enum Align {
 pub enum Markup {
     Pango,
     None,
+}
+
+fn string_to_opt_usize<'de, D>(d: D) -> Result<Option<usize>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let Some(value) = Option::<String>::deserialize(d)? else {
+        return Ok(None);
+    };
+    usize::from_str_radix(value.as_str(), 10)
+        .map(Some)
+        .map_err(serde::de::Error::custom)
 }

@@ -21,7 +21,6 @@ pub struct ComponentManager {
     event_reader: Receiver<ClickEvent>,
     out_writer: Stdout,
     last_update: SystemTime,
-    next_instance_id: u32,
     global_event_listener: fn(&mut dyn ManageComponents, &ClickEvent),
     component_manager_messenger: ComponentManagerMassenger,
 }
@@ -59,14 +58,12 @@ impl ComponentManager {
         events.iter().for_each(|event| {
             debug!("Event detected: {:?}", event);
             (global_event_listener)(cmm, event);
-            let element_id = event.get_instance();
+            let Some(element_id) = event.get_instance() else {
+                return;
+            };
             let comp = layer.iter_mut().find(|comp| {
-                let mut blocks = Vec::new();
-                comp.collect_base_components(&mut blocks);
-                trace!("Blocks: {:?}", blocks);
-                blocks
-                    .iter()
-                    .any(|b| b.get_properties().instance.as_deref() == element_id)
+                let mut blocks = comp.all_properties();
+                blocks.any(|b| b.instance == element_id)
             });
 
             if let Some(comp) = comp {
@@ -80,26 +77,27 @@ impl ComponentManager {
     }
 
     fn build_json(&mut self) -> std::io::Result<()> {
-        let write = &mut self.out_writer.lock();
+        let mut write = self.out_writer.lock();
         write.write_all(&[b'['])?;
         self.get_layer()
             .iter()
-            .fold(Vec::new(), |mut blocks, c| {
-                c.collect_base_components(&mut blocks);
-                blocks
-            })
-            .iter()
+            .map(|c| c.all_properties())
+            .flatten()
             .enumerate()
             .try_for_each(|(index, block)| {
                 if index != 0 {
                     write.write_all(&[b','])?;
                 }
-                block.serialize_cache(write)
+                serde_json::to_writer(&mut write, block)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
             })?;
         write.write_all(&[b']', b',', 10])
     }
 
-    pub fn get_component_mut<'a, T: Component>(&'a mut self, name: &str) -> Option<&'a mut T> {
+    pub fn get_component_mut<'a, T: Component + 'static>(
+        &'a mut self,
+        name: &'a str,
+    ) -> Option<&'a mut T> {
         self.get_layer_mut().iter_mut().find_map(|c| {
             if c.name() == Some(name) {
                 let c: &mut dyn Any = c;
@@ -138,9 +136,6 @@ impl ComponentManager {
                 Message::AddComponent(component) => {
                     self.add_component(component);
                 }
-                Message::RemoveByName(component) => {
-                    self.remove_by_name(component.as_str());
-                }
                 Message::NewLayer => {
                     self.new_layer();
                 }
@@ -163,26 +158,10 @@ impl ManageComponents for ComponentManager {
     }
 
     fn add_component(&mut self, mut comp: Box<dyn Component>) {
-        let mut base_components = Vec::new();
-        comp.collect_base_components_mut(&mut base_components);
-
-        base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
-            self.next_instance_id += 1;
-        });
-
         self.get_layer_mut().push(comp);
     }
 
     fn add_component_at(&mut self, mut comp: Box<dyn Component>, pos: isize) {
-        let mut base_components = Vec::new();
-        comp.collect_base_components_mut(&mut base_components);
-
-        base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
-            self.next_instance_id += 1;
-        });
-
         let pos = if pos < 0 {
             (self.get_layer().len() as isize + pos) as usize
         } else {
@@ -198,14 +177,6 @@ impl ManageComponents for ComponentManager {
         pos: isize,
         layer: usize,
     ) {
-        let mut base_components = Vec::new();
-        comp.collect_base_components_mut(&mut base_components);
-
-        base_components.iter_mut().for_each(|component| {
-            component.get_properties_mut().instance = Some(self.next_instance_id.to_string());
-            self.next_instance_id += 1;
-        });
-
         let pos = if pos < 0 {
             (self.get_layer_by_id(layer).len() as isize + pos) as usize
         } else {
@@ -213,15 +184,6 @@ impl ManageComponents for ComponentManager {
         };
 
         self.get_layer_by_id_mut(layer).splice(pos..pos, [comp]);
-    }
-
-    fn remove_by_name(&mut self, name: &str) {
-        self.layers.iter_mut().for_each(|layer| {
-            let index = layer.iter().position(|c| c.name() == Some(name));
-            if let Some(index) = index {
-                layer.remove(index);
-            }
-        });
     }
 }
 
@@ -350,7 +312,6 @@ impl ComponentManagerBuilder {
             event_reader: rx,
             out_writer,
             last_update: SystemTime::now(),
-            next_instance_id: 1,
             global_event_listener: default_listener,
             component_manager_messenger: Default::default(),
         }
