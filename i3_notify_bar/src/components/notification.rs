@@ -56,7 +56,8 @@ impl NotificationComponent {
         let mut label = Label::new(animated_notification_text.into());
 
         label.set_show(false);
-        label.set_block_width(Some(0));
+        label.set_block_width(None);
+        label.set_padding_left(1);
 
         nd_l.style.iter().for_each(|s| {
             s.apply(&mut label);

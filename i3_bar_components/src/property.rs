@@ -19,6 +19,8 @@ pub struct Properties {
     pub instance: Instance,
     pub urgent: bool,
     pub markup: Markup,
+    #[serde(skip_serializing)]
+    pub padding: Padding,
 }
 
 #[derive(Default, Debug, PartialEq, serde::Serialize)]
@@ -110,6 +112,12 @@ pub enum Markup {
     #[default]
     #[serde(rename = "none")]
     None,
+}
+
+#[derive(Default, Debug, PartialEq)]
+pub struct Padding {
+    pub left: usize,
+    pub right: usize,
 }
 
 impl Default for Instance {

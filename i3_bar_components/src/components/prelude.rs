@@ -4,6 +4,22 @@ use crate::{
     protocol::ClickEvent,
 };
 
+pub trait Padding {
+    fn padding_left(&self) -> usize {
+        self.padding().left
+    }
+    fn set_padding_left(&mut self, left: usize) {
+        self.padding_mut().left = left;
+    }
+    fn padding_right(&self) -> usize {
+        self.padding().right
+    }
+    fn set_padding_right(&mut self, right: usize) {
+        self.padding_mut().right = right;
+    }
+    fn padding(&self) -> &property::Padding;
+    fn padding_mut(&mut self) -> &mut property::Padding;
+}
 pub trait Text {
     fn full(&self) -> &str {
         &self.text().full
@@ -114,6 +130,17 @@ pub trait Component {
     }
 }
 
+impl<T> Padding for T
+where
+    T: SimpleComponent,
+{
+    fn padding(&self) -> &property::Padding {
+        &self.properties().padding
+    }
+    fn padding_mut(&mut self) -> &mut property::Padding {
+        &mut self.properties_mut().padding
+    }
+}
 impl<T> Text for T
 where
     T: SimpleComponent,

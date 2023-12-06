@@ -6,6 +6,7 @@ use std::{
     time::SystemTime,
 };
 
+use crate::property::{self, Properties};
 use crate::{
     components::prelude::*,
     protocol::{ClickEvent, Header},
@@ -87,8 +88,25 @@ impl ComponentManager {
                 if index != 0 {
                     write.write_all(&[b','])?;
                 }
+                if block.padding.left > 0 {
+                    serde_json::to_writer(
+                        &mut write,
+                        &create_padding(block.padding.left, block.instance),
+                    )
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                    write.write_all(&[b','])?;
+                }
                 serde_json::to_writer(&mut write, block)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                if block.padding.right > 0 {
+                    write.write_all(&[b','])?;
+                    serde_json::to_writer(
+                        &mut write,
+                        &create_padding(block.padding.right, block.instance),
+                    )
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                }
+                Ok::<_, std::io::Error>(())
             })?;
         write.write_all(&[b']', b',', 10])
     }
@@ -321,6 +339,17 @@ impl ComponentManagerBuilder {
             global_event_listener: default_listener,
             component_manager_messenger: Default::default(),
         }
+    }
+}
+
+fn create_padding(width: usize, instance: property::Instance) -> Properties {
+    Properties {
+        text: property::Text {
+            full: format!("{:<width$}", ""),
+            short: None,
+        },
+        instance,
+        ..Default::default()
     }
 }
 
