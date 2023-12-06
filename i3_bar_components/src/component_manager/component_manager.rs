@@ -136,6 +136,9 @@ impl ComponentManager {
                 Message::AddComponent(component) => {
                     self.add_component(component);
                 }
+                Message::RemoveByName(component) => {
+                    self.remove_by_name(component.as_str());
+                }
                 Message::NewLayer => {
                     self.new_layer();
                 }
@@ -184,6 +187,15 @@ impl ManageComponents for ComponentManager {
         };
 
         self.get_layer_by_id_mut(layer).splice(pos..pos, [comp]);
+    }
+
+    fn remove_by_name(&mut self, name: &str) {
+        self.layers.iter_mut().for_each(|layer| {
+            let index = layer.iter().position(|c| c.name() == Some(name));
+            if let Some(index) = index {
+                layer.remove(index);
+            }
+        });
     }
 }
 

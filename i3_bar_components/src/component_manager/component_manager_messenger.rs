@@ -20,6 +20,10 @@ impl ManageComponents for ComponentManagerMassenger {
         self.queue.push(Message::PopLayer);
     }
 
+    fn remove_by_name(&mut self, name: &str) {
+        self.queue.push(Message::RemoveByName(name.to_string()));
+    }
+
     fn add_component_at(&mut self, _: Box<dyn crate::components::prelude::Component>, _: isize) {
         unimplemented!()
     }
@@ -39,6 +43,7 @@ pub enum Message {
     AddComponent(Box<dyn crate::components::prelude::Component>),
     NewLayer,
     PopLayer,
+    RemoveByName(String),
 }
 
 pub trait ComponentManagerMassengerQueue {

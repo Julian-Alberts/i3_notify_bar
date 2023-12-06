@@ -150,8 +150,8 @@ fn run(
                     "Removing notification {}",
                     notification_id_to_notification_compnent_name(*id)
                 );
-                //component_manager
-                //    .remove_by_name(&notification_id_to_notification_compnent_name(*id))
+                component_manager
+                    .remove_by_name(&notification_id_to_notification_compnent_name(*id))
             }
         });
 
