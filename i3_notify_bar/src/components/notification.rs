@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use i3_bar_components::{
-    components::{prelude::*, BaseComponent, Button, Label, ProgressBar},
+    components::{prelude::*, Button, Label, ProgressBar},
     protocol::ClickEvent,
     string::{AnimatedString, PartiallyAnimatedString},
     ManageComponents,
@@ -120,7 +120,7 @@ impl Component for NotificationComponent {
                 Some(self.close_button.all_properties()),
             ]
             .into_iter()
-            .filter_map(|a| a)
+            .flatten()
             .flatten(),
         )
     }
@@ -159,7 +159,9 @@ impl Component for NotificationComponent {
 
         self.label.update(dt);
         self.close_button.update(dt);
-        self.close_timer.as_mut().map(|t| t.update(dt));
+        if let Some(t) = self.close_timer.as_mut() {
+            t.update(dt);
+        }
     }
 
     fn name(&self) -> Option<&str> {

@@ -133,7 +133,9 @@ where
     let Some(value) = Option::<String>::deserialize(d)? else {
         return Ok(None);
     };
-    usize::from_str_radix(value.as_str(), 10)
+    value
+        .as_str()
+        .parse::<usize>()
         .map(Some)
         .map_err(serde::de::Error::custom)
 }

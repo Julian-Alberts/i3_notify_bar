@@ -12,7 +12,9 @@ pub struct CloseType {
 impl Component for CloseType {
     fn update(&mut self, dt: f64) {
         self.button.update(dt);
-        self.timer.as_mut().map(|t| t.update(dt));
+        if let Some(t) = self.timer.as_mut() {
+            t.update(dt);
+        }
     }
 
     fn all_properties<'a>(
@@ -24,13 +26,15 @@ impl Component for CloseType {
                 Some(self.button.all_properties()),
             ]
             .into_iter()
-            .filter_map(|a| a)
+            .flatten()
             .flatten(),
         )
     }
 
     fn event(&mut self, mc: &mut dyn ManageComponents, event: &ClickEvent) {
-        self.timer.as_mut().map(|t| t.event(mc, event));
+        if let Some(t) = self.timer.as_mut() {
+            t.event(mc, event);
+        }
         self.button.event(mc, event);
     }
 }

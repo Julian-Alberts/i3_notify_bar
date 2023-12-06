@@ -81,8 +81,7 @@ impl ComponentManager {
         write.write_all(&[b'['])?;
         self.get_layer()
             .iter()
-            .map(|c| c.all_properties())
-            .flatten()
+            .flat_map(|c| c.all_properties())
             .enumerate()
             .try_for_each(|(index, block)| {
                 if index != 0 {
@@ -160,11 +159,11 @@ impl ManageComponents for ComponentManager {
         }
     }
 
-    fn add_component(&mut self, mut comp: Box<dyn Component>) {
+    fn add_component(&mut self, comp: Box<dyn Component>) {
         self.get_layer_mut().push(comp);
     }
 
-    fn add_component_at(&mut self, mut comp: Box<dyn Component>, pos: isize) {
+    fn add_component_at(&mut self, comp: Box<dyn Component>, pos: isize) {
         let pos = if pos < 0 {
             (self.get_layer().len() as isize + pos) as usize
         } else {
@@ -174,12 +173,7 @@ impl ManageComponents for ComponentManager {
         self.get_layer_mut().splice(pos..pos, [comp]);
     }
 
-    fn add_component_at_on_layer(
-        &mut self,
-        mut comp: Box<dyn Component>,
-        pos: isize,
-        layer: usize,
-    ) {
+    fn add_component_at_on_layer(&mut self, comp: Box<dyn Component>, pos: isize, layer: usize) {
         let pos = if pos < 0 {
             (self.get_layer_by_id(layer).len() as isize + pos) as usize
         } else {

@@ -77,7 +77,7 @@ impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
     }
 
     fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
-        Box::new(self.buttons.iter().map(|b| b.all_properties()).flatten())
+        Box::new(self.buttons.iter().flat_map(|b| b.all_properties()))
     }
 }
 

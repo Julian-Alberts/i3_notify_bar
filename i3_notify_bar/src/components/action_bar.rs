@@ -50,8 +50,7 @@ impl Component for ActionBar {
         Box::new(
             self.buttons
                 .iter()
-                .map(Component::all_properties)
-                .flatten()
+                .flat_map(Component::all_properties)
                 .chain(self.close_btn.all_properties()),
         )
     }

@@ -1,10 +1,8 @@
 use crate::{
     component_manager::ManageComponents,
-    property::{self, Instance, Properties},
+    property::{self, Properties},
     protocol::ClickEvent,
 };
-
-use super::BaseComponent;
 
 pub trait Text {
     fn full(&self) -> &str {
