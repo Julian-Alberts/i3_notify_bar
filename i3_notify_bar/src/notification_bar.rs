@@ -113,9 +113,6 @@ impl NotificationManager {
                 };
                 *notification_data_storage = notification_data;
                 drop(notification_data_storage);
-                self.events.push(NotificationEvent::Update(Arc::clone(
-                    &self.notifications[index],
-                )));
             }
             None => {
                 let notification = Arc::new(RwLock::new(notification_data));
@@ -123,6 +120,26 @@ impl NotificationManager {
                 self.events.push(NotificationEvent::Add(notification));
             }
         }
+    }
+
+    pub fn update(&mut self, dt: f64) {
+        let mut ids_to_be_removed = Vec::new();
+        for n in &self.notifications {
+            let Ok(mut n) = n.write() else {
+                log::error!("Unable to lock notification for write");
+                continue;
+            };
+            let Some(rm) = n.remove_in_secs.as_mut() else {
+                continue;
+            };
+            *rm -= dt;
+            if *rm <= 0. {
+                ids_to_be_removed.push(n.id);
+            }
+        }
+        ids_to_be_removed
+            .into_iter()
+            .for_each(|id| self.remove(id, &CloseReason::Expired))
     }
 
     pub fn get_events(&mut self) -> Vec<NotificationEvent> {
@@ -273,13 +290,14 @@ pub fn execute_rules_inner(
 pub enum NotificationEvent {
     Remove(notify_server::NotificationId),
     Add(Arc<RwLock<NotificationData>>),
-    Update(Arc<RwLock<NotificationData>>),
 }
 
 #[derive(Debug)]
 pub struct NotificationData {
     pub id: notify_server::NotificationId,
+    pub notification_update_id: usize,
     pub expire_timeout: i32,
+    pub remove_in_secs: Option<f64>,
     pub icon: char,
     pub text: String,
     pub style: Vec<Style>,
@@ -290,10 +308,18 @@ pub struct NotificationData {
 
 impl NotificationData {
     pub fn new(notification: &Notification, emoji_mode: EmojiMode) -> Self {
+        use std::sync::atomic;
+        static NOTIFY_EVENT_ID: atomic::AtomicUsize = atomic::AtomicUsize::new(0);
         Self {
             expire_timeout: notification.expire_timeout,
+            remove_in_secs: if notification.expire_timeout < 0 {
+                None
+            } else {
+                Some(notification.expire_timeout as f64)
+            },
             icon: icons::get_icon(&notification.app_name).unwrap_or(' '),
             id: notification.id,
+            notification_update_id: NOTIFY_EVENT_ID.fetch_add(1, atomic::Ordering::Relaxed),
             style: Vec::new(),
             text: notification.summary.clone(),
             emoji_mode,

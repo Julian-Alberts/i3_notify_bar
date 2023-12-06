@@ -120,38 +120,23 @@ fn run(
         let events = nm.get_events();
         drop(nm_lock);
 
-        events.iter().for_each(|event| match &event {
-            &NotificationEvent::Add(n) | &NotificationEvent::Update(n) => {
-                let n = match n.read() {
-                    Ok(n) => n,
-                    Err(_) => {
-                        error!("Could not lock notification data");
-                        return;
-                    }
-                };
-                match component_manager.get_component_mut::<NotificationComponent>(
-                    &notification_id_to_notification_compnent_name(n.id),
-                ) {
-                    Some(c) => c.update_notification(&n),
-                    None => component_manager.add_component_at_on_layer(
-                        Box::new(NotificationComponent::new(
-                            &n,
-                            max_text_length,
-                            animation_chars_per_second,
-                            Arc::clone(&notification_manager),
-                        )),
-                        -1,
-                        0,
-                    ),
-                }
-            }
-            &NotificationEvent::Remove(id) => {
+        events.into_iter().for_each(|event| match event {
+            NotificationEvent::Add(n) => component_manager.add_component_at_on_layer(
+                Box::new(NotificationComponent::new(
+                    n,
+                    max_text_length,
+                    animation_chars_per_second,
+                    Arc::clone(&notification_manager),
+                )),
+                -1,
+                0,
+            ),
+            NotificationEvent::Remove(id) => {
                 debug!(
                     "Removing notification {}",
-                    notification_id_to_notification_compnent_name(*id)
+                    notification_id_to_notification_compnent_name(id)
                 );
-                component_manager
-                    .remove_by_name(&notification_id_to_notification_compnent_name(*id))
+                component_manager.remove_by_name(&notification_id_to_notification_compnent_name(id))
             }
         });
 

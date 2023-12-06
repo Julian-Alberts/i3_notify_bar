@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex, RwLock},
+    usize,
+};
 
 use i3_bar_components::{
     components::{prelude::*, Button, Label, ProgressBar},
@@ -18,8 +21,8 @@ use crate::{
 use super::action_bar::ActionBar;
 
 pub struct NotificationComponent {
+    notification: Arc<RwLock<NotificationData>>,
     label: Label,
-    id: NotificationId,
     close_button: Button,
     close_timer: Option<ProgressBar>,
     name: String,
@@ -27,54 +30,65 @@ pub struct NotificationComponent {
     actions: Vec<Action>,
     max_width: usize,
     move_chars_per_sec: usize,
+    notification_state_id: usize,
 }
 
 impl NotificationComponent {
     pub fn new(
-        nd: &NotificationData,
+        nd: Arc<RwLock<NotificationData>>,
         max_width: usize,
         move_chars_per_sec: usize,
         notification_manager: Arc<Mutex<NotificationManager>>,
     ) -> NotificationComponent {
-        let close_timer = match nd.expire_timeout {
+        let nd_l = nd
+            .write()
+            .expect("Unable to lock notification while creating component");
+        let close_timer = match nd_l.expire_timeout {
             -1 => None,
-            _ => Some(create_timer(nd.style.as_slice(), nd.expire_timeout as u64)),
+            _ => Some(create_timer(
+                nd_l.style.as_slice(),
+                nd_l.expire_timeout as f64,
+            )),
         };
 
         let animated_notification_text =
-            notification_data_to_animated_text(nd, max_width, move_chars_per_sec);
+            notification_data_to_animated_text(&nd_l, max_width, move_chars_per_sec);
         let mut label = Label::new(animated_notification_text.into());
 
         label.set_show(false);
         label.set_block_width(Some(0));
 
-        nd.style.iter().for_each(|s| {
+        nd_l.style.iter().for_each(|s| {
             s.apply(&mut label);
         });
 
+        let close_button = create_button(nd_l.style.as_slice());
+        let name = notification_id_to_notification_compnent_name(nd_l.id);
+        let actions = nd_l.actions.clone();
+        let notification_state_id = nd_l.notification_update_id;
+        drop(nd_l);
         Self {
+            notification: nd,
+            close_button,
+            name,
             label,
-            close_button: create_button(nd.style.as_slice()),
             close_timer,
-            id: nd.id,
             notification_manager,
-            actions: nd.actions.clone(),
-            name: notification_id_to_notification_compnent_name(nd.id),
+            actions,
             max_width,
             move_chars_per_sec,
+            notification_state_id,
         }
     }
 
-    pub fn update_notification(&mut self, nd: &NotificationData) {
-        self.label.set_text(
-            notification_data_to_animated_text(nd, self.max_width, self.move_chars_per_sec).into(),
+    fn reinit(&mut self) {
+        let new = Self::new(
+            Arc::clone(&self.notification),
+            self.max_width,
+            self.move_chars_per_sec,
+            Arc::clone(&self.notification_manager),
         );
-        self.label.update(0.);
-        let close_timer = match nd.expire_timeout {
-            -1 => None,
-            _ => Some(create_timer(nd.style.as_slice(), nd.expire_timeout as u64)),
-        };
-        self.close_timer = close_timer;
+        *self = new;
     }
 
     fn on_close_button_click(&self) {
@@ -85,14 +99,14 @@ impl NotificationComponent {
                 return;
             }
         }
-        .remove(self.id, &CloseReason::Closed);
+        .remove(self.id(), &CloseReason::Closed);
     }
 
     fn on_notification_right_click(&mut self, mc: &mut dyn ManageComponents) {
         mc.new_layer();
         mc.add_component(Box::new(ActionBar::new(
             &self.actions,
-            self.id,
+            self.id(),
             Arc::clone(&self.notification_manager),
         )))
     }
@@ -104,8 +118,15 @@ impl NotificationComponent {
             self.notification_manager
                 .lock()
                 .expect("Could not lock notification manager")
-                .action_invoked(self.id, &action.key)
+                .action_invoked(self.id(), &action.key)
         }
+    }
+
+    fn id(&self) -> NotificationId {
+        self.notification
+            .read()
+            .expect("Unable to create read lock")
+            .id
     }
 }
 
@@ -141,25 +162,26 @@ impl Component for NotificationComponent {
     }
 
     fn update(&mut self, dt: f64) {
-        if self
-            .close_timer
-            .as_ref()
-            .map(|t| t.is_finished())
-            .unwrap_or(false)
-        {
-            match self.notification_manager.lock() {
-                Ok(nm) => nm,
-                Err(_) => {
-                    debug!("Could not lock notification manager");
-                    return;
-                }
+        let notification_lock = self.notification.read();
+        if let Ok(notification) = &notification_lock {
+            if notification.notification_update_id != self.notification_state_id {
+                drop(notification_lock);
+                self.reinit();
             }
-            .remove(self.id, &CloseReason::Expired);
-        }
+        };
 
         self.label.update(dt);
         self.close_button.update(dt);
         if let Some(t) = self.close_timer.as_mut() {
+            let n = self
+                .notification
+                .read()
+                .expect("Unable to read notification");
+            t.set_current(
+                n.remove_in_secs
+                    .map(|rmis| n.expire_timeout as f64 - rmis)
+                    .unwrap_or_default(),
+            );
             t.update(dt);
         }
     }
@@ -179,7 +201,7 @@ fn create_button(style: &[Style]) -> Button {
     b
 }
 
-fn create_timer(style: &[Style], expire: u64) -> ProgressBar {
+fn create_timer(style: &[Style], expire: f64) -> ProgressBar {
     let mut t = ProgressBar::new(expire);
     t.set_show(false);
     t.set_block_width(Some(0));

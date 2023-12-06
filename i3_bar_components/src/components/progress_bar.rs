@@ -1,34 +1,23 @@
-use std::time::SystemTime;
-
 use crate::{component_manager::ManageComponents, protocol::ClickEvent};
 
 use super::{prelude::*, BaseComponent};
 
 pub struct ProgressBar {
     base_component: BaseComponent,
-    current: SystemTime,
-    max: u64,
+    current: f64,
+    max: f64,
 }
 
 impl ProgressBar {
-    pub fn new(max: u64) -> Self {
+    pub fn new(max: f64) -> Self {
         Self {
             base_component: BaseComponent::new(),
-            current: SystemTime::now(),
+            current: 0.0,
             max,
         }
     }
-
-    pub fn is_finished(&self) -> bool {
-        match self.current.elapsed() {
-            Ok(e) => e,
-            Err(_) => {
-                log::error!("I will mess with time!");
-                return false;
-            }
-        }
-        .as_secs()
-            >= self.max
+    pub fn set_current(&mut self, current: f64) {
+        self.current = current;
     }
 }
 
@@ -45,8 +34,7 @@ impl Component for ProgressBar {
     fn event(&mut self, _: &mut dyn ManageComponents, _: &ClickEvent) {}
 
     fn update(&mut self, _: f64) {
-        let step =
-            (self.current.elapsed().unwrap().as_secs_f64() / self.max as f64 * 8_f64).floor() as u8;
+        let step = (self.current as f64 / self.max as f64 * 8_f64).floor() as u8;
 
         let icon = match step {
             0 => '\u{2588}',
