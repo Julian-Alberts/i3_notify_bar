@@ -108,6 +108,8 @@ fn run(
         Arc::clone(&notification_manager),
     )));
 
+    let mut last_update = std::time::SystemTime::now();
+
     loop {
         let mut nm_lock = notification_manager.lock();
         let nm = match nm_lock.as_mut() {
@@ -118,6 +120,13 @@ fn run(
             }
         };
         let events = nm.get_events();
+        nm.update(
+            last_update
+                .elapsed()
+                .map(|e| e.as_secs_f64())
+                .unwrap_or_default(),
+        );
+        last_update = std::time::SystemTime::now();
         drop(nm_lock);
 
         events.into_iter().for_each(|event| match event {
