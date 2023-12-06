@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Instance(usize);
 
 #[derive(Default, Debug, PartialEq, serde::Serialize)]
@@ -125,3 +125,13 @@ impl PartialEq<usize> for Instance {
         self.0 == *other
     }
 }
+
+impl serde::Serialize for Instance {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer {
+        serializer.serialize_str(&self.0.to_string())
+    }
+
+}
+

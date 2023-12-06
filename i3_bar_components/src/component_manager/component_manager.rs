@@ -229,7 +229,7 @@ fn read_events(
     let click_event = match serde_json::from_str::<ClickEvent>(event) {
         Ok(ev) => ev,
         Err(e) => {
-            error!("Invalid click event {}", e.to_string());
+            error!("Invalid click event {} \n {event}", e.to_string());
             return;
         }
     };
