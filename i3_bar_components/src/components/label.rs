@@ -4,25 +4,35 @@ use crate::{
     string::ComponentString,
 };
 
-pub struct Label {
+pub struct Label<Text: ComponentString = Box<dyn ComponentString>> {
     base_component: BaseComponent,
-    text: Box<dyn ComponentString>,
+    text: Text,
 }
 
 impl Label {
-    pub fn new(text: Box<dyn ComponentString>) -> Self {
-        Self {
+    pub fn new<Text: ComponentString>(text: Text) -> Label<Text> {
+        Label::<Text> {
             base_component: BaseComponent::from(Properties::default()),
             text,
         }
     }
+}
 
-    pub fn set_text(&mut self, s: Box<dyn ComponentString>) {
+impl<Text: ComponentString> Label<Text> {
+    pub fn set_text(&mut self, s: Text) {
         self.text = s;
+    }
+
+    pub fn text(&self) -> &Text {
+        &self.text
+    }
+
+    pub fn text_mut(&mut self) -> &mut Text {
+        &mut self.text
     }
 }
 
-impl SimpleComponent for Label {
+impl<Text: ComponentString> SimpleComponent for Label<Text> {
     fn properties_mut(&mut self) -> &mut crate::property::Properties {
         self.base_component.properties_mut()
     }
@@ -31,7 +41,7 @@ impl SimpleComponent for Label {
     }
 }
 
-impl Component for Label {
+impl<Text: ComponentString> Component for Label<Text> {
     fn update(&mut self, dt: f64) {
         self.text.update(dt);
         self.set_full(self.text.to_component_text())

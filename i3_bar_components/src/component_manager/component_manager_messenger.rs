@@ -1,6 +1,6 @@
 use crate::components::prelude::Component;
 
-use super::ManageComponents;
+use super::{component_manager::AnyComponent, ManageComponents};
 
 #[derive(Default)]
 pub struct ComponentManagerMassenger {
@@ -8,7 +8,7 @@ pub struct ComponentManagerMassenger {
 }
 
 impl ManageComponents for ComponentManagerMassenger {
-    fn add_component(&mut self, comp: Box<dyn crate::components::prelude::Component>) {
+    fn add_component(&mut self, comp: Box<dyn AnyComponent>) {
         self.queue.push(Message::AddComponent(comp));
     }
 
@@ -24,11 +24,11 @@ impl ManageComponents for ComponentManagerMassenger {
         self.queue.push(Message::RemoveByName(name.to_string()));
     }
 
-    fn add_component_at(&mut self, _: Box<dyn crate::components::prelude::Component>, _: isize) {
+    fn add_component_at(&mut self, _: Box<dyn AnyComponent>, _: isize) {
         unimplemented!()
     }
 
-    fn add_component_at_on_layer(&mut self, _: Box<dyn Component>, _: isize, _: usize) {
+    fn add_component_at_on_layer(&mut self, _: Box<dyn AnyComponent>, _: isize, _: usize) {
         unimplemented!()
     }
 }
@@ -40,7 +40,7 @@ impl ComponentManagerMassengerQueue for ComponentManagerMassenger {
 }
 
 pub enum Message {
-    AddComponent(Box<dyn crate::components::prelude::Component>),
+    AddComponent(Box<dyn AnyComponent>),
     NewLayer,
     PopLayer,
     RemoveByName(String),

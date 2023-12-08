@@ -123,7 +123,7 @@ pub trait SimpleComponent: Component {
 }
 pub trait Component {
     fn update(&mut self, dt: f64);
-    fn event(&mut self, cm: &mut dyn ManageComponents, envnt: &ClickEvent);
+    fn event(&mut self, cm: &mut dyn ManageComponents, event: &ClickEvent);
     fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a>;
     fn name(&self) -> Option<&str> {
         None

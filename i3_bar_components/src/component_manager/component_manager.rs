@@ -1,5 +1,6 @@
 use log::*;
 use std::any::Any;
+use std::ops::DerefMut;
 use std::sync::mpsc::Receiver;
 use std::{
     io::{BufRead, Read, Stdout, Write},
@@ -17,8 +18,11 @@ use super::component_manager_messenger::{
 };
 use super::ManageComponents;
 
+pub trait AnyComponent: Any + Component {}
+impl<T: Component + Any> AnyComponent for T {}
+
 pub struct ComponentManager {
-    layers: Vec<Vec<Box<dyn Component>>>,
+    layers: Vec<Vec<Box<dyn AnyComponent>>>,
     event_reader: Receiver<ClickEvent>,
     out_writer: Stdout,
     last_update: SystemTime,
@@ -113,31 +117,55 @@ impl ComponentManager {
 
     pub fn get_component_mut<'a, T: Component + 'static>(
         &'a mut self,
-        name: &'a str,
+        name: &str,
     ) -> Option<&'a mut T> {
-        self.get_layer_mut().iter_mut().find_map(|c| {
-            if c.name() == Some(name) {
-                let c: &mut dyn Any = c;
-                c.downcast_mut::<T>()
-            } else {
-                None
-            }
-        })
+        self.get_layer_mut()
+            .iter_mut()
+            .find_map(|c| {
+                if c.name() == Some(name) {
+                    let c: &mut dyn Any = c;
+                    Some(c.downcast_mut())
+                } else {
+                    None
+                }
+            })
+            .flatten()
     }
 
-    fn get_layer(&self) -> &Vec<Box<dyn Component>> {
+    pub fn get_component_any_layer_mut<'a, T: Component + 'static>(
+        &'a mut self,
+        name: &str,
+    ) -> Option<&'a mut T> {
+        fn as_any<T: 'static>(t: &mut T) -> &mut dyn Any {
+            t
+        }
+        debug!("SEARCHING COMPONENT WITH NAME '{name}'");
+        self.layers
+            .iter_mut()
+            .flat_map(|l| l.iter_mut())
+            .find_map(|c| {
+                if c.name() == Some(name) {
+                    Some(<dyn Any>::downcast_mut(as_any(c)))
+                } else {
+                    None
+                }
+            })
+            .flatten()
+    }
+
+    fn get_layer(&self) -> &Vec<Box<dyn AnyComponent>> {
         self.layers.last().unwrap()
     }
 
-    fn get_layer_mut(&mut self) -> &mut Vec<Box<dyn Component>> {
+    fn get_layer_mut(&mut self) -> &mut Vec<Box<dyn AnyComponent>> {
         self.layers.last_mut().unwrap()
     }
 
-    fn get_layer_by_id(&self, layer: usize) -> &Vec<Box<dyn Component>> {
+    fn get_layer_by_id(&self, layer: usize) -> &Vec<Box<dyn AnyComponent>> {
         &self.layers[layer]
     }
 
-    fn get_layer_by_id_mut(&mut self, layer: usize) -> &mut Vec<Box<dyn Component>> {
+    fn get_layer_by_id_mut(&mut self, layer: usize) -> &mut Vec<Box<dyn AnyComponent>> {
         &mut self.layers[layer]
     }
 
@@ -177,11 +205,11 @@ impl ManageComponents for ComponentManager {
         }
     }
 
-    fn add_component(&mut self, comp: Box<dyn Component>) {
+    fn add_component(&mut self, comp: Box<dyn AnyComponent>) {
         self.get_layer_mut().push(comp);
     }
 
-    fn add_component_at(&mut self, comp: Box<dyn Component>, pos: isize) {
+    fn add_component_at(&mut self, comp: Box<dyn AnyComponent>, pos: isize) {
         let pos = if pos < 0 {
             (self.get_layer().len() as isize + pos) as usize
         } else {
@@ -191,7 +219,7 @@ impl ManageComponents for ComponentManager {
         self.get_layer_mut().splice(pos..pos, [comp]);
     }
 
-    fn add_component_at_on_layer(&mut self, comp: Box<dyn Component>, pos: isize, layer: usize) {
+    fn add_component_at_on_layer(&mut self, comp: Box<dyn AnyComponent>, pos: isize, layer: usize) {
         let pos = if pos < 0 {
             (self.get_layer_by_id(layer).len() as isize + pos) as usize
         } else {

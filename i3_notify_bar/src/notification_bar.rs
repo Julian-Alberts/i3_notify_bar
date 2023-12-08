@@ -147,11 +147,17 @@ impl NotificationManager {
     }
 
     pub fn remove(&mut self, id: NotificationId, close_reason: &CloseReason) {
+        let mut notification = None;
         let filtered_notifications = self
             .notifications
             .iter()
             .filter(|n| match n.read() {
-                Ok(n) => n.id == id,
+                Ok(n_l) if n_l.id == id => {
+                    drop(n_l);
+                    notification = Some(Arc::clone(n));
+                    false
+                }
+                Ok(_) => true,
                 Err(_) => {
                     error!("Could not lock notification data");
                     false
@@ -161,7 +167,11 @@ impl NotificationManager {
             .collect::<Vec<Arc<RwLock<NotificationData>>>>();
         self.notifications = filtered_notifications;
         self.notification_closed(id, close_reason);
-        self.events.push(NotificationEvent::Remove(id));
+        if let Some(n) = notification {
+            self.events.push(NotificationEvent::Remove(n));
+        } else {
+            error!("Could not find notification")
+        }
     }
 
     //TODO Rewrite as async
@@ -288,7 +298,7 @@ pub fn execute_rules_inner(
 
 #[derive(Debug)]
 pub enum NotificationEvent {
-    Remove(notify_server::NotificationId),
+    Remove(Arc<RwLock<NotificationData>>),
     Add(Arc<RwLock<NotificationData>>),
 }
 
@@ -304,6 +314,7 @@ pub struct NotificationData {
     pub emoji_mode: EmojiMode,
     pub ignore: bool,
     pub actions: Vec<NotificationAction>,
+    pub group: Option<String>,
 }
 
 impl NotificationData {
@@ -325,6 +336,7 @@ impl NotificationData {
             emoji_mode,
             ignore: false,
             actions: notification.actions.clone(),
+            group: Some("TEST".to_string()),
         }
     }
 }

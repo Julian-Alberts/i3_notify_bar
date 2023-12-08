@@ -172,12 +172,6 @@ impl ComponentString for PartiallyAnimatedString {
     }
 }
 
-impl From<PartiallyAnimatedString> for Box<dyn ComponentString> {
-    fn from(s: PartiallyAnimatedString) -> Self {
-        Box::new(s)
-    }
-}
-
 impl ComponentString for String {
     fn to_component_text(&self) -> String {
         self.clone()
@@ -186,13 +180,16 @@ impl ComponentString for String {
     fn update(&mut self, _: f64) {}
 }
 
-impl From<String> for Box<dyn ComponentString> {
-    fn from(s: String) -> Self {
-        Box::new(s)
-    }
-}
-
 pub trait ComponentString {
     fn to_component_text(&self) -> String;
     fn update(&mut self, dt: f64);
+}
+
+impl ComponentString for Box<dyn ComponentString> {
+    fn update(&mut self, dt: f64) {
+        self.as_mut().update(dt);
+    }
+    fn to_component_text(&self) -> String {
+        self.as_ref().to_component_text()
+    }
 }

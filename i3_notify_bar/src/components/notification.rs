@@ -22,7 +22,7 @@ use super::action_bar::ActionBar;
 
 pub struct NotificationComponent {
     notification: Arc<RwLock<NotificationData>>,
-    label: Label,
+    label: Label<PartiallyAnimatedString>,
     close_button: Button,
     close_timer: Option<ProgressBar>,
     name: String,
@@ -53,7 +53,7 @@ impl NotificationComponent {
 
         let animated_notification_text =
             notification_data_to_animated_text(&nd_l, max_width, move_chars_per_sec);
-        let mut label = Label::new(animated_notification_text.into());
+        let mut label = Label::new(animated_notification_text);
 
         label.set_show(false);
         label.set_block_width(None);
@@ -93,6 +93,7 @@ impl NotificationComponent {
     }
 
     fn on_close_button_click(&self) {
+        debug!("Closing notification");
         match self.notification_manager.lock() {
             Ok(nm) => nm,
             Err(_) => {
@@ -193,7 +194,7 @@ impl Component for NotificationComponent {
 }
 
 fn create_button(style: &[Style]) -> Button {
-    let mut b = Button::new(format!(" {} ", icons::X_ICON).into());
+    let mut b = Button::new(Box::new(format!(" {} ", icons::X_ICON)));
     b.set_show(false);
     b.set_block_width(Some(0));
     style.iter().for_each(|s| {

@@ -27,7 +27,7 @@ const BUTTON_CONFIG: [ButtonConfig; 4] = [
     },
 ];
 
-pub fn init(selected: Arc<RwLock<MinimalUrgency>>) -> ButtonGroup<MinimalUrgency> {
+pub fn init(selected: Arc<RwLock<MinimalUrgency>>) -> ButtonGroup<MinimalUrgency, String> {
     let buttons = BUTTON_CONFIG.iter().fold(
         Vec::with_capacity(BUTTON_CONFIG.len()),
         |mut vec, config| {
@@ -37,7 +37,7 @@ pub fn init(selected: Arc<RwLock<MinimalUrgency>>) -> ButtonGroup<MinimalUrgency
         },
     );
 
-    let description = Label::new("Minimal urgency".to_string().into());
+    let description = Label::new("Minimal urgency".to_string());
 
     ButtonGroup::new(buttons, selected, Some(description))
 }
@@ -51,7 +51,7 @@ struct ButtonConfig<'a> {
 impl<'a> From<&'a ButtonConfig<'a>> for Button {
     fn from(config: &'a ButtonConfig) -> Self {
         use i3_bar_components::components::prelude::*;
-        let mut button = Button::new(config.text.to_owned().into());
+        let mut button = Button::new(Box::new(config.text.to_owned()));
         button.set_color_text(Some(config.color.to_owned()));
         button.set_border_color(Some(config.color.to_owned()));
         button

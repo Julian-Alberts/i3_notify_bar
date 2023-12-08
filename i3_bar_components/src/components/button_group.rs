@@ -1,24 +1,30 @@
 use std::sync::{Arc, RwLock};
 
-use crate::{component_manager::ManageComponents, property::Properties, protocol::ClickEvent};
+use crate::{
+    component_manager::ManageComponents, property::Properties, protocol::ClickEvent,
+    string::ComponentString,
+};
 
 use super::{
     prelude::{Color, *},
     Button, Label,
 };
 
-pub struct ButtonGroup<K: Copy + PartialEq + 'static> {
-    description: Option<Label>,
+pub struct ButtonGroup<
+    K: Copy + PartialEq + 'static,
+    LT: ComponentString = Box<dyn ComponentString>,
+> {
+    description: Option<Label<LT>>,
     buttons: Vec<GroupButton<K>>,
     selected: Arc<RwLock<K>>,
     name: Option<String>,
 }
 
-impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
+impl<K: Copy + PartialEq + 'static, LT: ComponentString> ButtonGroup<K, LT> {
     pub fn new(
         mut buttons: Vec<GroupButton<K>>,
         selected: Arc<RwLock<K>>,
-        description: Option<Label>,
+        description: Option<Label<LT>>,
     ) -> Self {
         buttons.sort_by(|a, b| a.pos.cmp(&b.pos));
         let mut button_group = Self {
@@ -51,7 +57,7 @@ impl<K: Copy + PartialEq + 'static> ButtonGroup<K> {
     }
 }
 
-impl<K: Copy + PartialEq + 'static> Component for ButtonGroup<K> {
+impl<K: Copy + PartialEq + 'static, LT: ComponentString> Component for ButtonGroup<K, LT> {
     fn event(&mut self, _: &mut dyn ManageComponents, event: &ClickEvent) {
         let Some(clicked_element) = event.get_instance() else {
             return;
