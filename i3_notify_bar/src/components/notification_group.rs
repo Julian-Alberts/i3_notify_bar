@@ -1,11 +1,14 @@
 use std::sync::{Arc, Mutex, RwLock};
 
 use i3_bar_components::{
-    components::{prelude::*, Label},
+    components::{prelude::*, Button, Label},
     string::{AnimatedString, PartiallyAnimatedString},
 };
 
-use crate::notification_bar::{NotificationData, NotificationManager};
+use crate::{
+    icons,
+    notification_bar::{NotificationData, NotificationManager},
+};
 
 pub struct NotificationGroup {
     label: Label<PartiallyAnimatedString>,
@@ -17,7 +20,7 @@ pub struct NotificationGroup {
 }
 
 struct NotificationGroupCloseButton {
-    button: Label<String>,
+    button: Button,
 }
 
 impl NotificationGroup {
@@ -33,8 +36,11 @@ impl NotificationGroup {
             AnimatedString::new(group_name.clone()),
             Some(format!(" {}", notifications.len())),
         );
+        let mut label = Label::new(string);
+        label.set_show(true);
+        label.set_block_width(Some(10));
         Self {
-            label: Label::new(string),
+            label,
             notifications,
             notification_manager,
             max_width,
@@ -112,7 +118,10 @@ impl Component for NotificationGroup {
 impl NotificationGroupCloseButton {
     fn new() -> Self {
         Self {
-            button: Label::new("X".to_string()),
+            button: Button::new(Box::new(format!(
+                " {} ",
+                icons::get_icon("close").unwrap_or('X')
+            ))),
         }
     }
 }

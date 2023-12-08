@@ -55,9 +55,8 @@ impl NotificationComponent {
             notification_data_to_animated_text(&nd_l, max_width, move_chars_per_sec);
         let mut label = Label::new(animated_notification_text);
 
-        label.set_show(false);
-        label.set_block_width(None);
-        label.set_padding_left(1);
+        label.set_show(true);
+        label.set_block_width(Some(0));
 
         nd_l.style.iter().for_each(|s| {
             s.apply(&mut label);
@@ -196,8 +195,8 @@ impl Component for NotificationComponent {
 
 fn create_button(style: &[Style]) -> Button {
     let mut b = Button::new(Box::new(format!(" {} ", icons::X_ICON)));
-    b.set_show(false);
-    b.set_block_width(Some(0));
+    b.set_show(true);
+    b.set_block_width(Some(10));
     style.iter().for_each(|s| {
         s.apply(&mut b);
     });
@@ -224,7 +223,7 @@ pub fn notification_data_to_animated_text(
     move_chars_per_sec: usize,
 ) -> PartiallyAnimatedString {
     let icon = if nd.icon != ' ' {
-        Some(nd.icon.to_string())
+        Some(format!("{} ", nd.icon.to_string()))
     } else {
         None
     };
