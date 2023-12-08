@@ -35,6 +35,7 @@ pub enum SetProperty {
     Text(u64),
     ExpireTimeout(i32),
     EmojiMode(EmojiMode),
+    Group(String),
 }
 
 impl SetProperty {
@@ -46,6 +47,7 @@ impl SetProperty {
             }
             Self::ExpireTimeout(i) => nd.expire_timeout = *i,
             Self::EmojiMode(em) => nd.emoji_mode = em.clone(),
+            Self::Group(g) => nd.group = Some(g.clone()),
         }
     }
 }

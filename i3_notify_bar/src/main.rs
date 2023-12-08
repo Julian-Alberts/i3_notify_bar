@@ -13,13 +13,8 @@ use args::Args;
 use components::NotificationBar;
 use emoji::EmojiMode;
 use i3_bar_components::{
-    component_manager::{
-        ComponentManagerBuilder, ManageComponents,
-    },
-    components::{
-        prelude::Urgent,
-        Label,
-    },
+    component_manager::{ComponentManagerBuilder, ManageComponents},
+    components::{prelude::Urgent, Label},
     string::AnimatedString,
 };
 use log::{debug, error};
@@ -107,15 +102,13 @@ fn run(
         Arc::clone(&minimal_urgency),
         notify_server,
     );
-    
-    component_manager.add_component(Box::new(
-        NotificationBar::new(
-            minimal_urgency, 
-            notification_manager.clone(),
-            max_text_length,
-            animation_chars_per_second,
-        )
-    ));
+
+    component_manager.add_component(Box::new(NotificationBar::new(
+        minimal_urgency,
+        notification_manager.clone(),
+        max_text_length,
+        animation_chars_per_second,
+    )));
 
     let mut last_update = std::time::SystemTime::now();
 

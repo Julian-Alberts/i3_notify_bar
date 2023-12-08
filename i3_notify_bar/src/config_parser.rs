@@ -124,6 +124,7 @@ fn parse_set_action(set_action: Pair<Rule>) -> ParseResult<Action> {
         Rule::emoji_mode => Action::Set(SetProperty::EmojiMode(
             EmojiMode::from_str(value).map_err(ParseError::EmojiMode)?,
         )),
+        Rule::group => Action::Set(SetProperty::Group(value.to_string())),
         _ => panic!(),
     };
     Ok(action)

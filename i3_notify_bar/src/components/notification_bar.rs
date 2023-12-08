@@ -34,13 +34,15 @@ impl NotificationBar {
         let mut menu_btn = Button::new(Box::new(icon));
 
         let nm_c = Arc::clone(&notification_manager);
-        
+
         let menu_btn_instance = menu_btn.instance();
         menu_btn.set_on_click(move |_, mc, ce| {
             let Some(instance) = ce.get_instance() else {
-                return
+                return;
             };
-            if menu_btn_instance != instance { return }
+            if menu_btn_instance != instance {
+                return;
+            }
             open_menu(mc, ce, selected_urgency.clone(), Arc::clone(&nm_c));
         });
 
@@ -87,13 +89,9 @@ impl Component for NotificationBar {
                     &mut self.notifications,
                     &self.notification_manager,
                     self.max_width,
-                    self.animation_chars_per_second
+                    self.animation_chars_per_second,
                 ),
-                Remove(n) => remove_notification(
-                    n, 
-                    &mut self.groups, 
-                    &mut self.notifications,
-                ),
+                Remove(n) => remove_notification(n, &mut self.groups, &mut self.notifications),
             }
         });
 
@@ -142,7 +140,13 @@ fn add_notification(
         drop(n_l);
 
         let group = groups.entry(group_name.clone()).or_insert_with(|| {
-            NotificationGroup::new(group_name, notification_manager.clone(), max_width, move_chars_per_sec, vec![])
+            NotificationGroup::new(
+                group_name,
+                notification_manager.clone(),
+                max_width,
+                move_chars_per_sec,
+                vec![],
+            )
         });
         group.add(n);
     } else {

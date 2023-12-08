@@ -336,7 +336,7 @@ impl NotificationData {
             emoji_mode,
             ignore: false,
             actions: notification.actions.clone(),
-            group: Some("TEST".to_string()),
+            group: None,
         }
     }
 }
