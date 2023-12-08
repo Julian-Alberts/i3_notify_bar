@@ -1,6 +1,5 @@
 use log::*;
 use std::any::Any;
-use std::ops::DerefMut;
 use std::sync::mpsc::Receiver;
 use std::{
     io::{BufRead, Read, Stdout, Write},

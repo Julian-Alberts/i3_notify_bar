@@ -10,16 +10,14 @@ mod rule;
 mod template;
 
 use args::Args;
-use components::{
-    notification_id_to_notification_compnent_name, NotificationComponent, NotificationGroup,
-};
+use components::NotificationBar;
 use emoji::EmojiMode;
 use i3_bar_components::{
     component_manager::{
-        AnyComponent, ComponentManager, ComponentManagerBuilder, ManageComponents,
+        ComponentManagerBuilder, ManageComponents,
     },
     components::{
-        prelude::{Component, Urgent},
+        prelude::Urgent,
         Label,
     },
     string::AnimatedString,
@@ -109,11 +107,15 @@ fn run(
         Arc::clone(&minimal_urgency),
         notify_server,
     );
-
-    component_manager.add_component(Box::new(components::menu_button_open(
-        minimal_urgency,
-        Arc::clone(&notification_manager),
-    )));
+    
+    component_manager.add_component(Box::new(
+        NotificationBar::new(
+            minimal_urgency, 
+            notification_manager.clone(),
+            max_text_length,
+            animation_chars_per_second,
+        )
+    ));
 
     let mut last_update = std::time::SystemTime::now();
 
@@ -126,93 +128,18 @@ fn run(
                 break;
             }
         };
-        let events = nm.get_events();
         nm.update(
             last_update
                 .elapsed()
                 .map(|e| e.as_secs_f64())
                 .unwrap_or_default(),
         );
-        last_update = std::time::SystemTime::now();
         drop(nm_lock);
-
-        events.into_iter().for_each(|event| match event {
-            NotificationEvent::Add(n) => add_notification(
-                &mut component_manager,
-                n,
-                max_text_length,
-                animation_chars_per_second,
-                &notification_manager,
-            ),
-            NotificationEvent::Remove(n) => {
-                let Ok(n_l) = n.read() else {
-                    return;
-                };
-                debug!("FOUND: {:#?}", n_l.group);
-                if let Some(group) = &n_l.group {
-                    debug!("Removing notification from group {group}");
-                    if let Some(gm) =
-                        component_manager.get_component_any_layer_mut::<NotificationGroup>(group)
-                    {
-                        gm.remove(n_l.id);
-                    } else {
-                        log::error!("Did not find group")
-                    }
-                }
-                debug!(
-                    "Removing notification {}",
-                    notification_id_to_notification_compnent_name(n_l.id)
-                );
-                component_manager
-                    .remove_by_name(&notification_id_to_notification_compnent_name(n_l.id))
-            }
-        });
+        last_update = std::time::SystemTime::now();
 
         component_manager.update();
         std::thread::sleep(Duration::from_millis(refresh_rate));
     }
-}
-
-fn add_notification(
-    component_manager: &mut ComponentManager,
-    n: Arc<RwLock<notification_bar::NotificationData>>,
-    max_text_length: usize,
-    animation_chars_per_second: usize,
-    notification_manager: &Arc<std::sync::Mutex<NotificationManager>>,
-) {
-    let Ok(n_l) = n.read() else {
-        return;
-    };
-    let comp: Box<dyn AnyComponent> = if let Some(group) = &n_l.group {
-        if let Some(gm) = component_manager.get_component_any_layer_mut::<NotificationGroup>(group)
-        {
-            log::debug!("Adding to group \"{group}\"");
-            drop(n_l);
-            gm.add(n);
-            return;
-        } else {
-            log::debug!("Creating group \"{group}\"");
-            let group_name = group.to_string();
-            drop(n_l);
-            Box::new(NotificationGroup::new(
-                group_name,
-                Arc::clone(notification_manager),
-                max_text_length,
-                animation_chars_per_second,
-                vec![n],
-            ))
-        }
-    } else {
-        log::debug!("Showing Notification");
-        drop(n_l);
-        Box::new(NotificationComponent::new(
-            n,
-            max_text_length,
-            animation_chars_per_second,
-            Arc::clone(notification_manager),
-        ))
-    };
-    component_manager.add_component_at_on_layer(comp, -1, 0)
 }
 
 fn read_config(config_file: Option<&Path>) -> Vec<crate::rule::Definition> {

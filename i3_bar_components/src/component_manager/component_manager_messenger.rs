@@ -1,5 +1,3 @@
-use crate::components::prelude::Component;
-
 use super::{component_manager::AnyComponent, ManageComponents};
 
 #[derive(Default)]

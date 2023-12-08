@@ -92,7 +92,7 @@ impl NotificationComponent {
         *self = new;
     }
 
-    fn on_close_button_click(&self) {
+    fn on_close_button_click(&self, mc: &mut dyn ManageComponents) {
         debug!("Closing notification");
         match self.notification_manager.lock() {
             Ok(nm) => nm,
@@ -102,6 +102,7 @@ impl NotificationComponent {
             }
         }
         .remove(self.id(), &CloseReason::Closed);
+        mc.remove_by_name(self.name().expect("NotificationComponent has no name"));
     }
 
     fn on_notification_right_click(&mut self, mc: &mut dyn ManageComponents) {
@@ -124,7 +125,7 @@ impl NotificationComponent {
         }
     }
 
-    fn id(&self) -> NotificationId {
+    pub fn id(&self) -> NotificationId {
         self.notification
             .read()
             .expect("Unable to create read lock")
@@ -154,7 +155,7 @@ impl Component for NotificationComponent {
         };
         match ce.get_button() {
             // Button clicked
-            1 if self.close_button.instance() == instance => self.on_close_button_click(),
+            1 if self.close_button.instance() == instance => self.on_close_button_click(mc),
             // Notification clicked
             1 => self.on_notification_click(),
             // Notification right click
@@ -189,7 +190,7 @@ impl Component for NotificationComponent {
     }
 
     fn name(&self) -> Option<&str> {
-        Some(&self.name[..])
+        Some(&self.name)
     }
 }
 

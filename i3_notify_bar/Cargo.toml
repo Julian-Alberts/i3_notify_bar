@@ -1,6 +1,6 @@
 [package]
 name = "i3_notify_bar"
-version = "1.7.2"
+version = "1.8.0"
 authors = ["Julian Alberts <julian.alberts@ewe.net>"]
 edition = "2021"
 
@@ -36,13 +36,3 @@ mini_template_render = []
 emoji_mode_replace = []
 default = ["fa_icons", "mini_template_render", "emoji_mode_replace"]
 
-[profile.release]
-opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-lto = 'thin'
-panic = 'unwind'
-incremental = false
-codegen-units = 16
-rpath = false

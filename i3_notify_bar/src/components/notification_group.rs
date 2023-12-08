@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex, RwLock};
 
 use i3_bar_components::{
-    components::{prelude::*, Button, Label},
+    components::{prelude::*, Label},
     string::{AnimatedString, PartiallyAnimatedString},
 };
 
@@ -55,6 +55,9 @@ impl NotificationGroup {
         self.label
             .text_mut()
             .set_right_static(self.notifications.len().to_string().into());
+    }
+    pub fn is_empty(&self) -> bool {
+        self.notifications.is_empty()
     }
 }
 
