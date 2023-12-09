@@ -1,5 +1,4 @@
 pub use crate::config_parser::parse_config;
-use notify_server::notification::Notification;
 use regex::Regex;
 
 use crate::{
@@ -7,6 +6,16 @@ use crate::{
     template,
 };
 use emoji::{self, EmojiMode};
+
+pub struct NotificationRuleData<'a> {
+    pub app_icon: &'a str,
+    pub app_name: &'a str,
+    pub summary: &'a str,
+    pub body: &'a str,
+    pub group: Option<&'a str>,
+    pub urgency: &'a notify_server::notification::Urgency,
+    pub expire_timeout: i32,
+}
 
 #[derive(Default, Debug, PartialEq)]
 pub struct Definition {
@@ -17,7 +26,7 @@ pub struct Definition {
 }
 
 impl Definition {
-    pub fn matches(&self, notification: &Notification) -> bool {
+    pub fn matches(&self, notification: &NotificationRuleData) -> bool {
         !self.conditions.iter().any(|r| !r.is_match(notification))
     }
 }
@@ -58,12 +67,13 @@ pub enum Conditions {
     AppIcon(String),
     Summary(ConditionTypeString),
     Body(ConditionTypeString),
+    Group(ConditionTypeString),
     Urgency(String),
     ExpireTimeout(NumberCondition),
 }
 
 impl Conditions {
-    fn is_match(&self, other: &Notification) -> bool {
+    fn is_match(&self, other: &NotificationRuleData) -> bool {
         match self {
             Conditions::AppIcon(v) => v == &other.app_icon,
             Conditions::AppName(v) => v == &other.app_name,
@@ -71,6 +81,8 @@ impl Conditions {
             Conditions::Summary(ConditionTypeString::Regex(v)) => v.is_match(&other.summary),
             Conditions::Body(ConditionTypeString::Literal(v)) => v == &other.body,
             Conditions::Body(ConditionTypeString::Regex(v)) => v.is_match(&other.body),
+            Conditions::Group(ConditionTypeString::Literal(v)) => todo!(),
+            Conditions::Group(ConditionTypeString::Regex(v)) => todo!(),
             Conditions::Urgency(v) => match &other.urgency {
                 notify_server::notification::Urgency::Low => v == "low",
                 notify_server::notification::Urgency::Normal => v == "normal",

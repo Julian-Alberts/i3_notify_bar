@@ -208,6 +208,7 @@ fn parse_string_condition(string_condition: Pair<Rule>) -> ParseResult<Condition
     match name {
         Rule::summary => Ok(Condition::Summary(condition_type)),
         Rule::body => Ok(Condition::Body(condition_type)),
+        Rule::group => Ok(Condition::Group(condition_type)),
         _ => panic!(),
     }
 }

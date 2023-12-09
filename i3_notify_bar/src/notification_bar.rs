@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use std::sync::RwLock;
 
 use crate::debug_config::MatchedDefinitionTree;
+use crate::rule::NotificationRuleData;
 use crate::{icons, rule::Action};
 use emoji::EmojiMode;
 use log::{debug, error, info};
@@ -243,10 +244,20 @@ pub fn execute_rules_inner(
     let mut read_next_definition = true;
 
     while read_next_definition {
+        let rule_data = NotificationRuleData {
+            app_icon: &n.app_icon,
+            app_name: &n.app_name,
+            body: &n.body,
+            expire_timeout: notification_data.expire_timeout,
+            group: notification_data.group.as_deref(),
+            summary: &n.summary,
+            urgency: &n.urgency,
+        };
+
         let definition = definitions[last_definition_id..]
             .iter()
             .enumerate()
-            .find(|(_, r)| r.matches(n));
+            .find(|(_, r)| r.matches(&rule_data));
 
         match definition {
             Some((index, definition)) => {

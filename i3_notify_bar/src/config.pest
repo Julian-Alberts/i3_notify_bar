@@ -3,24 +3,23 @@ WHITESPACE = _{ " "|"\t" }
 config = {SOI ~ NEWLINE* ~ (definition ~ NEWLINE*)* ~ EOI}
 
 definition = {
-    "def" ~ NEWLINE ~
+    "rule" ~ NEWLINE ~
         (section ~ NEWLINE )* ~
-    "enddef"
+    "endrule"
 }
 
-section = {condition_section|action_section|style_section|definition}
+section = {condition_section|action_section|style_section}
 
 condition_section = { 
-    PUSH("rule"|"condition") ~ NEWLINE ~
+    "condition" ~ NEWLINE ~
         (condition ~ NEWLINE)* ~
-    condition_section_end
+    "endcondition"
 }
-condition_section_end = @{ "end" ~ POP }
 condition = { number_condition|string_condition|legacy_condition }
 legacy_condition = { legacy_condition_key ~ compare_eq ~ eol }
 legacy_condition_key = { app_icon|app_name|urgency }
 string_condition = { string_condition_key ~ compare ~ eol }
-string_condition_key = { summary|body }
+string_condition_key = { summary|body|group }
 
 number_condition = { number_condition_key ~ (compare_eq | compare_lt | compare_le | compare_gt | compare_ge) ~ eol }
 number_condition_key = { expire_timeout }
