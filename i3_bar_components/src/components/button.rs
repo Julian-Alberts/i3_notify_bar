@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn on_button_click() {
-        let mut button = Button::new(String::from("test").into());
+        let mut button = Button::new(Box::new(String::from("test")));
         button.set_on_click(|btn, _, _| {
             btn.properties_mut().name = Some(String::from("clicked"));
         });
@@ -85,16 +85,14 @@ mod tests {
             "output_x": 0,
             "output_y": 0,
             "width": 0,
-            "height": 0
+            "height": 0,
+            "instance": "1"
         }
         "#,
         )
         .unwrap();
 
         button.event(&mut ComponentManagerBuilder::new().build(), &ce);
-        assert_eq!(
-            button.get_base_component_mut().get_properties_mut().name,
-            Some(String::from("clicked"))
-        )
+        assert_eq!(button.properties_mut().name, Some(String::from("clicked")))
     }
 }
