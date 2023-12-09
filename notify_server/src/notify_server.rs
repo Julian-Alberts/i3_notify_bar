@@ -254,7 +254,7 @@ mod interface_tests {
                 app_name,
                 body,
                 expire_timeout,
-                id: 1,
+                id: 1.into(),
                 summary,
                 urgency: crate::notification::Urgency::Normal
             }))
