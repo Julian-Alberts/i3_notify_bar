@@ -14,6 +14,25 @@ pub struct NotifyServer {
     interface_ref: InterfaceRef<NotifyServerInterface>,
 }
 
+#[async_trait::async_trait]
+#[mockall::automock]
+pub trait NotificationSource {
+    fn add_observer(
+        &mut self,
+        observer: Arc<Mutex<dyn observer::Observer<Event> + Send + Sync + 'static>>,
+    );
+    async fn action_invoked(
+        &self,
+        NotificationId(id): NotificationId,
+        action: &str,
+    ) -> zbus::Result<()>;
+    async fn notification_closed(
+        &mut self,
+        NotificationId(id): NotificationId,
+        reason: &CloseReason,
+    ) -> zbus::Result<()>;
+}
+
 impl NotifyServer {
     // Calling this method in tests could break the notification service of operating systems.
     #[cfg(not(test))]
@@ -25,15 +44,18 @@ impl NotifyServer {
             .interface::<_, NotifyServerInterface>("/org/freedesktop/Notifications")?;
         Ok(Self { interface_ref: i })
     }
+}
 
-    pub fn add_observer(
+#[async_trait::async_trait]
+impl NotificationSource for NotifyServer {
+    fn add_observer(
         &mut self,
         observer: Arc<Mutex<dyn observer::Observer<Event> + Send + Sync + 'static>>,
     ) {
         self.interface_ref.get_mut().add_observer(observer)
     }
 
-    pub async fn action_invoked(
+    async fn action_invoked(
         &self,
         NotificationId(id): NotificationId,
         action: &str,
@@ -42,7 +64,7 @@ impl NotifyServer {
         NotifyServerInterface::action_invoked(context, id, action).await
     }
 
-    pub async fn notification_closed(
+    async fn notification_closed(
         &mut self,
         NotificationId(id): NotificationId,
         reason: &CloseReason,

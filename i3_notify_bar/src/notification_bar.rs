@@ -19,21 +19,27 @@ use serde::Serialize;
 
 use crate::rule::{Definition, Style};
 
-pub struct NotificationManager {
+pub struct NotificationManager<Src = NotifyServer>
+where
+    Src: notify_server::NotificationSource + Send + Sync + 'static,
+{
     notifications: Vec<Arc<RwLock<NotificationData>>>,
     events: Vec<NotificationEvent>,
     definitions: Vec<Definition>,
     default_emoji_mode: EmojiMode,
     minimum_urgency: Arc<RwLock<MinimalUrgency>>,
-    notify_server: NotifyServer,
+    notify_server: Src,
 }
 
-impl NotificationManager {
+impl<Src> NotificationManager<Src>
+where
+    Src: notify_server::NotificationSource + Send + Sync + 'static,
+{
     pub fn new(
         definitions: Vec<Definition>,
         default_emoji_mode: EmojiMode,
         minimum_urgency: Arc<RwLock<MinimalUrgency>>,
-        notify_server: NotifyServer,
+        notify_server: Src,
     ) -> Arc<Mutex<Self>> {
         let manager = Self {
             notifications: Vec::new(),
@@ -149,29 +155,20 @@ impl NotificationManager {
 
     pub fn remove(&mut self, id: NotificationId, close_reason: &CloseReason) {
         let mut notification = None;
-        let filtered_notifications = self
-            .notifications
-            .iter()
-            .filter(|n| match n.read() {
-                Ok(n_l) if n_l.id == id => {
-                    drop(n_l);
-                    notification = Some(Arc::clone(n));
-                    false
-                }
-                Ok(_) => true,
-                Err(_) => {
-                    error!("Could not lock notification data");
-                    false
-                }
-            })
-            .map(Arc::clone)
-            .collect::<Vec<Arc<RwLock<NotificationData>>>>();
-        self.notifications = filtered_notifications;
+        self.notifications.retain(|n| match n.read() {
+            Ok(n_l) if n_l.id == id => {
+                notification = Some(Arc::clone(n));
+                false
+            }
+            Err(n_l) if n_l.get_ref().id == id => {
+                notification = Some(Arc::clone(n));
+                false
+            }
+            Err(_) | Ok(_) => true,
+        });
         self.notification_closed(id, close_reason);
         if let Some(n) = notification {
             self.events.push(NotificationEvent::Remove(n));
-        } else {
-            error!("Could not find notification")
         }
     }
 
@@ -191,24 +188,20 @@ impl NotificationManager {
     }
 
     pub fn close_all_notifications(&mut self, reason: CloseReason) {
-        let ids = self
-            .notifications
+        self.notifications
             .iter()
-            .filter_map(|n| match n.read() {
-                Ok(n) => Some(n.id),
-                Err(_) => {
-                    error!("Could not lock notification data");
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        for id in ids {
-            self.remove(id, &reason)
-        }
+            .filter_map(|n| n.read().ok())
+            .map(|n| n.id)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .for_each(|id| self.remove(id, &reason))
     }
 }
 
-impl Observer<Event> for NotificationManager {
+impl<Src> Observer<Event> for NotificationManager<Src>
+where
+    Src: notify_server::NotificationSource + Send + Sync + 'static,
+{
     fn on_notify(&mut self, event: &Event) {
         match event {
             Event::Notify(n) => self.notify(n),
@@ -375,7 +368,7 @@ impl From<&Notification> for NotificationTemplateData {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MinimalUrgency {
     All = 0,
     Normal = 1,
@@ -408,5 +401,139 @@ impl std::cmp::PartialOrd<Urgency> for MinimalUrgency {
 
     fn partial_cmp(&self, other: &Urgency) -> Option<std::cmp::Ordering> {
         Some((*self as usize).cmp(&(*other as usize)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, RwLock};
+
+    use notify_server::{CloseReason, NotificationSource};
+
+    use crate::rule::Definition;
+
+    use super::{MinimalUrgency, NotificationData, NotificationEvent, NotificationManager};
+
+    fn very_minimal_notification_manager(
+        mut notify_src: notify_server::MockNotificationSource,
+    ) -> Arc<std::sync::Mutex<NotificationManager<notify_server::MockNotificationSource>>> {
+        notify_src.expect_add_observer().once().returning(|_| {});
+        NotificationManager::new(
+            vec![Definition {
+                conditions: Default::default(),
+                actions: Default::default(),
+                style: Default::default(),
+                sub_definition: Default::default(),
+            }],
+            emoji::EmojiMode::Ignore,
+            Arc::new(RwLock::new(MinimalUrgency::Normal)),
+            notify_src,
+        )
+    }
+
+    fn notification(id: notify_server::NotificationId) -> NotificationData {
+        NotificationData {
+            actions: Vec::default(),
+            emoji_mode: emoji::EmojiMode::Ignore,
+            expire_timeout: 10,
+            group: None,
+            icon: ' ',
+            id,
+            ignore: false,
+            notification_update_id: 1,
+            remove_in_secs: None,
+            style: Default::default(),
+            text: Default::default(),
+        }
+    }
+
+    #[test]
+    fn new_notification_mamager() {
+        let notify_src = notify_server::MockNotificationSource::default();
+        let nm = very_minimal_notification_manager(notify_src);
+        let nm_l = nm.lock().unwrap();
+
+        let _ = nm_l
+            .minimum_urgency
+            .write()
+            .map(|mut m| *m = MinimalUrgency::Critical);
+
+        assert_eq!(nm_l.notifications.len(), 0);
+        assert_eq!(nm_l.events.len(), 0);
+        assert_eq!(nm_l.definitions.len(), 1);
+        assert_eq!(nm_l.default_emoji_mode, emoji::EmojiMode::Ignore);
+        assert_eq!(
+            *nm_l.minimum_urgency.read().unwrap(),
+            MinimalUrgency::Critical
+        );
+    }
+
+    #[test]
+    fn notification_manager_action_invoked() {
+        use mockall::predicate::eq;
+        let mut notify_src = notify_server::MockNotificationSource::default();
+        notify_src
+            .expect_action_invoked()
+            .once()
+            .with(
+                eq::<notify_server::NotificationId>(10.into()),
+                eq("default"),
+            )
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+        let nm = very_minimal_notification_manager(notify_src);
+        nm.lock().unwrap().action_invoked(10.into(), "default");
+    }
+
+    #[test]
+    fn notification_manager_notification_closed() {
+        use mockall::predicate::eq;
+        let mut notify_src = notify_server::MockNotificationSource::default();
+        notify_src
+            .expect_notification_closed()
+            .once()
+            .with(
+                eq::<notify_server::NotificationId>(10.into()),
+                eq(&CloseReason::Expired),
+            )
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+        let nm = very_minimal_notification_manager(notify_src);
+        nm.lock()
+            .unwrap()
+            .notification_closed(10.into(), &CloseReason::Expired);
+    }
+
+    #[test]
+    fn notification_manager_close_all_notifications() {
+        use mockall::predicate::{eq, in_iter};
+        let mut notify_src = notify_server::MockNotificationSource::default();
+        notify_src
+            .expect_notification_closed()
+            .times(3)
+            .with(
+                in_iter::<_, notify_server::NotificationId>(vec![1.into(), 12.into(), 13.into()]),
+                eq(&CloseReason::Expired),
+            )
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+        let nm = very_minimal_notification_manager(notify_src);
+        let mut nm_l = nm.lock().unwrap();
+        nm_l.notifications.append(&mut vec![
+            Arc::new(RwLock::new(notification(1.into()))),
+            Arc::new(RwLock::new(notification(12.into()))),
+            Arc::new(RwLock::new(notification(13.into()))),
+        ]);
+        nm_l.close_all_notifications(CloseReason::Expired);
+        assert!(nm_l.notifications.is_empty());
+    }
+
+    #[test]
+    fn notification_manager_events() {
+        let notify_src = notify_server::MockNotificationSource::default();
+        let nm = very_minimal_notification_manager(notify_src);
+        let mut nm_l = nm.lock().unwrap();
+        nm_l.events = vec![NotificationEvent::Add(Arc::new(RwLock::new(notification(
+            1.into(),
+        ))))];
+        assert_eq!(nm_l.get_events().len(), 1);
+        assert_eq!(nm_l.events.len(), 0);
     }
 }

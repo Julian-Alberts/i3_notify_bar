@@ -5,7 +5,9 @@ mod notify_server;
 use std::fmt::Display;
 
 pub use crate::notify_server::CloseReason;
-pub use crate::notify_server::{Message as NotificationMessage, NotifyServer};
+pub use crate::notify_server::{
+    Message as NotificationMessage, MockNotificationSource, NotificationSource, NotifyServer,
+};
 pub use events::Event;
 pub use observer::Observer;
 

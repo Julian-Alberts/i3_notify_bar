@@ -12,3 +12,5 @@ zvariant = "3.3"
 observer = { path = "../observer"}
 log = "0.4"
 jbe = { git = "https://github.com/Julian-Alberts/JBE.git", version = "0.1.0" }
+async-trait = "0.1.74"
+mockall = "0.11.4"

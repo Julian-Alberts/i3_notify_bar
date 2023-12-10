@@ -19,6 +19,8 @@ pest = "2.0"
 pest_derive = "2.0"
 lazy_static = "1.4"
 chrono = { version = "0.4", features = ["serde"] }
+mockall = "0.11.4"
+async-trait = "0.1.74"
 
 [dependencies.mini_template]
 version = "0.2"

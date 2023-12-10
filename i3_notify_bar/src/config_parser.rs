@@ -337,12 +337,12 @@ mod tests {
     fn parse_single_definition() {
         let definition = ConfigParser::parse(
             Rule::definition,
-            r#"def
+            r#"rule
             action
                 stop
                 ignore
             endaction
-            enddef"#,
+            endrule"#,
         );
 
         assert!(definition.is_ok(), "{:#?}", definition);
@@ -363,11 +363,11 @@ mod tests {
     fn parse_condition_section_conditions() {
         let condition_section = ConfigParser::parse(
             Rule::condition_section,
-            r#"rule
+            r#"condition
             app_name = Thunderbird
             expire_timeout = 10
             body match new
-        endrule"#,
+        endcondition"#,
         )
         .unwrap()
         .next()
@@ -410,17 +410,17 @@ mod tests {
 
     #[test]
     fn parse_simple_config() {
-        let config = r#"def
-            rule
+        let config = r#"rule
+            condition
                 app_name = Thunderbird
-            endrule
+            endcondition
             action
                 set expire_timeout -1
             endaction
             style
                 background #ff00ff
             endstyle
-        enddef"#;
+        endrule"#;
         let config = parse_config(&mut config.as_bytes());
         assert_eq!(
             config.unwrap(),
@@ -442,21 +442,21 @@ mod tests {
 
     #[test]
     fn parse_multi_entry_config() {
-        let config = r#"def
-    rule
+        let config = r#"rule
+    condition
         app_name = Thunderbird
-    endrule
-enddef
-def
+    endcondition
+endrule
+rule
     action
         ignore
     endaction
-enddef
-def
+endrule
+rule
     style
         background #ff00ff
     endstyle
-enddef"#;
+endrule"#;
         let config = parse_config(&mut config.as_bytes()).unwrap();
         assert_eq!(
             config,
@@ -544,11 +544,11 @@ mod pest_tests {
     fn rule_section() {
         let parsed = ConfigParser::parse(
             Rule::condition_section,
-            r#"rule
+            r#"condition
             app_name = aname
             body match test value
             expire_timeout = 10
-            endrule"#,
+            endcondition"#,
         );
 
         assert!(parsed.is_ok(), "{:#?}", parsed);
@@ -639,12 +639,12 @@ mod pest_tests {
     fn definition() {
         let parsed = ConfigParser::parse(
             Rule::definition,
-            r#"def
+            r#"rule
         style
             background #ff00ff
             text #234
         endstyle
-        enddef"#,
+        endrule"#,
         );
 
         assert!(parsed.is_ok(), "{:#?}", parsed);
@@ -663,12 +663,12 @@ mod pest_tests {
     fn config() {
         let parsed = ConfigParser::parse(
             Rule::config,
-            r#"def
+            r#"rule
             style
                 background #ff00ff
                 text #234
             endstyle
-            enddef"#,
+            endrule"#,
         );
 
         assert!(parsed.is_ok(), "{:#?}", parsed);
