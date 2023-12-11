@@ -8,7 +8,7 @@ definition = {
     "endrule"
 }
 
-section = {condition_section|action_section|style_section}
+section = {condition_section|action_section|style_section|definition}
 
 condition_section = { 
     "condition" ~ NEWLINE ~

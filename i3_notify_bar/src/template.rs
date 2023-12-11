@@ -1,3 +1,5 @@
+use std::{cell::OnceCell, sync::RwLock};
+
 use crate::notification_bar::NotificationTemplateData;
 
 use chrono::{LocalResult, TimeZone};
@@ -5,21 +7,15 @@ use mini_template::{MiniTemplate, MiniTemplateBuilder};
 
 pub const DEFAULT_TEMPLATE_ID: u64 = 0;
 
-static mut TEMPLATE_MANAGER: Option<MiniTemplate> = None;
+static mut TEMPLATE_MANAGER: OnceCell<RwLock<MiniTemplate>> = OnceCell::new();
 static mut NEXT_TEMPLATE_ID: u64 = DEFAULT_TEMPLATE_ID + 1;
 
 pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> String {
     unsafe {
-        let tplm = match &TEMPLATE_MANAGER {
-            Some(tm) => tm,
-            None => {
-                TEMPLATE_MANAGER = Some(init_template_manager());
-                match TEMPLATE_MANAGER.as_ref() {
-                    Some(tm) => tm,
-                    None => unreachable!(),
-                }
-            }
-        };
+        let tplm = TEMPLATE_MANAGER
+            .get_or_init(init_template_manager)
+            .read()
+            .unwrap_or_else(|e| e.into_inner());
         let output = match tplm.render(tpl_id.to_string().as_str(), context.clone().into()) {
             Ok(s) => s,
             Err(e) => e.to_string(),
@@ -31,17 +27,11 @@ pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> Stri
 pub fn add_template(template: String) -> Result<u64, ()> {
     unsafe {
         let id = NEXT_TEMPLATE_ID.to_string();
-        let old_template = match &mut TEMPLATE_MANAGER {
-            Some(tm) => tm,
-            None => {
-                TEMPLATE_MANAGER = Some(init_template_manager());
-                match TEMPLATE_MANAGER.as_mut() {
-                    Some(tm) => tm,
-                    None => unreachable!(),
-                }
-            }
-        }
-        .add_template(id, template);
+        let old_template = TEMPLATE_MANAGER
+            .get_or_init(init_template_manager)
+            .write()
+            .unwrap_or_else(|e| e.into_inner())
+            .add_template(id, template);
 
         match old_template {
             Ok(_) => {
@@ -53,7 +43,7 @@ pub fn add_template(template: String) -> Result<u64, ()> {
     }
 }
 
-fn init_template_manager() -> MiniTemplate {
+fn init_template_manager() -> RwLock<MiniTemplate> {
     let mut tplm = MiniTemplateBuilder::default()
         .with_default_modifiers()
         .with_modifier("date_time", &date_modifier)
@@ -68,7 +58,7 @@ fn init_template_manager() -> MiniTemplate {
     {
         unreachable!("Invalid default template")
     }
-    tplm
+    RwLock::new(tplm)
 }
 
 #[mini_template::macros::create_modifier]

@@ -45,7 +45,7 @@ pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<Vec<Definition>> {
     let definitions = config.into_inner().filter(|def| match def.as_rule() {
         Rule::definition => true,
         Rule::EOI => false,
-        rule => panic!("Unexpected rule: {:#?}", rule),
+        rule => unreachable!("Unexpected rule: {:#?}", rule),
     });
 
     definitions.map(parse_definition).collect::<Result<_, _>>()
@@ -74,7 +74,7 @@ fn parse_definition(definition: Pair<Rule>) -> ParseResult<Definition> {
             Rule::style_section => def.style = parse_style_section(section)?,
             Rule::action_section => def.actions = parse_action_section(section)?,
             Rule::definition => def.sub_definition.push(parse_definition(section)?),
-            _ => panic!(),
+            _ => unreachable!(),
         }
     }
     Ok(def)
@@ -92,12 +92,12 @@ fn parse_action(action: Pair<Rule>) -> ParseResult<Action> {
         .into_inner()
         .next()
         .ok_or(ParseError::UnexpectedEnd)?;
-    Ok(match action.as_rule() {
-        Rule::set_action => parse_set_action(action)?,
-        Rule::stop_action => Action::Stop,
-        Rule::ignore_action => Action::Ignore,
-        _ => panic!(),
-    })
+    match action.as_rule() {
+        Rule::set_action => parse_set_action(action),
+        Rule::stop_action => Ok(Action::Stop),
+        Rule::ignore_action => Ok(Action::Ignore),
+        _ => unreachable!(),
+    }
 }
 
 fn parse_set_action(set_action: Pair<Rule>) -> ParseResult<Action> {
@@ -125,7 +125,7 @@ fn parse_set_action(set_action: Pair<Rule>) -> ParseResult<Action> {
             EmojiMode::from_str(value).map_err(ParseError::EmojiMode)?,
         )),
         Rule::group => Action::Set(SetProperty::Group(value.to_string())),
-        _ => panic!(),
+        _ => unreachable!(),
     };
     Ok(action)
 }
@@ -153,7 +153,7 @@ fn parse_condition(condition: Pair<Rule>) -> ParseResult<Condition> {
         Rule::number_condition => parse_number_condition(condition)?,
         Rule::string_condition => parse_string_condition(condition)?,
         Rule::legacy_condition => parse_legacy_condition(condition)?,
-        _ => unimplemented!(),
+        _ => unreachable!(),
     };
     Ok(c)
 }
@@ -171,7 +171,7 @@ fn parse_number_condition(number_condition: Pair<Rule>) -> ParseResult<Condition
         Rule::compare_le => NumberCondition::Le(value),
         Rule::compare_gt => NumberCondition::Gt(value),
         Rule::compare_ge => NumberCondition::Ge(value),
-        _ => panic!(),
+        _ => unreachable!(),
     };
     match name {
         "expire_timeout" => Ok(Condition::ExpireTimeout(operation)),
@@ -202,14 +202,14 @@ fn parse_string_condition(string_condition: Pair<Rule>) -> ParseResult<Condition
         Rule::compare_match => {
             ConditionTypeString::Regex(Regex::new(value).map_err(ParseError::Regex)?)
         }
-        _ => panic!(),
+        _ => unreachable!(),
     };
 
     match name {
         Rule::summary => Ok(Condition::Summary(condition_type)),
         Rule::body => Ok(Condition::Body(condition_type)),
         Rule::group => Ok(Condition::Group(condition_type)),
-        _ => panic!(),
+        _ => unreachable!(),
     }
 }
 
@@ -233,7 +233,7 @@ fn parse_legacy_condition(legacy_condition: Pair<Rule>) -> ParseResult<Condition
         Rule::app_icon => Ok(Condition::AppIcon(value)),
         Rule::app_name => Ok(Condition::AppName(value)),
         Rule::urgency => Ok(Condition::Urgency(value)),
-        _ => panic!(),
+        _ => unreachable!(),
     }
 }
 
@@ -262,7 +262,7 @@ fn parse_style(style: Pair<Rule>) -> ParseResult<Style> {
                 .to_owned();
             Ok(Style::Text(color))
         }
-        _ => panic!(),
+        _ => unreachable!(),
     }
 }
 
@@ -297,6 +297,15 @@ impl Error for ParseError {}
 mod tests {
 
     use super::*;
+
+    #[test]
+    #[should_panic(expected = "Could not read line \"Test Error\"")]
+    fn unwrap_line_error() {
+        unwrap_line(Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Test Error",
+        )));
+    }
 
     #[test]
     fn parse_style_section_single_style() {
@@ -354,6 +363,44 @@ mod tests {
             definition,
             Definition {
                 actions: vec![Action::Stop, Action::Ignore],
+                ..Default::default()
+            }
+        )
+    }
+
+    #[test]
+    fn parse_rule_with_sub_rule() {
+        let definition = ConfigParser::parse(
+            Rule::definition,
+            r#"rule
+                action
+                    stop
+                endaction
+                rule
+                    condition
+                        app_name = TestApp
+                    endcondition
+                    action
+                        ignore
+                    endaction
+                endrule
+            endrule"#,
+        );
+
+        assert!(definition.is_ok(), "{:#?}", definition);
+
+        let definition = definition.unwrap().next().unwrap();
+
+        let definition = parse_definition(definition).unwrap();
+        assert_eq!(
+            definition,
+            Definition {
+                actions: vec![Action::Stop],
+                sub_definition: vec![Definition {
+                    conditions: vec![Condition::AppName("TestApp".into())],
+                    actions: vec![Action::Ignore],
+                    ..Default::default()
+                }],
                 ..Default::default()
             }
         )

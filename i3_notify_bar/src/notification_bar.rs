@@ -408,11 +408,17 @@ impl std::cmp::PartialOrd<Urgency> for MinimalUrgency {
 mod tests {
     use std::sync::{Arc, RwLock};
 
-    use notify_server::{CloseReason, NotificationSource};
+    use notify_server::{
+        notification::{Notification, Urgency},
+        CloseReason, NotificationSource,
+    };
 
-    use crate::rule::Definition;
+    use crate::rule::{Action, Definition};
 
-    use super::{MinimalUrgency, NotificationData, NotificationEvent, NotificationManager};
+    use super::{
+        MinimalUrgency, NotificationData, NotificationEvent, NotificationManager,
+        NotificationTemplateData,
+    };
 
     fn very_minimal_notification_manager(
         mut notify_src: notify_server::MockNotificationSource,
@@ -431,19 +437,42 @@ mod tests {
         )
     }
 
-    fn notification(id: notify_server::NotificationId) -> NotificationData {
+    fn notification(id: impl Into<notify_server::NotificationId>) -> NotificationData {
         NotificationData {
             actions: Vec::default(),
             emoji_mode: emoji::EmojiMode::Ignore,
             expire_timeout: 10,
             group: None,
             icon: ' ',
-            id,
+            id: id.into(),
             ignore: false,
             notification_update_id: 1,
             remove_in_secs: None,
             style: Default::default(),
             text: Default::default(),
+        }
+    }
+
+    fn server_notification() -> Notification {
+        notify_server::notification::Notification {
+            app_name: "".into(),
+            id: 0.into(),
+            app_icon: "".into(),
+            summary: "".into(),
+            body: "".into(),
+            urgency: Urgency::Normal,
+            actions: vec![],
+            expire_timeout: 0,
+        }
+    }
+    fn notification_template() -> NotificationTemplateData {
+        NotificationTemplateData {
+            app_name: "".into(),
+            icon: "".into(),
+            summary: "".into(),
+            body: "".into(),
+            expire_timeout: 0,
+            time: 0,
         }
     }
 
@@ -517,9 +546,9 @@ mod tests {
         let nm = very_minimal_notification_manager(notify_src);
         let mut nm_l = nm.lock().unwrap();
         nm_l.notifications.append(&mut vec![
-            Arc::new(RwLock::new(notification(1.into()))),
-            Arc::new(RwLock::new(notification(12.into()))),
-            Arc::new(RwLock::new(notification(13.into()))),
+            Arc::new(RwLock::new(notification(1))),
+            Arc::new(RwLock::new(notification(12))),
+            Arc::new(RwLock::new(notification(13))),
         ]);
         nm_l.close_all_notifications(CloseReason::Expired);
         assert!(nm_l.notifications.is_empty());
@@ -531,9 +560,193 @@ mod tests {
         let nm = very_minimal_notification_manager(notify_src);
         let mut nm_l = nm.lock().unwrap();
         nm_l.events = vec![NotificationEvent::Add(Arc::new(RwLock::new(notification(
-            1.into(),
+            1,
         ))))];
         assert_eq!(nm_l.get_events().len(), 1);
         assert_eq!(nm_l.events.len(), 0);
+    }
+
+    #[test]
+    fn execute_rule_ignore() {
+        let n = server_notification();
+        let mut ntd = notification_template();
+        let mut nd = notification(0);
+        super::execute_rules(
+            &[Definition {
+                actions: vec![Action::Ignore],
+                ..Default::default()
+            }],
+            &n,
+            &mut ntd,
+            &mut nd,
+        );
+        assert!(nd.ignore);
+    }
+
+    #[test]
+    fn execute_rule_empty() {
+        let n = server_notification();
+        let mut ntd = notification_template();
+        let mut nd = notification(0);
+        super::execute_rules(&[], &n, &mut ntd, &mut nd);
+        assert!(!nd.ignore);
+        assert!(nd.actions.is_empty());
+        assert_eq!(nd.expire_timeout, 10);
+        assert_eq!(nd.id, 0.into());
+    }
+
+    #[test]
+    fn execute_rule_set_group() {
+        let n = server_notification();
+        let mut ntd = notification_template();
+        let mut nd = notification(0);
+        super::execute_rules(
+            &[Definition {
+                actions: vec![Action::Set(crate::rule::SetProperty::Group(
+                    "TestGroup".into(),
+                ))],
+                ..Default::default()
+            }],
+            &n,
+            &mut ntd,
+            &mut nd,
+        );
+        assert_eq!(nd.group, Some("TestGroup".into()));
+    }
+
+    #[test]
+    fn execute_rule_stop() {
+        let n = server_notification();
+        let mut ntd = notification_template();
+        let mut nd = notification(0);
+        super::execute_rules(
+            &[
+                Definition {
+                    actions: vec![Action::Stop],
+                    ..Default::default()
+                },
+                Definition {
+                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
+                        "TestGroup".into(),
+                    ))],
+                    ..Default::default()
+                },
+            ],
+            &n,
+            &mut ntd,
+            &mut nd,
+        );
+        assert!(nd.group.is_none());
+    }
+
+    #[test]
+    fn execute_rule_multiple() {
+        let n = server_notification();
+        let mut ntd = notification_template();
+        let mut nd = notification(0);
+        super::execute_rules(
+            &[
+                Definition {
+                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                    ..Default::default()
+                },
+                Definition {
+                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
+                        "TestGroup".into(),
+                    ))],
+                    ..Default::default()
+                },
+            ],
+            &n,
+            &mut ntd,
+            &mut nd,
+        );
+        assert_eq!(nd.group, Some("TestGroup".into()));
+        assert_eq!(nd.icon, 'W');
+    }
+
+    #[test]
+    fn execute_rule_sub_rule() {
+        let n = server_notification();
+        let mut ntd = notification_template();
+        let mut nd = notification(0);
+        super::execute_rules(
+            &[Definition {
+                actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                sub_definition: vec![Definition {
+                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
+                        "TestGroup".into(),
+                    ))],
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+            &n,
+            &mut ntd,
+            &mut nd,
+        );
+        assert_eq!(nd.group, Some("TestGroup".into()));
+        assert_eq!(nd.icon, 'W');
+    }
+
+    #[test]
+    fn execute_rule_stop_in_sub_rule() {
+        let n = server_notification();
+        let mut ntd = notification_template();
+        let mut nd = notification(0);
+        super::execute_rules(
+            &[
+                Definition {
+                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                    sub_definition: vec![Definition {
+                        actions: vec![Action::Stop],
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                },
+                Definition {
+                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
+                        "TestGroup".into(),
+                    ))],
+                    ..Default::default()
+                },
+            ],
+            &n,
+            &mut ntd,
+            &mut nd,
+        );
+        assert!(nd.group.is_none());
+        assert_eq!(nd.icon, 'W');
+    }
+
+    #[test]
+    fn execute_rule_ignore_in_sub_rule() {
+        let n = server_notification();
+        let mut ntd = notification_template();
+        let mut nd = notification(0);
+        super::execute_rules(
+            &[
+                Definition {
+                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                    sub_definition: vec![Definition {
+                        actions: vec![Action::Ignore],
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                },
+                Definition {
+                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
+                        "TestGroup".into(),
+                    ))],
+                    ..Default::default()
+                },
+            ],
+            &n,
+            &mut ntd,
+            &mut nd,
+        );
+        assert!(nd.ignore);
+        assert!(nd.group.is_none());
+        assert_eq!(nd.icon, 'W');
     }
 }
