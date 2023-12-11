@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 zbus = "3.2"
-zvariant = "3.3"
+zvariant = "3.15"
 observer = { path = "../observer"}
 log = "0.4"
 jbe = { git = "https://github.com/Julian-Alberts/JBE.git", version = "0.1.0" }
