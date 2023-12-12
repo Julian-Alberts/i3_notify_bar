@@ -313,7 +313,7 @@ mod tests {
             Rule::style_section,
             r#"style
         background #fff 
-        endstyle"#,
+        end"#,
         )
         .unwrap()
         .next()
@@ -350,8 +350,8 @@ mod tests {
             action
                 stop
                 ignore
-            endaction
-            endrule"#,
+            end
+            end"#,
         );
 
         assert!(definition.is_ok(), "{:#?}", definition);
@@ -375,16 +375,16 @@ mod tests {
             r#"rule
                 action
                     stop
-                endaction
+                end
                 rule
                     condition
                         app_name = TestApp
-                    endcondition
+                    end
                     action
                         ignore
-                    endaction
-                endrule
-            endrule"#,
+                    end
+                end
+            end"#,
         );
 
         assert!(definition.is_ok(), "{:#?}", definition);
@@ -414,7 +414,7 @@ mod tests {
             app_name = Thunderbird
             expire_timeout = 10
             body match new
-        endcondition"#,
+        end"#,
         )
         .unwrap()
         .next()
@@ -439,7 +439,7 @@ mod tests {
             set text Hello World
             stop
             ignore
-        endaction"#,
+        end"#,
         )
         .unwrap()
         .next()
@@ -460,14 +460,14 @@ mod tests {
         let config = r#"rule
             condition
                 app_name = Thunderbird
-            endcondition
+            end
             action
                 set expire_timeout -1
-            endaction
+            end
             style
                 background #ff00ff
-            endstyle
-        endrule"#;
+            end
+        end"#;
         let config = parse_config(&mut config.as_bytes());
         assert_eq!(
             config.unwrap(),
@@ -492,18 +492,18 @@ mod tests {
         let config = r#"rule
     condition
         app_name = Thunderbird
-    endcondition
-endrule
+    end
+end
 rule
     action
         ignore
-    endaction
-endrule
+    end
+end
 rule
     style
         background #ff00ff
-    endstyle
-endrule"#;
+    end
+end"#;
         let config = parse_config(&mut config.as_bytes()).unwrap();
         assert_eq!(
             config,
@@ -595,7 +595,7 @@ mod pest_tests {
             app_name = aname
             body match test value
             expire_timeout = 10
-            endcondition"#,
+            end"#,
         );
 
         assert!(parsed.is_ok(), "{:#?}", parsed);
@@ -616,7 +616,7 @@ mod pest_tests {
             app_name = aname
             body match test value
             expire_timeout = 10
-            endcondition"#,
+            end"#,
         );
 
         assert!(parsed.is_ok(), "{:#?}", parsed);
@@ -671,7 +671,7 @@ mod pest_tests {
             r#"style
             background #ff00ff
             text #234
-        endstyle"#,
+        end"#,
         );
         assert!(parsed.is_ok(), "{:#?}", parsed);
         let mut parsed = parsed.unwrap();
@@ -690,8 +690,8 @@ mod pest_tests {
         style
             background #ff00ff
             text #234
-        endstyle
-        endrule"#,
+        end
+        end"#,
         );
 
         assert!(parsed.is_ok(), "{:#?}", parsed);
@@ -714,8 +714,8 @@ mod pest_tests {
             style
                 background #ff00ff
                 text #234
-            endstyle
-            endrule"#,
+            end
+            end"#,
         );
 
         assert!(parsed.is_ok(), "{:#?}", parsed);
