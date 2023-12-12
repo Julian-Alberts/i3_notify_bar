@@ -1,6 +1,6 @@
 # i3_notify_bar
 
-i3 notify bar is a simple notification bar for i3 window manager.
+The i3 notify bar is a simple notification bar for the i3 window manager.
 
 ## Configuration
 
@@ -17,16 +17,16 @@ bar {
 
 Rule example:
 ```
-def
-  rule
+rule
+  condition
     app_name = Spotify
-  endrule
+  end
   action
     ignore
-  endaction
-enddef
+  end
+end
 ```
 
-A rule definition always starts with `def` and ends with `enddef`. A definition can contain a `rule`, an `action` and a `style` block.
+A rule always starts with `rule` and ends with `end`. A rule can contain a `condition`, an `action`, and a `style` block.
 
 You can find more information [here](https://github.com/Julian-Alberts/i3_notify_bar/blob/master/config.md)
