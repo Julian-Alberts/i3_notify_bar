@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, sync::RwLock};
+use std::sync::{OnceLock, RwLock};
 
 use crate::notification_bar::NotificationTemplateData;
 
@@ -7,8 +7,9 @@ use mini_template::{MiniTemplate, MiniTemplateBuilder};
 
 pub const DEFAULT_TEMPLATE_ID: u64 = 0;
 
-static mut TEMPLATE_MANAGER: OnceCell<RwLock<MiniTemplate>> = OnceCell::new();
-static mut NEXT_TEMPLATE_ID: u64 = DEFAULT_TEMPLATE_ID + 1;
+static mut TEMPLATE_MANAGER: OnceLock<RwLock<MiniTemplate>> = OnceLock::new();
+static NEXT_TEMPLATE_ID: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(DEFAULT_TEMPLATE_ID);
 
 pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> String {
     unsafe {
@@ -26,18 +27,16 @@ pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> Stri
 
 pub fn add_template(template: String) -> Result<u64, ()> {
     unsafe {
-        let id = NEXT_TEMPLATE_ID.to_string();
+        let id = NEXT_TEMPLATE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let id_str = id.to_string();
         let old_template = TEMPLATE_MANAGER
             .get_or_init(init_template_manager)
             .write()
             .unwrap_or_else(|e| e.into_inner())
-            .add_template(id, template);
+            .add_template(id_str, template);
 
         match old_template {
-            Ok(_) => {
-                NEXT_TEMPLATE_ID += 1;
-                Ok(NEXT_TEMPLATE_ID - 1)
-            }
+            Ok(_) => Ok(id),
             Err(_) => Err(()), // TODO return better error
         }
     }
