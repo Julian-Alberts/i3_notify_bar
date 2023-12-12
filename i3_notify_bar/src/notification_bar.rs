@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
-use crate::debug_config::MatchedDefinitionTree;
 use crate::rule::NotificationRuleData;
 use crate::{icons, rule::Action};
 use emoji::EmojiMode;
@@ -215,28 +214,22 @@ pub fn execute_rules(
     n: &Notification,
     notification_template_data: &mut NotificationTemplateData,
     notification_data: &mut NotificationData,
-) -> super::debug_config::MatchedDefinitionTree {
-    let mut matched_rules = MatchedDefinitionTree::new_root();
+) {
     execute_rules_inner(
         definitions,
         n,
         notification_template_data,
         notification_data,
-        &mut matched_rules,
     );
-    matched_rules
 }
-pub fn execute_rules_inner(
+fn execute_rules_inner(
     definitions: &[Definition],
     n: &Notification,
     notification_template_data: &mut NotificationTemplateData,
     notification_data: &mut NotificationData,
-    matched_rules: &mut MatchedDefinitionTree,
-) -> ControlFlow<()> {
-    let mut last_definition_id = 0;
-    let mut read_next_definition = true;
-
-    while read_next_definition {
+) -> ControlFlow<ExecuteActionBreakReason> {
+    for rule in definitions {
+        use ExecuteActionBreakReason::*;
         let rule_data = NotificationRuleData {
             app_icon: &n.app_icon,
             app_name: &n.app_name,
@@ -246,55 +239,27 @@ pub fn execute_rules_inner(
             summary: &n.summary,
             urgency: &n.urgency,
         };
+        rule.matches(&rule_data);
+        let action_result = rule.actions.iter().try_for_each(|action| {
+            excute_action(action, notification_data, notification_template_data)
+        });
 
-        let definition = definitions[last_definition_id..]
-            .iter()
-            .enumerate()
-            .find(|(_, r)| r.matches(&rule_data));
+        match action_result {
+            ControlFlow::Break(Stop) => return ControlFlow::Break(Stop),
+            ControlFlow::Break(Ignore) => return ControlFlow::Break(Ignore),
+            ControlFlow::Continue(_) => {}
+        }
 
-        match definition {
-            Some((index, definition)) => {
-                debug!(
-                    "Matched definition {} {:#?}",
-                    last_definition_id + index,
-                    definition.conditions
-                );
-                last_definition_id += index + 1;
-                let mut sub_branch = MatchedDefinitionTree::new(last_definition_id);
+        notification_data.style.extend(rule.style.clone());
 
-                for action in &definition.actions {
-                    match action {
-                        Action::Ignore => {
-                            debug!("Ignore Message");
-                            notification_data.ignore = true;
-                            matched_rules.add_branch(sub_branch);
-                            return ControlFlow::Break(());
-                        }
-                        Action::Set(set_property) => {
-                            set_property.set(notification_data, notification_template_data)
-                        }
-                        Action::Stop => {
-                            matched_rules.add_branch(sub_branch);
-                            return ControlFlow::Break(());
-                        }
-                    }
-                }
-
-                notification_data.style.extend(definition.style.clone());
-
-                let break_execution = execute_rules_inner(
-                    &definition.sub_definition,
-                    n,
-                    notification_template_data,
-                    notification_data,
-                    &mut sub_branch,
-                );
-                matched_rules.add_branch(sub_branch);
-                if let ControlFlow::Break(_) = break_execution {
-                    return break_execution;
-                }
-            }
-            None => read_next_definition = false,
+        let sub_rule_result = execute_rules_inner(
+            &rule.sub_definition,
+            n,
+            notification_template_data,
+            notification_data,
+        );
+        if matches!(sub_rule_result, ControlFlow::Break(_)) {
+            return sub_rule_result;
         }
     }
     ControlFlow::Continue(())
@@ -401,6 +366,30 @@ impl std::cmp::PartialOrd<Urgency> for MinimalUrgency {
 
     fn partial_cmp(&self, other: &Urgency) -> Option<std::cmp::Ordering> {
         Some((*self as usize).cmp(&(*other as usize)))
+    }
+}
+
+enum ExecuteActionBreakReason {
+    Stop,
+    Ignore,
+}
+
+fn excute_action(
+    action: &Action,
+    notification_data: &mut NotificationData,
+    notification_template_data: &mut NotificationTemplateData,
+) -> ControlFlow<ExecuteActionBreakReason> {
+    use ExecuteActionBreakReason::*;
+    match action {
+        Action::Ignore => {
+            notification_data.ignore = true;
+            ControlFlow::Break(Ignore)
+        }
+        Action::Set(set_property) => {
+            set_property.set(notification_data, notification_template_data);
+            ControlFlow::Continue(())
+        }
+        Action::Stop => ControlFlow::Break(Stop),
     }
 }
 

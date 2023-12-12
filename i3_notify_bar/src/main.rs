@@ -2,7 +2,8 @@
 mod args;
 mod components;
 mod config_parser;
-mod debug_config;
+// Currently disabled
+//mod debug_config;
 mod icons;
 mod notification_bar;
 mod path_manager;
@@ -73,7 +74,8 @@ async fn main() {
             animation_chars_per_second,
             refresh_rate,
         ),
-        args::Command::DebugConfig(dc) => debug_config::debug_config(&config, emoji_mode, dc),
+        args::Command::DebugConfig(_) => eprintln!("Currently disabled"),
+        // args::Command::DebugConfig(dc) => debug_config::debug_config(&config, emoji_mode, dc),
     }
 }
 
