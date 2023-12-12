@@ -239,7 +239,9 @@ fn execute_rules_inner(
             summary: &n.summary,
             urgency: &n.urgency,
         };
-        rule.matches(&rule_data);
+        if !rule.matches(&rule_data) {
+            continue;
+        };
         let action_result = rule.actions.iter().try_for_each(|action| {
             excute_action(action, notification_data, notification_template_data)
         });
@@ -399,10 +401,10 @@ mod tests {
 
     use notify_server::{
         notification::{Notification, Urgency},
-        CloseReason, NotificationSource,
+        CloseReason,
     };
 
-    use crate::rule::{Action, Definition};
+    use crate::rule::{Action, Conditions, Definition};
 
     use super::{
         MinimalUrgency, NotificationData, NotificationEvent, NotificationManager,
@@ -651,6 +653,33 @@ mod tests {
             &mut nd,
         );
         assert_eq!(nd.group, Some("TestGroup".into()));
+        assert_eq!(nd.icon, 'W');
+    }
+
+    #[test]
+    fn execute_rule_multiple_not_all_matching() {
+        let n = server_notification();
+        let mut ntd = notification_template();
+        let mut nd = notification(0);
+        super::execute_rules(
+            &[
+                Definition {
+                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                    ..Default::default()
+                },
+                Definition {
+                    conditions: vec![Conditions::AppName("other name".to_string())],
+                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
+                        "TestGroup".into(),
+                    ))],
+                    ..Default::default()
+                },
+            ],
+            &n,
+            &mut ntd,
+            &mut nd,
+        );
+        assert_eq!(nd.group, None);
         assert_eq!(nd.icon, 'W');
     }
 
