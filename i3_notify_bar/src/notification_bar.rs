@@ -101,31 +101,16 @@ where
         debug!("Finished definitions");
         debug!("Final notification_data {:#?}", notification_data);
 
-        let notification_position = self.notifications.iter().position(|n| match n.read() {
-            Ok(n) => n.id == notification_data.id,
-            Err(_) => {
-                error!("Could not read notification data");
-                false
-            }
-        });
-        match notification_position {
-            Some(index) => {
-                let mut notification_data_storage = match self.notifications[index].write() {
-                    Ok(nds) => nds,
-                    Err(_) => {
-                        error!("Could not lock notifications");
-                        return;
-                    }
-                };
-                *notification_data_storage = notification_data;
-                drop(notification_data_storage);
-            }
-            None => {
-                let notification = Arc::new(RwLock::new(notification_data));
-                self.notifications.push(Arc::clone(&notification));
-                self.events.push(NotificationEvent::Add(notification));
-            }
+        if let Some(mut n) = self.notifications
+            .iter_mut()
+            .filter_map(|n| n.write().ok())
+            .find(|n| n.id == notification_data.id) {
+            *n = notification_data;
+            return
         }
+        let notification = Arc::new(RwLock::new(notification_data));
+        self.notifications.push(Arc::clone(&notification));
+        self.events.push(NotificationEvent::Add(notification));
     }
 
     pub fn update(&mut self, dt: f64) {
