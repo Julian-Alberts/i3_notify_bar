@@ -21,7 +21,7 @@ use i3_bar_components::{
 use log::{debug, error};
 use notification_bar::{MinimalUrgency, NotificationEvent, NotificationManager};
 use path_manager::PathManager;
-use rule::Definition;
+use rule::{Definition, RuleExcutor};
 use std::{
     io::BufReader,
     path::Path,
@@ -99,10 +99,10 @@ fn run(
     let notify_server =
         notify_server::NotifyServer::start().expect("Error starting notification server.");
     let notification_manager = NotificationManager::new(
-        config,
         emoji_mode,
         Arc::clone(&minimal_urgency),
         notify_server,
+        RuleExcutor::new(config),
     );
 
     component_manager.add_component(Box::new(NotificationBar::new(

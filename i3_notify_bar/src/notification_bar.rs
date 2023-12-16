@@ -1,12 +1,12 @@
-use std::ops::ControlFlow;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::RwLock;
 
-use crate::rule::NotificationRuleData;
-use crate::{icons, rule::Action};
+use crate::icons;
+use crate::rule::EvalRules;
+use crate::rule::RuleExcutor;
 use emoji::EmojiMode;
-use log::{debug, error, info};
+use log::{debug, info};
 use mini_template::macros::ValueContainer;
 use notify_server::notification::Action as NotificationAction;
 use notify_server::notification::Urgency;
@@ -16,34 +16,36 @@ use notify_server::NotifyServer;
 use notify_server::{notification::Notification, Event, Observer};
 use serde::Serialize;
 
-use crate::rule::{Definition, Style};
+use crate::rule::Style;
 
-pub struct NotificationManager<Src = NotifyServer>
+pub struct NotificationManager<Src = NotifyServer, RE = RuleExcutor>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
+    RE: EvalRules,
 {
     notifications: Vec<Arc<RwLock<NotificationData>>>,
     events: Vec<NotificationEvent>,
-    definitions: Vec<Definition>,
+    rule_executor: RE,
     default_emoji_mode: EmojiMode,
     minimum_urgency: Arc<RwLock<MinimalUrgency>>,
     notify_server: Src,
 }
 
-impl<Src> NotificationManager<Src>
+impl<Src, RE> NotificationManager<Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
+    RE: EvalRules + Send + Sync + 'static,
 {
     pub fn new(
-        definitions: Vec<Definition>,
         default_emoji_mode: EmojiMode,
         minimum_urgency: Arc<RwLock<MinimalUrgency>>,
         notify_server: Src,
+        rule_executor: RE,
     ) -> Arc<Mutex<Self>> {
         let manager = Self {
             notifications: Vec::new(),
             events: Vec::new(),
-            definitions,
+            rule_executor,
             default_emoji_mode,
             minimum_urgency,
             notify_server,
@@ -86,8 +88,7 @@ where
             return;
         }
 
-        execute_rules(
-            &self.definitions,
+        self.rule_executor.eval(
             notification,
             &mut notification_template_data,
             &mut notification_data,
@@ -101,12 +102,14 @@ where
         debug!("Finished definitions");
         debug!("Final notification_data {:#?}", notification_data);
 
-        if let Some(mut n) = self.notifications
+        if let Some(mut n) = self
+            .notifications
             .iter_mut()
             .filter_map(|n| n.write().ok())
-            .find(|n| n.id == notification_data.id) {
+            .find(|n| n.id == notification_data.id)
+        {
             *n = notification_data;
-            return
+            return;
         }
         let notification = Arc::new(RwLock::new(notification_data));
         self.notifications.push(Arc::clone(&notification));
@@ -182,9 +185,10 @@ where
     }
 }
 
-impl<Src> Observer<Event> for NotificationManager<Src>
+impl<Src, RE> Observer<Event> for NotificationManager<Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
+    RE: EvalRules + Send + Sync + 'static,
 {
     fn on_notify(&mut self, event: &Event) {
         match event {
@@ -192,64 +196,6 @@ where
             Event::Close(id, reason) => self.remove(*id, reason),
         }
     }
-}
-
-pub fn execute_rules(
-    definitions: &[Definition],
-    n: &Notification,
-    notification_template_data: &mut NotificationTemplateData,
-    notification_data: &mut NotificationData,
-) {
-    execute_rules_inner(
-        definitions,
-        n,
-        notification_template_data,
-        notification_data,
-    );
-}
-fn execute_rules_inner(
-    definitions: &[Definition],
-    n: &Notification,
-    notification_template_data: &mut NotificationTemplateData,
-    notification_data: &mut NotificationData,
-) -> ControlFlow<ExecuteActionBreakReason> {
-    for rule in definitions {
-        use ExecuteActionBreakReason::*;
-        let rule_data = NotificationRuleData {
-            app_icon: &n.app_icon,
-            app_name: &n.app_name,
-            body: &n.body,
-            expire_timeout: notification_data.expire_timeout,
-            group: notification_data.group.as_deref(),
-            summary: &n.summary,
-            urgency: &n.urgency,
-        };
-        if !rule.matches(&rule_data) {
-            continue;
-        };
-        let action_result = rule.actions.iter().try_for_each(|action| {
-            excute_action(action, notification_data, notification_template_data)
-        });
-
-        match action_result {
-            ControlFlow::Break(Stop) => return ControlFlow::Break(Stop),
-            ControlFlow::Break(Ignore) => return ControlFlow::Break(Ignore),
-            ControlFlow::Continue(_) => {}
-        }
-
-        notification_data.style.extend(rule.style.clone());
-
-        let sub_rule_result = execute_rules_inner(
-            &rule.sub_definition,
-            n,
-            notification_template_data,
-            notification_data,
-        );
-        if matches!(sub_rule_result, ControlFlow::Break(_)) {
-            return sub_rule_result;
-        }
-    }
-    ControlFlow::Continue(())
 }
 
 #[derive(Debug)]
@@ -356,30 +302,6 @@ impl std::cmp::PartialOrd<Urgency> for MinimalUrgency {
     }
 }
 
-enum ExecuteActionBreakReason {
-    Stop,
-    Ignore,
-}
-
-fn excute_action(
-    action: &Action,
-    notification_data: &mut NotificationData,
-    notification_template_data: &mut NotificationTemplateData,
-) -> ControlFlow<ExecuteActionBreakReason> {
-    use ExecuteActionBreakReason::*;
-    match action {
-        Action::Ignore => {
-            notification_data.ignore = true;
-            ControlFlow::Break(Ignore)
-        }
-        Action::Set(set_property) => {
-            set_property.set(notification_data, notification_template_data);
-            ControlFlow::Continue(())
-        }
-        Action::Stop => ControlFlow::Break(Stop),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, RwLock};
@@ -389,27 +311,23 @@ mod tests {
         CloseReason,
     };
 
-    use crate::rule::{Action, Conditions, Definition};
+    use crate::rule::{Action, Conditions, Definition, EvalRules, RuleExcutor};
 
     use super::{
         MinimalUrgency, NotificationData, NotificationEvent, NotificationManager,
         NotificationTemplateData,
     };
 
-    fn very_minimal_notification_manager(
+    fn minimal_notification_manager<RE: EvalRules + Send + Sync + 'static>(
         mut notify_src: notify_server::MockNotificationSource,
-    ) -> Arc<std::sync::Mutex<NotificationManager<notify_server::MockNotificationSource>>> {
+        rule_evaluator: RE,
+    ) -> Arc<std::sync::Mutex<NotificationManager<notify_server::MockNotificationSource, RE>>> {
         notify_src.expect_add_observer().once().returning(|_| {});
         NotificationManager::new(
-            vec![Definition {
-                conditions: Default::default(),
-                actions: Default::default(),
-                style: Default::default(),
-                sub_definition: Default::default(),
-            }],
             emoji::EmojiMode::Ignore,
             Arc::new(RwLock::new(MinimalUrgency::Normal)),
             notify_src,
+            rule_evaluator,
         )
     }
 
@@ -438,7 +356,7 @@ mod tests {
             body: "".into(),
             urgency: Urgency::Normal,
             actions: vec![],
-            expire_timeout: 0,
+            expire_timeout: -1,
         }
     }
     fn notification_template() -> NotificationTemplateData {
@@ -455,7 +373,7 @@ mod tests {
     #[test]
     fn new_notification_mamager() {
         let notify_src = notify_server::MockNotificationSource::default();
-        let nm = very_minimal_notification_manager(notify_src);
+        let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
         let nm_l = nm.lock().unwrap();
 
         let _ = nm_l
@@ -465,12 +383,47 @@ mod tests {
 
         assert_eq!(nm_l.notifications.len(), 0);
         assert_eq!(nm_l.events.len(), 0);
-        assert_eq!(nm_l.definitions.len(), 1);
         assert_eq!(nm_l.default_emoji_mode, emoji::EmojiMode::Ignore);
         assert_eq!(
             *nm_l.minimum_urgency.read().unwrap(),
             MinimalUrgency::Critical
         );
+    }
+
+    #[test]
+    fn notification_manager_notify() {
+        let notify_src = notify_server::MockNotificationSource::default();
+        let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
+        let mut nm = nm.lock().unwrap();
+        let mut notification = server_notification();
+        assert_eq!(nm.notifications.len(), 0);
+        nm.notify(&notification);
+        assert_eq!(nm.notifications.len(), 1);
+        nm.notify(&notification);
+        // Both notifications have the same id
+        assert_eq!(nm.notifications.len(), 1);
+        notification.id = 1.into();
+        nm.notify(&notification);
+        assert_eq!(nm.notifications.len(), 2);
+    }
+
+    #[test]
+    fn notification_manager_notify_urgency_check() {
+        let notify_src = notify_server::MockNotificationSource::default();
+        let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
+        let mut nm = nm.lock().unwrap();
+
+        let mut urgency = nm.minimum_urgency.write().unwrap();
+        *urgency = MinimalUrgency::Critical;
+        drop(urgency);
+
+        let mut notification = server_notification();
+        assert_eq!(nm.notifications.len(), 0);
+        nm.notify(&notification);
+        assert_eq!(nm.notifications.len(), 0);
+        notification.urgency = Urgency::Critical;
+        nm.notify(&notification);
+        assert_eq!(nm.notifications.len(), 1);
     }
 
     #[test]
@@ -485,7 +438,7 @@ mod tests {
                 eq("default"),
             )
             .returning(|_, _| Box::pin(async { Ok(()) }));
-        let nm = very_minimal_notification_manager(notify_src);
+        let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
         nm.lock().unwrap().action_invoked(10.into(), "default");
     }
 
@@ -501,7 +454,7 @@ mod tests {
                 eq(&CloseReason::Expired),
             )
             .returning(|_, _| Box::pin(async { Ok(()) }));
-        let nm = very_minimal_notification_manager(notify_src);
+        let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
         nm.lock()
             .unwrap()
             .notification_closed(10.into(), &CloseReason::Expired);
@@ -519,7 +472,7 @@ mod tests {
                 eq(&CloseReason::Expired),
             )
             .returning(|_, _| Box::pin(async { Ok(()) }));
-        let nm = very_minimal_notification_manager(notify_src);
+        let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
         let mut nm_l = nm.lock().unwrap();
         nm_l.notifications.append(&mut vec![
             Arc::new(RwLock::new(notification(1))),
@@ -533,223 +486,12 @@ mod tests {
     #[test]
     fn notification_manager_events() {
         let notify_src = notify_server::MockNotificationSource::default();
-        let nm = very_minimal_notification_manager(notify_src);
+        let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
         let mut nm_l = nm.lock().unwrap();
         nm_l.events = vec![NotificationEvent::Add(Arc::new(RwLock::new(notification(
             1,
         ))))];
         assert_eq!(nm_l.get_events().len(), 1);
         assert_eq!(nm_l.events.len(), 0);
-    }
-
-    #[test]
-    fn execute_rule_ignore() {
-        let n = server_notification();
-        let mut ntd = notification_template();
-        let mut nd = notification(0);
-        super::execute_rules(
-            &[Definition {
-                actions: vec![Action::Ignore],
-                ..Default::default()
-            }],
-            &n,
-            &mut ntd,
-            &mut nd,
-        );
-        assert!(nd.ignore);
-    }
-
-    #[test]
-    fn execute_rule_empty() {
-        let n = server_notification();
-        let mut ntd = notification_template();
-        let mut nd = notification(0);
-        super::execute_rules(&[], &n, &mut ntd, &mut nd);
-        assert!(!nd.ignore);
-        assert!(nd.actions.is_empty());
-        assert_eq!(nd.expire_timeout, 10);
-        assert_eq!(nd.id, 0.into());
-    }
-
-    #[test]
-    fn execute_rule_set_group() {
-        let n = server_notification();
-        let mut ntd = notification_template();
-        let mut nd = notification(0);
-        super::execute_rules(
-            &[Definition {
-                actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                    "TestGroup".into(),
-                ))],
-                ..Default::default()
-            }],
-            &n,
-            &mut ntd,
-            &mut nd,
-        );
-        assert_eq!(nd.group, Some("TestGroup".into()));
-    }
-
-    #[test]
-    fn execute_rule_stop() {
-        let n = server_notification();
-        let mut ntd = notification_template();
-        let mut nd = notification(0);
-        super::execute_rules(
-            &[
-                Definition {
-                    actions: vec![Action::Stop],
-                    ..Default::default()
-                },
-                Definition {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
-                    ..Default::default()
-                },
-            ],
-            &n,
-            &mut ntd,
-            &mut nd,
-        );
-        assert!(nd.group.is_none());
-    }
-
-    #[test]
-    fn execute_rule_multiple() {
-        let n = server_notification();
-        let mut ntd = notification_template();
-        let mut nd = notification(0);
-        super::execute_rules(
-            &[
-                Definition {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
-                    ..Default::default()
-                },
-                Definition {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
-                    ..Default::default()
-                },
-            ],
-            &n,
-            &mut ntd,
-            &mut nd,
-        );
-        assert_eq!(nd.group, Some("TestGroup".into()));
-        assert_eq!(nd.icon, 'W');
-    }
-
-    #[test]
-    fn execute_rule_multiple_not_all_matching() {
-        let n = server_notification();
-        let mut ntd = notification_template();
-        let mut nd = notification(0);
-        super::execute_rules(
-            &[
-                Definition {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
-                    ..Default::default()
-                },
-                Definition {
-                    conditions: vec![Conditions::AppName("other name".to_string())],
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
-                    ..Default::default()
-                },
-            ],
-            &n,
-            &mut ntd,
-            &mut nd,
-        );
-        assert_eq!(nd.group, None);
-        assert_eq!(nd.icon, 'W');
-    }
-
-    #[test]
-    fn execute_rule_sub_rule() {
-        let n = server_notification();
-        let mut ntd = notification_template();
-        let mut nd = notification(0);
-        super::execute_rules(
-            &[Definition {
-                actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
-                sub_definition: vec![Definition {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
-                    ..Default::default()
-                }],
-                ..Default::default()
-            }],
-            &n,
-            &mut ntd,
-            &mut nd,
-        );
-        assert_eq!(nd.group, Some("TestGroup".into()));
-        assert_eq!(nd.icon, 'W');
-    }
-
-    #[test]
-    fn execute_rule_stop_in_sub_rule() {
-        let n = server_notification();
-        let mut ntd = notification_template();
-        let mut nd = notification(0);
-        super::execute_rules(
-            &[
-                Definition {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
-                    sub_definition: vec![Definition {
-                        actions: vec![Action::Stop],
-                        ..Default::default()
-                    }],
-                    ..Default::default()
-                },
-                Definition {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
-                    ..Default::default()
-                },
-            ],
-            &n,
-            &mut ntd,
-            &mut nd,
-        );
-        assert!(nd.group.is_none());
-        assert_eq!(nd.icon, 'W');
-    }
-
-    #[test]
-    fn execute_rule_ignore_in_sub_rule() {
-        let n = server_notification();
-        let mut ntd = notification_template();
-        let mut nd = notification(0);
-        super::execute_rules(
-            &[
-                Definition {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
-                    sub_definition: vec![Definition {
-                        actions: vec![Action::Ignore],
-                        ..Default::default()
-                    }],
-                    ..Default::default()
-                },
-                Definition {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
-                    ..Default::default()
-                },
-            ],
-            &n,
-            &mut ntd,
-            &mut nd,
-        );
-        assert!(nd.ignore);
-        assert!(nd.group.is_none());
-        assert_eq!(nd.icon, 'W');
     }
 }
