@@ -311,12 +311,9 @@ mod tests {
         CloseReason,
     };
 
-    use crate::rule::{Action, Conditions, Definition, EvalRules, RuleExcutor};
+    use crate::rule::{EvalRules, RuleExcutor};
 
-    use super::{
-        MinimalUrgency, NotificationData, NotificationEvent, NotificationManager,
-        NotificationTemplateData,
-    };
+    use super::{MinimalUrgency, NotificationData, NotificationEvent, NotificationManager};
 
     fn minimal_notification_manager<RE: EvalRules + Send + Sync + 'static>(
         mut notify_src: notify_server::MockNotificationSource,
@@ -357,16 +354,6 @@ mod tests {
             urgency: Urgency::Normal,
             actions: vec![],
             expire_timeout: -1,
-        }
-    }
-    fn notification_template() -> NotificationTemplateData {
-        NotificationTemplateData {
-            app_name: "".into(),
-            icon: "".into(),
-            summary: "".into(),
-            body: "".into(),
-            expire_timeout: 0,
-            time: 0,
         }
     }
 
