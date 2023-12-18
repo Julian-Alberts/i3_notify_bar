@@ -54,7 +54,10 @@ impl SetProperty {
             Self::Text(i) => {
                 nd.text = emoji::handle(template::render_template(i, n), &nd.emoji_mode)
             }
-            Self::ExpireTimeout(i) => nd.expire_timeout = *i,
+            Self::ExpireTimeout(i) => {
+                nd.expire_timeout = *i;
+                nd.remove_in_secs = Some(*i as f64);
+            },
             Self::EmojiMode(em) => nd.emoji_mode = em.clone(),
             Self::Group(g) => nd.group = Some(g.clone()),
         }
@@ -208,11 +211,11 @@ mod tests {
                     actions: Default::default(),
                     emoji_mode: EmojiMode::Ignore,
                     notification_update_id: 0,
-                    expire_timeout: 10,
+                    expire_timeout: -1,
+                    remove_in_secs: None,
                     group: None,
                     icon: ' ',
                     ignore: false,
-                    remove_in_secs: Some(10.),
                     style: Vec::default(),
                     text: "Test Text".to_owned(),
                 }
@@ -261,8 +264,10 @@ mod tests {
                 let prop = SetProperty::ExpireTimeout(timeout);
                 let n = new_ntd();
                 assert_ne!(timeout, nd.expire_timeout);
+                assert!(nd.remove_in_secs.is_none());
                 prop.set(&mut nd, &n);
                 assert_eq!(timeout, nd.expire_timeout);
+                assert_eq!(Some(timeout as f64), nd.remove_in_secs)
             }
 
             #[test]
