@@ -1,6 +1,4 @@
-use observer::SingleEventSystem;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use zbus::blocking::InterfaceRef;
 #[cfg(not(test))]
 use zbus::blocking::{Connection, ConnectionBuilder};
@@ -17,10 +15,7 @@ pub struct NotifyServer {
 #[async_trait::async_trait]
 #[mockall::automock]
 pub trait NotificationSource {
-    fn add_observer(
-        &mut self,
-        observer: Arc<Mutex<dyn observer::Observer<Event> + Send + Sync + 'static>>,
-    );
+    fn take_events(&mut self) -> Option<Vec<Event>>;
     async fn action_invoked(
         &self,
         NotificationId(id): NotificationId,
@@ -48,11 +43,13 @@ impl NotifyServer {
 
 #[async_trait::async_trait]
 impl NotificationSource for NotifyServer {
-    fn add_observer(
-        &mut self,
-        observer: Arc<Mutex<dyn observer::Observer<Event> + Send + Sync + 'static>>,
-    ) {
-        self.interface_ref.get_mut().add_observer(observer)
+    fn take_events(&mut self) -> Option<Vec<Event>> {
+        let mut interface = self.interface_ref.get_mut();
+        if interface.events.len() > 0 {
+            Some(std::mem::take(&mut interface.events))
+        } else {
+            None
+        }
     }
 
     async fn action_invoked(
@@ -75,19 +72,11 @@ impl NotificationSource for NotifyServer {
 }
 
 struct NotifyServerInterface {
-    event_system: Arc<Mutex<SingleEventSystem<Event>>>,
+    events: Vec<Event>,
     last_id: u32,
 }
 
 impl NotifyServerInterface {
-    fn add_observer(
-        &mut self,
-        observer: Arc<Mutex<dyn observer::Observer<Event> + Send + Sync + 'static>>,
-    ) {
-        let mut event_system = self.event_system.lock().unwrap();
-        event_system.set_observer(observer);
-    }
-
     // Calling this method in tests could break the notification service of the current operating system.
     #[cfg(not(test))]
     pub fn run(self) -> zbus::Result<Connection> {
@@ -156,18 +145,13 @@ impl NotifyServerInterface {
 
         let notification = builder.build();
 
-        self.event_system
-            .lock()
-            .unwrap()
-            .notify(&Event::Notify(notification));
+        self.events.push(Event::Notify(notification));
         id
     }
 
-    fn close_notification(&self, id: u32) {
-        self.event_system
-            .lock()
-            .unwrap()
-            .notify(&Event::Close(id.into(), CloseReason::Undefined))
+    fn close_notification(&mut self, id: u32) {
+        self.events
+            .push(Event::Close(id.into(), CloseReason::Undefined));
     }
 
     fn get_server_information(&self) -> (&str, &str, &str, &str) {
@@ -197,7 +181,7 @@ impl NotifyServerInterface {
 impl Default for NotifyServerInterface {
     fn default() -> Self {
         Self {
-            event_system: Arc::new(Mutex::new(SingleEventSystem::default())),
+            events: Vec::default(),
             last_id: 0,
         }
     }
@@ -219,10 +203,7 @@ pub enum Message {
 #[cfg(test)]
 mod interface_tests {
 
-    use std::{
-        collections::HashMap,
-        sync::{Arc, Mutex},
-    };
+    use std::collections::HashMap;
 
     use crate::{notification::Notification, Event};
 
@@ -245,17 +226,7 @@ mod interface_tests {
         let hints_cp = hints.clone();
         let expire_timeout = 0;
 
-        let observer = TestObserver { last_event: None };
-
-        let observer = Arc::new(Mutex::new(observer));
-
-        let observer_cp = Arc::clone(&observer);
-        let observer_cp: Arc<
-            Mutex<dyn observer::Observer<Event> + Sync + std::marker::Send + 'static>,
-        > = observer_cp;
-
         let mut interface = NotifyServerInterface::default();
-        interface.add_observer(observer_cp);
 
         interface.notify(
             app_name_cp,
@@ -269,8 +240,8 @@ mod interface_tests {
         );
 
         assert_eq!(
-            observer.lock().unwrap().last_event,
-            Some(Event::Notify(Notification {
+            interface.events[0],
+            Event::Notify(Notification {
                 actions: vec![],
                 app_icon,
                 app_name,
@@ -279,22 +250,9 @@ mod interface_tests {
                 id: 1.into(),
                 summary,
                 urgency: crate::notification::Urgency::Normal
-            }))
+            })
         );
 
         assert_eq!(interface.last_id, 1);
     }
-
-    struct TestObserver {
-        last_event: Option<Event>,
-    }
-
-    impl observer::Observer<Event> for TestObserver {
-        fn on_notify(&mut self, event: &Event) {
-            self.last_event = Some(event.clone())
-        }
-    }
-
-    unsafe impl Sync for TestObserver {}
-    unsafe impl Send for TestObserver {}
 }

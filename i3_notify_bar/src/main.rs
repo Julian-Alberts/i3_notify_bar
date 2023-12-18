@@ -25,7 +25,7 @@ use rule::Definition;
 use std::{
     io::BufReader,
     path::Path,
-    sync::{Arc, RwLock},
+    sync::{Arc, RwLock, Mutex},
     time::Duration,
 };
 
@@ -98,16 +98,17 @@ fn run(
 
     let notify_server =
         notify_server::NotifyServer::start().expect("Error starting notification server.");
-    let notification_manager = NotificationManager::new(
+    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(
         config,
         emoji_mode,
         Arc::clone(&minimal_urgency),
         notify_server,
-    );
-
+    )));
+    
+    let nm_ref: &Arc<_> = &notification_manager;
     component_manager.add_component(Box::new(NotificationBar::new(
         minimal_urgency,
-        notification_manager.clone(),
+        Arc::clone(nm_ref),
         max_text_length,
         animation_chars_per_second,
     )));

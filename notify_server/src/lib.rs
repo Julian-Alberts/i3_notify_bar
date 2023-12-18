@@ -9,7 +9,6 @@ pub use crate::notify_server::{
     Message as NotificationMessage, MockNotificationSource, NotificationSource, NotifyServer,
 };
 pub use events::Event;
-pub use observer::Observer;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct NotificationId(u32);

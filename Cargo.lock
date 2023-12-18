@@ -1035,7 +1035,6 @@ dependencies = [
  "jbe",
  "log",
  "mockall",
- "observer",
  "zbus",
  "zvariant",
 ]
@@ -1057,10 +1056,6 @@ checksum = "2819ce041d2ee131036f4fc9d6ae7ae125a3a40e97ba64d04fe799ad9dabbb44"
 dependencies = [
  "libc",
 ]
-
-[[package]]
-name = "observer"
-version = "0.1.0"
 
 [[package]]
 name = "once_cell"
