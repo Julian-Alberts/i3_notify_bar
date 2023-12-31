@@ -150,9 +150,10 @@ where
                         .notifications
                         .iter()
                         .map(|e| e.read().unwrap_or_else(|e| e.into_inner()))
+                        .map(|n| n.id)
                     {
                         self.notify_server
-                            .notification_closed(n.id, &reason)
+                            .notification_closed(n, &reason)
                             .await
                             .ok();
                     }

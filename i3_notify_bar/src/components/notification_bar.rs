@@ -70,10 +70,7 @@ impl Component for NotificationBar {
             self.notifications
                 .iter()
                 .map(Component::all_properties)
-                .chain(
-                    self.groups.values()
-                        .map(Component::all_properties),
-                )
+                .chain(self.groups.values().map(Component::all_properties))
                 .flatten()
                 .chain(self.menu_btn.all_properties()),
         )

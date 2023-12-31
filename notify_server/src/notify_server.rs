@@ -179,8 +179,6 @@ impl NotifyServerInterface {
     ) -> zbus::Result<()>;
 }
 
-
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CloseReason {
     Expired = 1,

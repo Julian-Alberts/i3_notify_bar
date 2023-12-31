@@ -15,8 +15,7 @@ use notify_server::{notification::Action, CloseReason, NotificationId};
 use crate::{
     icons,
     notification_bar::{
-        CloseNotification, InvokeAction as _, NotificationData,
-        NotificationManagerCommands,
+        CloseNotification, InvokeAction as _, NotificationData, NotificationManagerCommands,
     },
     rule::Style,
 };
