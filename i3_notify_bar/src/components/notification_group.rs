@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use i3_bar_components::{
     components::{prelude::*, Button, Label},
@@ -7,13 +7,13 @@ use i3_bar_components::{
 
 use crate::{
     icons,
-    notification_bar::{NotificationData, NotificationManager},
+    notification_bar::{NotificationData, NotificationManagerCommands},
 };
 
 pub struct NotificationGroup {
     label: Label<PartiallyAnimatedString>,
     notifications: Vec<Arc<RwLock<NotificationData>>>,
-    notification_manager: Arc<Mutex<NotificationManager>>,
+    notification_manager_cmd: NotificationManagerCommands,
     max_width: usize,
     move_chars_per_sec: usize,
     group_name: String,
@@ -26,7 +26,7 @@ struct NotificationGroupCloseButton {
 impl NotificationGroup {
     pub fn new(
         group_name: String,
-        notification_manager: Arc<Mutex<NotificationManager>>,
+        notification_manager_cmd: NotificationManagerCommands,
         max_width: usize,
         move_chars_per_sec: usize,
         notifications: Vec<Arc<RwLock<NotificationData>>>,
@@ -42,7 +42,7 @@ impl NotificationGroup {
         Self {
             label,
             notifications,
-            notification_manager,
+            notification_manager_cmd,
             max_width,
             move_chars_per_sec,
             group_name,
@@ -100,7 +100,7 @@ impl Component for NotificationGroup {
                 Arc::clone(n),
                 self.max_width,
                 self.move_chars_per_sec,
-                self.notification_manager.clone(),
+                self.notification_manager_cmd.clone(),
             )));
         });
         cm.add_component(Box::new(NotificationGroupCloseButton::new()));

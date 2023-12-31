@@ -1,24 +1,25 @@
-use std::sync::{Arc, Mutex};
-
 use i3_bar_components::components::{
     prelude::{Component, SimpleComponent},
     Button,
 };
 use notify_server::notification::Action;
 
-use crate::{icons, notification_bar::NotificationManager};
+use crate::{
+    icons,
+    notification_bar::{InvokeAction as _, NotificationManagerCommands},
+};
 pub struct ActionBar {
     buttons: Vec<ActionButton>,
     close_btn: Button,
     notification_id: notify_server::NotificationId,
-    notification_manager: Arc<Mutex<NotificationManager>>,
+    notification_manager_cmd: NotificationManagerCommands,
 }
 
 impl ActionBar {
     pub fn new(
         actions: &[Action],
         notification_id: notify_server::NotificationId,
-        notification_manager: Arc<Mutex<NotificationManager>>,
+        notification_manager_cmd: NotificationManagerCommands,
     ) -> Self {
         let buttons = actions
             .iter()
@@ -38,7 +39,7 @@ impl ActionBar {
             buttons,
             notification_id,
             close_btn,
-            notification_manager,
+            notification_manager_cmd,
         }
     }
 }
@@ -74,9 +75,7 @@ impl Component for ActionBar {
         let button = self.buttons.iter().find(|b| b.instance() == event_element);
 
         if let Some(button) = button {
-            self.notification_manager
-                .lock()
-                .expect("Could not lock notification bar")
+            self.notification_manager_cmd
                 .action_invoked(self.notification_id, &button.key)
         }
     }

@@ -84,12 +84,12 @@ impl Conditions {
             Conditions::AppIcon(v) => v == &other.app_icon,
             Conditions::AppName(v) => v == &other.app_name,
             Conditions::Summary(ConditionTypeString::Literal(v)) => v == &other.summary,
-            Conditions::Summary(ConditionTypeString::Regex(v)) => v.is_match(&other.summary),
+            Conditions::Summary(ConditionTypeString::Regex(v)) => v.is_match(other.summary),
             Conditions::Body(ConditionTypeString::Literal(v)) => v == &other.body,
-            Conditions::Body(ConditionTypeString::Regex(v)) => v.is_match(&other.body),
+            Conditions::Body(ConditionTypeString::Regex(v)) => v.is_match(other.body),
             Conditions::Group(ConditionTypeString::Literal(v)) => v == &other.group.unwrap_or(""),
             Conditions::Group(ConditionTypeString::Regex(v)) => {
-                v.is_match(&other.group.unwrap_or(""))
+                v.is_match(other.group.unwrap_or(""))
             }
             Conditions::Urgency(v) => match &other.urgency {
                 notify_server::notification::Urgency::Low => v == "low",

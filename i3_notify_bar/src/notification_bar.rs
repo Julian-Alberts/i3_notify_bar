@@ -23,11 +23,26 @@ where
     RE: EvalRules,
 {
     notifications: Vec<Arc<RwLock<NotificationData>>>,
-    events: Vec<NotificationEvent>,
     rule_executor: RE,
     default_emoji_mode: EmojiMode,
     minimum_urgency: Arc<RwLock<MinimalUrgency>>,
     notify_server: Src,
+    commands_rx: std::sync::mpsc::Receiver<NotificationManagerCommand>,
+    commands_tx: std::sync::mpsc::Sender<NotificationManagerCommand>,
+    events_tx: std::sync::mpsc::Sender<NotificationEvent>,
+    events_rx: Option<std::sync::mpsc::Receiver<NotificationEvent>>,
+}
+
+pub trait InvokeAction {
+    fn action_invoked(&self, id: notify_server::NotificationId, action: impl Into<String>);
+}
+
+pub trait CloseNotification {
+    fn notification_closed(&self, id: notify_server::NotificationId, reason: CloseReason);
+}
+
+pub trait CloseAllNotifications {
+    fn close_all_notifications(&self, reason: CloseReason);
 }
 
 impl<Src, RE> NotificationManager<Src, RE>
@@ -41,14 +56,25 @@ where
         notify_server: Src,
         rule_executor: RE,
     ) -> Self {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (events_tx, events_rx) = std::sync::mpsc::channel();
         Self {
             notifications: Vec::new(),
-            events: Vec::new(),
             rule_executor,
             default_emoji_mode,
             minimum_urgency,
             notify_server,
+            commands_rx: rx,
+            commands_tx: tx,
+            events_tx,
+            events_rx: Some(events_rx),
         }
+    }
+
+    pub fn event_channel(&mut self) -> std::sync::mpsc::Receiver<NotificationEvent> {
+        self.events_rx
+            .take()
+            .expect("receiver has already been extracted")
     }
 
     fn notify(&mut self, notification: &Notification) {
@@ -102,14 +128,41 @@ where
         }
         let notification = Arc::new(RwLock::new(notification_data));
         self.notifications.push(Arc::clone(&notification));
-        self.events.push(NotificationEvent::Add(notification));
+        self.events_tx
+            .send(NotificationEvent::Add(notification))
+            .ok();
     }
 
-    pub fn update(&mut self, dt: f64) {
+    pub async fn update(&mut self, dt: f64) {
+        for cmd in self.commands_rx.try_iter() {
+            match cmd {
+                NotificationManagerCommand::ActionInvoked { id, action } => {
+                    self.notify_server.action_invoked(id, &action).await.ok();
+                }
+                NotificationManagerCommand::CloseNotification { id, reason } => {
+                    self.notify_server
+                        .notification_closed(id, &reason)
+                        .await
+                        .ok();
+                }
+                NotificationManagerCommand::CloseAll { reason } => {
+                    for n in self
+                        .notifications
+                        .iter()
+                        .map(|e| e.read().unwrap_or_else(|e| e.into_inner()))
+                    {
+                        self.notify_server
+                            .notification_closed(n.id, &reason)
+                            .await
+                            .ok();
+                    }
+                }
+            }
+        }
         if let Some(events) = self.notify_server.take_events() {
             events.into_iter().for_each(|event| match event {
                 Event::Notify(n) => self.notify(&n),
-                Event::Close(id, reason) => self.remove(id, &reason),
+                Event::Close(id, reason) => self.remove(id, reason),
             });
         }
 
@@ -129,14 +182,10 @@ where
         }
         ids_to_be_removed
             .into_iter()
-            .for_each(|id| self.remove(id, &CloseReason::Expired))
+            .for_each(|id| self.remove(id, CloseReason::Expired))
     }
 
-    pub fn get_events(&mut self) -> Vec<NotificationEvent> {
-        std::mem::take(&mut self.events)
-    }
-
-    pub fn remove(&mut self, id: NotificationId, close_reason: &CloseReason) {
+    pub fn remove(&mut self, id: NotificationId, close_reason: CloseReason) {
         let mut notification = None;
         self.notifications.retain(|n| match n.read() {
             Ok(n_l) if n_l.id == id => {
@@ -151,18 +200,8 @@ where
         });
         self.notification_closed(id, close_reason);
         if let Some(n) = notification {
-            self.events.push(NotificationEvent::Remove(n));
+            self.events_tx.send(NotificationEvent::Remove(n)).ok();
         }
-    }
-
-    //TODO Rewrite as async
-    pub fn action_invoked(&mut self, id: notify_server::NotificationId, action: &str) {
-        async_std::task::block_on(self.notify_server.action_invoked(id, action)).ok();
-    }
-
-    //TODO Rewrite as async
-    pub fn notification_closed(&mut self, id: notify_server::NotificationId, reason: &CloseReason) {
-        async_std::task::block_on(self.notify_server.notification_closed(id, reason)).ok();
     }
 
     #[cfg(tray_icon)]
@@ -170,15 +209,103 @@ where
         self.minimum_urgency = min;
     }
 
-    pub fn close_all_notifications(&mut self, reason: CloseReason) {
-        self.notifications
-            .iter()
-            .filter_map(|n| n.read().ok())
-            .map(|n| n.id)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .for_each(|id| self.remove(id, &reason))
+    pub fn linked_commands(&self) -> NotificationManagerCommands {
+        NotificationManagerCommands {
+            commands: self.commands_tx.clone(),
+        }
     }
+}
+
+impl<Src, RE> InvokeAction for NotificationManager<Src, RE>
+where
+    Src: notify_server::NotificationSource + Send + Sync + 'static,
+    RE: EvalRules + Send + Sync + 'static,
+{
+    fn action_invoked(&self, id: notify_server::NotificationId, action: impl Into<String>) {
+        self.commands_tx
+            .send(NotificationManagerCommand::ActionInvoked {
+                id,
+                action: action.into(),
+            })
+            .ok();
+    }
+}
+
+impl<Src, RE> CloseNotification for NotificationManager<Src, RE>
+where
+    Src: notify_server::NotificationSource + Send + Sync + 'static,
+    RE: EvalRules + Send + Sync + 'static,
+{
+    fn notification_closed(&self, id: notify_server::NotificationId, reason: CloseReason) {
+        self.commands_tx
+            .send(NotificationManagerCommand::CloseNotification { id, reason })
+            .ok();
+    }
+}
+
+impl<Src, RE> CloseAllNotifications for NotificationManager<Src, RE>
+where
+    Src: notify_server::NotificationSource + Send + Sync + 'static,
+    RE: EvalRules + Send + Sync + 'static,
+{
+    fn close_all_notifications(&self, reason: CloseReason) {
+        self.commands_tx
+            .send(NotificationManagerCommand::CloseAll { reason })
+            .ok();
+    }
+}
+
+pub struct NotificationManagerCommands {
+    commands: std::sync::mpsc::Sender<NotificationManagerCommand>,
+}
+
+impl InvokeAction for NotificationManagerCommands {
+    fn action_invoked(&self, id: notify_server::NotificationId, action: impl Into<String>) {
+        self.commands
+            .send(NotificationManagerCommand::ActionInvoked {
+                id,
+                action: action.into(),
+            })
+            .ok();
+    }
+}
+
+impl CloseNotification for NotificationManagerCommands {
+    fn notification_closed(&self, id: notify_server::NotificationId, reason: CloseReason) {
+        self.commands
+            .send(NotificationManagerCommand::CloseNotification { id, reason })
+            .ok();
+    }
+}
+
+impl CloseAllNotifications for NotificationManagerCommands {
+    fn close_all_notifications(&self, reason: CloseReason) {
+        self.commands
+            .send(NotificationManagerCommand::CloseAll { reason })
+            .ok();
+    }
+}
+
+impl Clone for NotificationManagerCommands {
+    fn clone(&self) -> Self {
+        Self {
+            commands: self.commands.clone(),
+        }
+    }
+}
+
+enum NotificationManagerCommand {
+    ActionInvoked {
+        id: notify_server::NotificationId,
+        action: String,
+    },
+    CloseNotification {
+        id: notify_server::NotificationId,
+        reason: CloseReason,
+    },
+    CloseAll {
+        reason: CloseReason,
+    },
 }
 
 #[derive(Debug)]
@@ -294,9 +421,12 @@ mod tests {
         CloseReason,
     };
 
-    use crate::rule::{EvalRules, RuleExcutor};
+    use crate::{
+        notification_bar::{CloseAllNotifications as _, CloseNotification as _, InvokeAction as _},
+        rule::{EvalRules, RuleExcutor},
+    };
 
-    use super::{MinimalUrgency, NotificationData, NotificationEvent, NotificationManager};
+    use super::{MinimalUrgency, NotificationData, NotificationManager};
 
     fn minimal_notification_manager<RE: EvalRules + Send + Sync + 'static>(
         notify_src: notify_server::MockNotificationSource,
@@ -350,7 +480,6 @@ mod tests {
             .map(|mut m| *m = MinimalUrgency::Critical);
 
         assert_eq!(nm.notifications.len(), 0);
-        assert_eq!(nm.events.len(), 0);
         assert_eq!(nm.default_emoji_mode, emoji::EmojiMode::Ignore);
         assert_eq!(
             *nm.minimum_urgency.read().unwrap(),
@@ -392,8 +521,8 @@ mod tests {
         assert_eq!(nm.notifications.len(), 1);
     }
 
-    #[test]
-    fn notification_manager_action_invoked() {
+    #[async_std::test]
+    async fn notification_manager_action_invoked() {
         use mockall::predicate::eq;
         let mut notify_src = notify_server::MockNotificationSource::default();
         notify_src
@@ -404,12 +533,14 @@ mod tests {
                 eq("default"),
             )
             .returning(|_, _| Box::pin(async { Ok(()) }));
+        notify_src.expect_take_events().once().returning(|| None);
         let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
         nm.action_invoked(10.into(), "default");
+        nm.update(0.0).await;
     }
 
-    #[test]
-    fn notification_manager_notification_closed() {
+    #[async_std::test]
+    async fn notification_manager_notification_closed() {
         use mockall::predicate::eq;
         let mut notify_src = notify_server::MockNotificationSource::default();
         notify_src
@@ -420,22 +551,16 @@ mod tests {
                 eq(&CloseReason::Expired),
             )
             .returning(|_, _| Box::pin(async { Ok(()) }));
+        notify_src.expect_take_events().once().returning(|| None);
         let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
-        nm.notification_closed(10.into(), &CloseReason::Expired);
+        nm.notification_closed(10.into(), CloseReason::Expired);
+        nm.update(0.0).await;
     }
 
-    #[test]
-    fn notification_manager_close_all_notifications() {
+    #[async_std::test]
+    async fn notification_manager_close_all_notifications() {
         use mockall::predicate::{eq, in_iter};
-        let mut notify_src = notify_server::MockNotificationSource::default();
-        notify_src
-            .expect_notification_closed()
-            .times(3)
-            .with(
-                in_iter::<_, notify_server::NotificationId>(vec![1.into(), 12.into(), 13.into()]),
-                eq(&CloseReason::Expired),
-            )
-            .returning(|_, _| Box::pin(async { Ok(()) }));
+        let notify_src = notify_server::MockNotificationSource::default();
         let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
         nm.notifications.append(&mut vec![
             Arc::new(RwLock::new(notification(1))),
@@ -443,17 +568,24 @@ mod tests {
             Arc::new(RwLock::new(notification(13))),
         ]);
         nm.close_all_notifications(CloseReason::Expired);
-        assert!(nm.notifications.is_empty());
-    }
 
-    #[test]
-    fn notification_manager_events() {
-        let notify_src = notify_server::MockNotificationSource::default();
-        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
-        nm.events = vec![NotificationEvent::Add(Arc::new(RwLock::new(notification(
-            1,
-        ))))];
-        assert_eq!(nm.get_events().len(), 1);
-        assert_eq!(nm.events.len(), 0);
+        nm.notify_server
+            .expect_notification_closed()
+            .times(3)
+            .with(
+                in_iter::<_, notify_server::NotificationId>(vec![1.into(), 12.into(), 13.into()]),
+                eq(&CloseReason::Expired),
+            )
+            .returning(|_, _| Box::pin(async { Ok(()) }));
+        nm.notify_server.expect_take_events().once().returning(|| {
+            use notify_server::Event::Close;
+            Some(vec![
+                Close(1.into(), CloseReason::Expired),
+                Close(12.into(), CloseReason::Expired),
+                Close(13.into(), CloseReason::Expired),
+            ])
+        });
+        nm.update(0.0).await;
+        assert!(nm.notifications.is_empty());
     }
 }

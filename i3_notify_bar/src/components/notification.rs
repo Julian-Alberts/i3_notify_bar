@@ -1,5 +1,5 @@
 use std::{
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
     usize,
 };
 
@@ -14,7 +14,10 @@ use notify_server::{notification::Action, CloseReason, NotificationId};
 
 use crate::{
     icons,
-    notification_bar::{NotificationData, NotificationManager},
+    notification_bar::{
+        CloseNotification, InvokeAction as _, NotificationData,
+        NotificationManagerCommands,
+    },
     rule::Style,
 };
 
@@ -26,7 +29,7 @@ pub struct NotificationComponent {
     close_button: Button,
     close_timer: Option<ProgressBar>,
     name: String,
-    notification_manager: Arc<Mutex<NotificationManager>>,
+    notification_manager_cmd: NotificationManagerCommands,
     actions: Vec<Action>,
     max_width: usize,
     move_chars_per_sec: usize,
@@ -38,7 +41,7 @@ impl NotificationComponent {
         nd: Arc<RwLock<NotificationData>>,
         max_width: usize,
         move_chars_per_sec: usize,
-        notification_manager: Arc<Mutex<NotificationManager>>,
+        notification_manager_cmd: NotificationManagerCommands,
     ) -> NotificationComponent {
         let nd_l = nd
             .write()
@@ -73,7 +76,7 @@ impl NotificationComponent {
             name,
             label,
             close_timer,
-            notification_manager,
+            notification_manager_cmd,
             actions,
             max_width,
             move_chars_per_sec,
@@ -86,21 +89,15 @@ impl NotificationComponent {
             Arc::clone(&self.notification),
             self.max_width,
             self.move_chars_per_sec,
-            Arc::clone(&self.notification_manager),
+            self.notification_manager_cmd.clone(),
         );
         *self = new;
     }
 
     fn on_close_button_click(&self, mc: &mut dyn ManageComponents) {
         debug!("Closing notification");
-        match self.notification_manager.lock() {
-            Ok(nm) => nm,
-            Err(_) => {
-                debug!("Could not lock notification manager");
-                return;
-            }
-        }
-        .remove(self.id(), &CloseReason::Closed);
+        self.notification_manager_cmd
+            .notification_closed(self.id(), CloseReason::Closed);
         mc.remove_by_name(self.name().expect("NotificationComponent has no name"));
     }
 
@@ -109,7 +106,7 @@ impl NotificationComponent {
         mc.add_component(Box::new(ActionBar::new(
             &self.actions,
             self.id(),
-            Arc::clone(&self.notification_manager),
+            self.notification_manager_cmd.clone(),
         )))
     }
 
@@ -117,9 +114,7 @@ impl NotificationComponent {
         let action = self.actions.iter().find(|action| action.key == "default");
 
         if let Some(action) = action {
-            self.notification_manager
-                .lock()
-                .expect("Could not lock notification manager")
+            self.notification_manager_cmd
                 .action_invoked(self.id(), &action.key)
         }
     }
@@ -223,7 +218,7 @@ pub fn notification_data_to_animated_text(
     move_chars_per_sec: usize,
 ) -> PartiallyAnimatedString {
     let icon = if nd.icon != ' ' {
-        Some(format!("{} ", nd.icon.to_string()))
+        Some(format!("{} ", nd.icon))
     } else {
         None
     };

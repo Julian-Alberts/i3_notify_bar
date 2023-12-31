@@ -25,7 +25,7 @@ use rule::{Definition, RuleExcutor};
 use std::{
     io::BufReader,
     path::Path,
-    sync::{Arc, Mutex, RwLock},
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
@@ -67,19 +67,22 @@ async fn main() {
     drop(path_manager);
 
     match command {
-        args::Command::Run => run(
-            config,
-            emoji_mode,
-            max_text_length,
-            animation_chars_per_second,
-            refresh_rate,
-        ),
+        args::Command::Run => {
+            run(
+                config,
+                emoji_mode,
+                max_text_length,
+                animation_chars_per_second,
+                refresh_rate,
+            )
+            .await
+        }
         args::Command::DebugConfig(_) => eprintln!("Currently disabled"),
         // args::Command::DebugConfig(dc) => debug_config::debug_config(&config, emoji_mode, dc),
     }
 }
 
-fn run(
+async fn run(
     config: Vec<Definition>,
     emoji_mode: EmojiMode,
     max_text_length: usize,
@@ -98,17 +101,17 @@ fn run(
 
     let notify_server =
         notify_server::NotifyServer::start().expect("Error starting notification server.");
-    let notification_manager = Arc::new(Mutex::new(NotificationManager::new(
+    let mut notification_manager = NotificationManager::new(
         emoji_mode,
         Arc::clone(&minimal_urgency),
         notify_server,
         RuleExcutor::new(config),
-    )));
+    );
 
-    let nm_ref: &Arc<_> = &notification_manager;
     component_manager.add_component(Box::new(NotificationBar::new(
         minimal_urgency,
-        Arc::clone(nm_ref),
+        notification_manager.linked_commands(),
+        notification_manager.event_channel(),
         max_text_length,
         animation_chars_per_second,
     )));
@@ -116,21 +119,14 @@ fn run(
     let mut last_update = std::time::SystemTime::now();
 
     loop {
-        let mut nm_lock = notification_manager.lock();
-        let nm = match nm_lock.as_mut() {
-            Ok(nm) => nm,
-            Err(_) => {
-                error!("Could not lock notification manager");
-                break;
-            }
-        };
-        nm.update(
-            last_update
-                .elapsed()
-                .map(|e| e.as_secs_f64())
-                .unwrap_or_default(),
-        );
-        drop(nm_lock);
+        notification_manager
+            .update(
+                last_update
+                    .elapsed()
+                    .map(|e| e.as_secs_f64())
+                    .unwrap_or_default(),
+            )
+            .await;
         last_update = std::time::SystemTime::now();
 
         component_manager.update();

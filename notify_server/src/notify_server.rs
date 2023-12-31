@@ -45,7 +45,7 @@ impl NotifyServer {
 impl NotificationSource for NotifyServer {
     fn take_events(&mut self) -> Option<Vec<Event>> {
         let mut interface = self.interface_ref.get_mut();
-        if interface.events.len() > 0 {
+        if !interface.events.is_empty() {
             Some(std::mem::take(&mut interface.events))
         } else {
             None
@@ -71,6 +71,7 @@ impl NotificationSource for NotifyServer {
     }
 }
 
+#[derive(Default)]
 struct NotifyServerInterface {
     events: Vec<Event>,
     last_id: u32,
@@ -178,14 +179,7 @@ impl NotifyServerInterface {
     ) -> zbus::Result<()>;
 }
 
-impl Default for NotifyServerInterface {
-    fn default() -> Self {
-        Self {
-            events: Vec::default(),
-            last_id: 0,
-        }
-    }
-}
+
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CloseReason {

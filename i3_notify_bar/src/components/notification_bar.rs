@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use i3_bar_components::{
     components::{prelude::*, Button},
@@ -7,9 +7,12 @@ use i3_bar_components::{
     ManageComponents,
 };
 
+use crate::notification_bar::{
+    CloseAllNotifications as _, NotificationEvent, NotificationManagerCommands,
+};
 use crate::{
     icons,
-    notification_bar::{MinimalUrgency, NotificationData, NotificationManager},
+    notification_bar::{MinimalUrgency, NotificationData},
 };
 
 use super::{min_urgency_selector, NotificationComponent, NotificationGroup};
@@ -18,24 +21,25 @@ pub struct NotificationBar {
     notifications: Vec<NotificationComponent>,
     groups: BTreeMap<String, NotificationGroup>,
     menu_btn: Button,
-    notification_manager: Arc<Mutex<NotificationManager>>,
+    notification_manager_cmd: NotificationManagerCommands,
     max_width: usize,
     animation_chars_per_second: usize,
+    notification_event_channel: std::sync::mpsc::Receiver<NotificationEvent>,
 }
 
 impl NotificationBar {
     pub fn new(
         selected_urgency: Arc<RwLock<MinimalUrgency>>,
-        notification_manager: Arc<Mutex<NotificationManager>>,
+        notification_manager_cmd: NotificationManagerCommands,
+        notification_event_channel: std::sync::mpsc::Receiver<NotificationEvent>,
         max_width: usize,
         animation_chars_per_second: usize,
     ) -> Self {
         let icon = icons::get_icon("menu").map_or(String::from(" menu "), |c| format!(" {} ", c));
         let mut menu_btn = Button::new(Box::new(icon));
 
-        let nm_c = Arc::clone(&notification_manager);
-
         let menu_btn_instance = menu_btn.instance();
+        let nm_cmd = notification_manager_cmd.clone();
         menu_btn.set_on_click(move |_, mc, ce| {
             let Some(instance) = ce.get_instance() else {
                 return;
@@ -43,14 +47,15 @@ impl NotificationBar {
             if menu_btn_instance != instance {
                 return;
             }
-            open_menu(mc, ce, selected_urgency.clone(), Arc::clone(&nm_c));
+            open_menu(mc, ce, selected_urgency.clone(), nm_cmd.clone());
         });
 
         Self {
             notifications: Vec::default(),
             groups: BTreeMap::default(),
             menu_btn,
-            notification_manager,
+            notification_manager_cmd,
+            notification_event_channel,
             max_width,
             animation_chars_per_second,
         }
@@ -66,9 +71,7 @@ impl Component for NotificationBar {
                 .iter()
                 .map(Component::all_properties)
                 .chain(
-                    self.groups
-                        .iter()
-                        .map(|(_, b)| b)
+                    self.groups.values()
                         .map(Component::all_properties),
                 )
                 .flatten()
@@ -77,23 +80,22 @@ impl Component for NotificationBar {
     }
 
     fn update(&mut self, dt: f64) {
-        let Ok(mut nm) = self.notification_manager.lock() else {
-            return;
-        };
-        nm.get_events().into_iter().for_each(|event| {
-            use crate::NotificationEvent::*;
-            match event {
-                Add(n) => add_notification(
-                    n,
-                    &mut self.groups,
-                    &mut self.notifications,
-                    &self.notification_manager,
-                    self.max_width,
-                    self.animation_chars_per_second,
-                ),
-                Remove(n) => remove_notification(n, &mut self.groups, &mut self.notifications),
-            }
-        });
+        self.notification_event_channel
+            .try_iter()
+            .for_each(|event| {
+                use crate::NotificationEvent::*;
+                match event {
+                    Add(n) => add_notification(
+                        n,
+                        &mut self.groups,
+                        &mut self.notifications,
+                        &self.notification_manager_cmd,
+                        self.max_width,
+                        self.animation_chars_per_second,
+                    ),
+                    Remove(n) => remove_notification(n, &mut self.groups, &mut self.notifications),
+                }
+            });
 
         self.notifications
             .iter_mut()
@@ -130,7 +132,7 @@ fn add_notification(
     n: Arc<RwLock<NotificationData>>,
     groups: &mut BTreeMap<String, NotificationGroup>,
     notifications: &mut Vec<NotificationComponent>,
-    notification_manager: &Arc<Mutex<NotificationManager>>,
+    notification_manager_cmd: &NotificationManagerCommands,
     max_width: usize,
     move_chars_per_sec: usize,
 ) {
@@ -142,7 +144,7 @@ fn add_notification(
         let group = groups.entry(group_name.clone()).or_insert_with(|| {
             NotificationGroup::new(
                 group_name,
-                notification_manager.clone(),
+                notification_manager_cmd.clone(),
                 max_width,
                 move_chars_per_sec,
                 vec![],
@@ -155,7 +157,7 @@ fn add_notification(
             n,
             max_width,
             move_chars_per_sec,
-            notification_manager.clone(),
+            notification_manager_cmd.clone(),
         ))
     }
 }
@@ -179,7 +181,7 @@ fn open_menu(
     mc: &mut dyn ManageComponents,
     ce: &ClickEvent,
     selected: Arc<RwLock<MinimalUrgency>>,
-    notification_manager: Arc<Mutex<NotificationManager>>,
+    notification_manager_cmd: NotificationManagerCommands,
 ) {
     if ce.get_button() != 1 {
         return;
@@ -191,10 +193,7 @@ fn open_menu(
         if ce.get_button() != 1 {
             return;
         };
-        notification_manager
-            .lock()
-            .expect("Could not lock notification manager")
-            .close_all_notifications(notify_server::CloseReason::Dismissed);
+        notification_manager_cmd.close_all_notifications(notify_server::CloseReason::Dismissed);
     });
     let group = min_urgency_selector::init(selected);
     mc.add_component(Box::new(close_all));

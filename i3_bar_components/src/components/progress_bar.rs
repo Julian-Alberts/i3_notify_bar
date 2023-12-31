@@ -34,7 +34,7 @@ impl Component for ProgressBar {
     fn event(&mut self, _: &mut dyn ManageComponents, _: &ClickEvent) {}
 
     fn update(&mut self, _: f64) {
-        let step = (self.current as f64 / self.max as f64 * 8_f64).floor() as u8;
+        let step = (self.current / self.max * 8_f64).floor() as u8;
 
         let icon = match step {
             0 => '\u{2588}',
