@@ -1,182 +1,73 @@
-use std::collections::HashMap;
-use zbus::blocking::InterfaceRef;
-#[cfg(not(test))]
-use zbus::blocking::{Connection, ConnectionBuilder};
-use zbus::zvariant::Value;
-use zbus::{dbus_interface, SignalContext};
+use std::sync::{Arc, Mutex, PoisonError};
 
-use crate::notification::NotificationBuilder;
-use crate::{Event, NotificationId};
+use crate::{notify_server_free_desktop::NotifyServerFreeDesktop, Event, NotificationId};
 
-pub struct NotifyServer {
-    interface_ref: InterfaceRef<NotifyServerInterface>,
+#[allow(async_fn_in_trait)]
+#[mockall::automock]
+pub trait NotifyServerInterface {
+    async fn action_invoked(&self, id: NotificationId, action: &str) -> zbus::Result<()>;
+
+    async fn notification_closed(
+        &self,
+        id: NotificationId,
+        reason: CloseReason,
+    ) -> zbus::Result<()>;
 }
 
-#[async_trait::async_trait]
+pub struct NotifyServer<Interface: NotifyServerInterface = NotifyServerFreeDesktop> {
+    interface_ref: Interface,
+    events: Arc<Mutex<Vec<Event>>>,
+}
+
 #[mockall::automock]
+#[allow(async_fn_in_trait)]
 pub trait NotificationSource {
     fn take_events(&mut self) -> Option<Vec<Event>>;
-    async fn action_invoked(
-        &self,
-        NotificationId(id): NotificationId,
-        action: &str,
-    ) -> zbus::Result<()>;
+    async fn action_invoked(&self, id: NotificationId, action: &str) -> zbus::Result<()>;
     async fn notification_closed(
         &mut self,
-        NotificationId(id): NotificationId,
+        id: NotificationId,
         reason: &CloseReason,
     ) -> zbus::Result<()>;
 }
 
-impl NotifyServer {
+impl NotifyServer<NotifyServerFreeDesktop> {
     // Calling this method in tests could break the notification service of operating systems.
     #[cfg(not(test))]
     pub fn start() -> zbus::Result<Self> {
-        let interface = NotifyServerInterface::default();
-        let connection = interface.run()?;
-        let i = connection
-            .object_server()
-            .interface::<_, NotifyServerInterface>("/org/freedesktop/Notifications")?;
-        Ok(Self { interface_ref: i })
+        let events = Default::default();
+        Ok(Self {
+            interface_ref: NotifyServerFreeDesktop::new(Arc::clone(&events))?,
+            events,
+        })
     }
 }
 
-#[async_trait::async_trait]
-impl NotificationSource for NotifyServer {
+impl<I: NotifyServerInterface> NotificationSource for NotifyServer<I> {
     fn take_events(&mut self) -> Option<Vec<Event>> {
-        let mut interface = self.interface_ref.get_mut();
-        if !interface.events.is_empty() {
-            Some(std::mem::take(&mut interface.events))
+        let mut events = self.events.lock().unwrap_or_else(PoisonError::into_inner);
+        if !events.is_empty() {
+            Some(std::mem::take(&mut events))
         } else {
             None
         }
     }
 
-    async fn action_invoked(
-        &self,
-        NotificationId(id): NotificationId,
-        action: &str,
-    ) -> zbus::Result<()> {
-        let context = self.interface_ref.signal_context();
-        NotifyServerInterface::action_invoked(context, id, action).await
+    async fn action_invoked(&self, id: NotificationId, action: &str) -> zbus::Result<()> {
+        self.interface_ref.action_invoked(id, action).await
     }
 
     async fn notification_closed(
         &mut self,
-        NotificationId(id): NotificationId,
+        id: NotificationId,
         reason: &CloseReason,
     ) -> zbus::Result<()> {
-        let context = self.interface_ref.signal_context();
-        NotifyServerInterface::notification_closed(context, id, *reason as u32).await
-    }
-}
-
-#[derive(Default)]
-struct NotifyServerInterface {
-    events: Vec<Event>,
-    last_id: u32,
-}
-
-impl NotifyServerInterface {
-    // Calling this method in tests could break the notification service of the current operating system.
-    #[cfg(not(test))]
-    pub fn run(self) -> zbus::Result<Connection> {
-        ConnectionBuilder::session()?
-            .name("org.freedesktop.Notifications")?
-            .serve_at("/org/freedesktop/Notifications", self)?
-            .build()
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-#[dbus_interface(name = "org.freedesktop.Notifications")]
-impl NotifyServerInterface {
-    fn get_capabilities(&self) -> Vec<&str> {
-        vec![
-            "action-icons",
-            "actions",
-            "body",
-            "body-hyperlinks",
-            "body-markup",
-            "persistence",
-        ]
-    }
-
-    fn notify(
-        &mut self,
-        app_name: String,
-        replaces_id: u32,
-        app_icon: String,
-        summary: String,
-        body: String,
-        actions: Vec<String>,
-        hints: HashMap<String, Value>,
-        expire_timeout: i32,
-    ) -> u32 {
-        let mut builder = NotificationBuilder::default()
-            .with_app_name(app_name)
-            .with_app_icon(app_icon)
-            .with_summary(summary)
-            .with_body(body)
-            .with_expire_timeout(expire_timeout);
-        let id = match replaces_id {
-            0 => {
-                self.last_id += 1;
-                self.last_id
-            }
-            id => id,
-        };
-        builder.set_id(id.into());
-        hints.into_iter().for_each(|(key, hint)| {
-            if &key[..] == "urgency" {
-                builder.set_urgency(hint.into())
-            }
-        });
-
-        let mut actions_vec = Vec::with_capacity(actions.len() / 2);
-        // TODO change to group_by once https://github.com/rust-lang/rust/issues/80552 is stable
-        let mut actions_iter = actions.into_iter();
-        while let Some(key) = actions_iter.next() {
-            let Some(text) = actions_iter.next() else {
-                continue;
-            };
-            actions_vec.push(crate::notification::Action { key, text });
-        }
-        builder.set_actions(actions_vec);
-
-        let notification = builder.build();
-
-        self.events.push(Event::Notify(notification));
-        id
-    }
-
-    fn close_notification(&mut self, id: u32) {
         self.events
-            .push(Event::Close(id.into(), CloseReason::Undefined));
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(Event::Close(id, *reason));
+        self.interface_ref.notification_closed(id, *reason).await
     }
-
-    fn get_server_information(&self) -> (&str, &str, &str, &str) {
-        (
-            "i3_notify_bar_notification_server",
-            "Julian Alberts",
-            "0.1",
-            "1.2",
-        )
-    }
-
-    #[dbus_interface(signal)]
-    async fn action_invoked(
-        signal_ctxt: &SignalContext<'_>,
-        id: u32,
-        action: &str,
-    ) -> zbus::Result<()>;
-
-    #[dbus_interface(signal)]
-    async fn notification_closed(
-        signal_ctxt: &SignalContext<'_>,
-        id: u32,
-        reason: u32,
-    ) -> zbus::Result<()>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -193,58 +84,39 @@ pub enum Message {
 }
 
 #[cfg(test)]
-mod interface_tests {
+mod tests {
+    use crate::{
+        notify_server::NotifyServerInterface, CloseReason, Event, NotificationSource, NotifyServer,
+    };
 
-    use std::collections::HashMap;
+    #[async_std::test]
+    async fn close_notification_event_is_added() {
+        struct NotifyInterface;
 
-    use crate::{notification::Notification, Event};
+        impl NotifyServerInterface for NotifyInterface {
+            async fn action_invoked(&self, _: crate::NotificationId, _: &str) -> zbus::Result<()> {
+                Ok(())
+            }
+            async fn notification_closed(
+                &self,
+                _: crate::NotificationId,
+                _: crate::CloseReason,
+            ) -> zbus::Result<()> {
+                Ok(())
+            }
+        }
 
-    use super::NotifyServerInterface;
+        let mut notify_server = NotifyServer {
+            events: Default::default(),
+            interface_ref: NotifyInterface,
+        };
 
-    #[test]
-    fn notify() {
-        let app_name = String::from("my app name");
-        let app_name_cp = app_name.clone();
-        let replace_id = 0;
-        let app_icon = String::from("my app icon");
-        let app_icon_cp = app_icon.clone();
-        let summary = String::from("my app name");
-        let summary_cp = summary.clone();
-        let body = String::from("my app name");
-        let body_cp = body.clone();
-        let actions = vec![];
-        let actions_cp = actions.clone();
-        let hints = HashMap::new();
-        let hints_cp = hints.clone();
-        let expire_timeout = 0;
-
-        let mut interface = NotifyServerInterface::default();
-
-        interface.notify(
-            app_name_cp,
-            replace_id,
-            app_icon_cp,
-            summary_cp,
-            body_cp,
-            actions_cp,
-            hints_cp,
-            expire_timeout,
-        );
-
-        assert_eq!(
-            interface.events[0],
-            Event::Notify(Notification {
-                actions: vec![],
-                app_icon,
-                app_name,
-                body,
-                expire_timeout,
-                id: 1.into(),
-                summary,
-                urgency: crate::notification::Urgency::Normal
-            })
-        );
-
-        assert_eq!(interface.last_id, 1);
+        notify_server
+            .notification_closed(24.into(), &CloseReason::Dismissed)
+            .await
+            .unwrap();
+        let events = notify_server.events.lock().unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0], Event::Close(24.into(), CloseReason::Dismissed));
     }
 }

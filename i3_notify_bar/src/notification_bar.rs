@@ -186,7 +186,8 @@ where
             .for_each(|id| self.remove(id, CloseReason::Expired))
     }
 
-    pub fn remove(&mut self, id: NotificationId, close_reason: CloseReason) {
+    fn remove(&mut self, id: NotificationId, close_reason: CloseReason) {
+        log::debug!("Close notification id: {id} reason: {close_reason:?}");
         let mut notification = None;
         self.notifications.retain(|n| match n.read() {
             Ok(n_l) if n_l.id == id => {
@@ -199,8 +200,8 @@ where
             }
             Err(_) | Ok(_) => true,
         });
-        self.notification_closed(id, close_reason);
         if let Some(n) = notification {
+            log::debug!("Found notification to close {id}");
             self.events_tx.send(NotificationEvent::Remove(n)).ok();
         }
     }
@@ -533,7 +534,7 @@ mod tests {
                 eq::<notify_server::NotificationId>(10.into()),
                 eq("default"),
             )
-            .returning(|_, _| Box::pin(async { Ok(()) }));
+            .returning(|_, _| Ok(()));
         notify_src.expect_take_events().once().returning(|| None);
         let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
         nm.action_invoked(10.into(), "default");
@@ -551,7 +552,7 @@ mod tests {
                 eq::<notify_server::NotificationId>(10.into()),
                 eq(&CloseReason::Expired),
             )
-            .returning(|_, _| Box::pin(async { Ok(()) }));
+            .returning(|_, _| Ok(()));
         notify_src.expect_take_events().once().returning(|| None);
         let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
         nm.notification_closed(10.into(), CloseReason::Expired);
@@ -577,7 +578,7 @@ mod tests {
                 in_iter::<_, notify_server::NotificationId>(vec![1.into(), 12.into(), 13.into()]),
                 eq(&CloseReason::Expired),
             )
-            .returning(|_, _| Box::pin(async { Ok(()) }));
+            .returning(|_, _| Ok(()));
         nm.notify_server.expect_take_events().once().returning(|| {
             use notify_server::Event::Close;
             Some(vec![

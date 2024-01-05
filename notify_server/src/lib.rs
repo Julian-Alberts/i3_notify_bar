@@ -1,6 +1,7 @@
 mod events;
 pub mod notification;
 mod notify_server;
+mod notify_server_free_desktop;
 
 use std::fmt::Display;
 
