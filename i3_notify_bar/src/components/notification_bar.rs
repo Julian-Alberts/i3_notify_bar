@@ -10,6 +10,7 @@ use i3_bar_components::{
 use crate::notification_bar::{
     CloseAllNotifications as _, NotificationEvent, NotificationManagerCommands,
 };
+use crate::SystemCommand;
 use crate::{
     icons,
     notification_bar::{MinimalUrgency, NotificationData},
@@ -25,6 +26,7 @@ pub struct NotificationBar {
     max_width: usize,
     animation_chars_per_second: usize,
     notification_event_channel: std::sync::mpsc::Receiver<NotificationEvent>,
+    system_command_tx: std::sync::mpsc::Sender<SystemCommand>,
 }
 
 impl NotificationBar {
@@ -34,6 +36,7 @@ impl NotificationBar {
         notification_event_channel: std::sync::mpsc::Receiver<NotificationEvent>,
         max_width: usize,
         animation_chars_per_second: usize,
+        system_command_tx: std::sync::mpsc::Sender<SystemCommand>,
     ) -> Self {
         let icon = icons::get_icon("menu").map_or(String::from(" menu "), |c| format!(" {} ", c));
         let mut menu_btn = Button::new(Box::new(icon));
@@ -58,6 +61,7 @@ impl NotificationBar {
             notification_event_channel,
             max_width,
             animation_chars_per_second,
+            system_command_tx,
         }
     }
 }
@@ -122,6 +126,7 @@ impl Component for NotificationBar {
             )
             .for_each(|c| c.event(cm, event));
         self.menu_btn.event(cm, event);
+        self.system_command_tx.send(SystemCommand::ForceUpdate);
     }
 }
 

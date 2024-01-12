@@ -32,6 +32,10 @@ use std::{
 #[macro_use]
 extern crate pest_derive;
 
+pub enum SystemCommand {
+    ForceUpdate,
+}
+
 #[async_std::main]
 async fn main() {
     let mut path_manager = PathManager::default();
@@ -89,6 +93,7 @@ async fn run(
     animation_chars_per_second: usize,
     refresh_rate: u64,
 ) {
+    let (system_command_tx, system_command_rx) = std::sync::mpsc::channel();
     let minimal_urgency = Arc::new(RwLock::new(MinimalUrgency::All));
 
     let mut component_manager = ComponentManagerBuilder::new()
@@ -114,6 +119,7 @@ async fn run(
         notification_manager.event_channel(),
         max_text_length,
         animation_chars_per_second,
+        system_command_tx,
     )));
 
     let mut last_update = std::time::SystemTime::now();
@@ -130,7 +136,10 @@ async fn run(
         last_update = std::time::SystemTime::now();
 
         component_manager.update();
-        std::thread::sleep(Duration::from_millis(refresh_rate));
+        match system_command_rx.recv_timeout(Duration::from_millis(refresh_rate)) {
+            Ok(SystemCommand::ForceUpdate) => {}
+            Err(_) => {}
+        }
     }
 }
 
