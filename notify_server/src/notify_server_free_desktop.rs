@@ -133,7 +133,7 @@ impl NotifyServerInterfaceDBus {
     }
 
     fn close_notification(&mut self, id: u32) {
-        self.push_event(Event::Close(id.into(), CloseReason::Undefined));
+        self.push_event(Event::Close(id.into(), CloseReason::RequesedByClient));
     }
 
     fn get_server_information(&self) -> (&str, &str, &str, &str) {

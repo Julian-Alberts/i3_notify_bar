@@ -76,6 +76,7 @@ pub enum CloseReason {
     Dismissed = 2,
     Closed = 3,
     Undefined = 4,
+    RequesedByClient,
 }
 
 pub enum Message {

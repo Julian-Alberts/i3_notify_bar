@@ -161,10 +161,17 @@ where
             }
         }
         if let Some(events) = self.notify_server.take_events() {
-            events.into_iter().for_each(|event| match event {
-                Event::Notify(n) => self.notify(&n),
-                Event::Close(id, reason) => self.remove(id, reason),
-            });
+            for event in events {
+                match event {
+                    Event::Notify(n) => self.notify(&n),
+                    Event::Close(id, CloseReason::RequesedByClient) => self
+                        .notify_server
+                        .notification_closed(id, &CloseReason::Undefined)
+                        .await
+                        .unwrap_or(()),
+                    Event::Close(id, reason) => self.remove(id, reason),
+                }
+            }
         }
 
         let mut ids_to_be_removed = Vec::new();
