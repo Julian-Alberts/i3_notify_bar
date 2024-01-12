@@ -104,7 +104,7 @@ impl Component for ActionButton {
     fn all_properties<'a>(
         &'a self,
     ) -> Box<dyn Iterator<Item = &i3_bar_components::property::Properties> + 'a> {
-        Box::new([self.properties()].into_iter())
+        Box::new([self.button.properties()].into_iter())
     }
 
     fn event(
@@ -114,5 +114,7 @@ impl Component for ActionButton {
     ) {
     }
 
-    fn update(&mut self, _: f64) {}
+    fn update(&mut self, dt: f64) {
+        self.button.update(dt)
+    }
 }

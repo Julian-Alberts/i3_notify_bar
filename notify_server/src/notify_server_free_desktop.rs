@@ -123,6 +123,7 @@ impl NotifyServerInterfaceDBus {
             };
             actions_vec.push(crate::notification::Action { key, text });
         }
+        log::debug!("Actions: {actions_vec:?}");
         builder.set_actions(actions_vec);
 
         let notification = builder.build();
