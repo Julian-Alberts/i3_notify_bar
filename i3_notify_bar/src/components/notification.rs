@@ -200,7 +200,7 @@ fn create_button(style: &[Style]) -> Button {
 fn create_timer(style: &[Style], expire: f64) -> ProgressBar {
     let mut t = ProgressBar::new(expire);
     t.set_show(false);
-    t.set_block_width(Some(0));
+    t.set_block_width(Some(10));
     style.iter().for_each(|s| {
         s.apply(&mut t);
     });
