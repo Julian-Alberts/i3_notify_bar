@@ -1,4 +1,4 @@
-use super::{component_manager::AnyComponent, ManageComponents};
+use super::{AnyComponent, ManageComponents};
 
 #[derive(Default)]
 pub struct ComponentManagerMassenger {
