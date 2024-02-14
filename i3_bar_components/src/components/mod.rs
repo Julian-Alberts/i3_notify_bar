@@ -34,12 +34,6 @@ impl SimpleComponent for BaseComponent {
 }
 impl Component for BaseComponent {
     fn update(&mut self, _dt: f64) {}
-    fn event(
-        &mut self,
-        _cm: &mut dyn crate::ManageComponents,
-        _event: &crate::protocol::ClickEvent,
-    ) {
-    }
     fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
         Box::new([self.properties()].into_iter())
     }

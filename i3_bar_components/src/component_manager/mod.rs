@@ -4,13 +4,14 @@ pub use component_manager_messenger::ComponentManagerMassenger;
 
 use log::*;
 use std::any::Any;
+use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::{
     io::{BufRead, Read, Stdout, Write},
     time::SystemTime,
 };
 
-use crate::property::{self, Properties};
+use crate::property::{self, Instance, Properties};
 use crate::{
     components::prelude::*,
     protocol::{ClickEvent, Header},
@@ -66,23 +67,27 @@ impl ComponentManager {
         let event_reader = &mut self.event_reader;
         let events = event_reader.try_iter().collect::<Vec<ClickEvent>>();
         let cmm = &mut self.component_manager_messenger;
-        let layer = self.layers.last_mut().unwrap();
         let global_event_listener = &self.global_event_listener;
-
         events.iter().for_each(|event| {
             debug!("Event detected: {:?}", event);
             (global_event_listener)(cmm, event);
             let Some(element_id) = event.get_instance() else {
                 return;
             };
-            let comp = layer.iter_mut().find(|comp| {
-                let mut blocks = comp.all_properties();
-                blocks.any(|b| b.instance == element_id)
-            });
-
-            if let Some(comp) = comp {
-                comp.event(cmm, event);
-            }
+            self.layers
+                .last()
+                .unwrap()
+                .iter()
+                .map(|l| l.event_targets())
+                .flatten()
+                .find_map(|(id, handler)| {
+                    if id == Instance::from(element_id) {
+                        Some(handler)
+                    } else {
+                        None
+                    }
+                })
+                .map(|e| unsafe { e.cast_mut().as_mut().unwrap().event(cmm, event) });
         });
     }
 

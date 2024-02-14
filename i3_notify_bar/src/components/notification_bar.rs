@@ -43,6 +43,7 @@ impl NotificationBar {
 
         let menu_btn_instance = menu_btn.instance();
         let nm_cmd = notification_manager_cmd.clone();
+        let system_command_tx_menu_btn = system_command_tx.clone();
         menu_btn.set_on_click(move |_, mc, ce| {
             let Some(instance) = ce.get_instance() else {
                 return;
@@ -50,6 +51,7 @@ impl NotificationBar {
             if menu_btn_instance != instance {
                 return;
             }
+            system_command_tx_menu_btn.send(SystemCommand::ForceUpdate);
             open_menu(mc, ce, selected_urgency.clone(), nm_cmd.clone());
         });
 
@@ -111,22 +113,21 @@ impl Component for NotificationBar {
         self.menu_btn.update(dt);
     }
 
-    fn event(
-        &mut self,
-        cm: &mut dyn i3_bar_components::ManageComponents,
-        event: &i3_bar_components::protocol::ClickEvent,
-    ) {
-        self.notifications
-            .iter_mut()
-            .map::<&mut dyn Component, _>(|n| n)
-            .chain(
-                self.groups
-                    .iter_mut()
-                    .map::<&mut dyn Component, _>(|(_, g)| g),
-            )
-            .for_each(|c| c.event(cm, event));
-        self.menu_btn.event(cm, event);
-        self.system_command_tx.send(SystemCommand::ForceUpdate);
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        dyn Iterator<
+                Item = (
+                    i3_bar_components::property::Instance,
+                    *const dyn EventTarget,
+                ),
+            > + 'a,
+    > {
+        Box::new(
+            std::iter::once(self.menu_btn.event_targets())
+                .chain(self.notifications.iter().map(Component::event_targets))
+                .flatten(),
+        )
     }
 }
 

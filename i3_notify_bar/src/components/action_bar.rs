@@ -1,5 +1,5 @@
 use i3_bar_components::components::{
-    prelude::{Component, SimpleComponent},
+    prelude::{Component, EventTarget, SimpleComponent},
     Button,
 };
 use notify_server::notification::Action;
@@ -56,6 +56,34 @@ impl Component for ActionBar {
         )
     }
 
+    fn update(&mut self, dt: f64) {
+        self.close_btn.update(dt);
+        self.buttons.iter_mut().for_each(|b| b.update(dt))
+    }
+
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        dyn Iterator<
+                Item = (
+                    i3_bar_components::property::Instance,
+                    *const dyn i3_bar_components::components::prelude::EventTarget,
+                ),
+            > + 'a,
+    > {
+        Box::new(
+            self.buttons
+                .iter()
+                .map(|b| (b.instance(), self as *const _))
+                .chain(std::iter::once((
+                    self.close_btn.instance(),
+                    self as *const _,
+                ))),
+        )
+    }
+}
+
+impl EventTarget for ActionBar {
     fn event(
         &mut self,
         mc: &mut dyn i3_bar_components::ManageComponents,
@@ -79,11 +107,6 @@ impl Component for ActionBar {
                 .action_invoked(self.notification_id, &button.key)
         }
     }
-
-    fn update(&mut self, dt: f64) {
-        self.close_btn.update(dt);
-        self.buttons.iter_mut().for_each(|b| b.update(dt))
-    }
 }
 
 struct ActionButton {
@@ -105,13 +128,6 @@ impl Component for ActionButton {
         &'a self,
     ) -> Box<dyn Iterator<Item = &i3_bar_components::property::Properties> + 'a> {
         Box::new([self.button.properties()].into_iter())
-    }
-
-    fn event(
-        &mut self,
-        _: &mut dyn i3_bar_components::ManageComponents,
-        _: &i3_bar_components::protocol::ClickEvent,
-    ) {
     }
 
     fn update(&mut self, dt: f64) {

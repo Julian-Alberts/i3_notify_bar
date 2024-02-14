@@ -64,8 +64,13 @@ impl NotificationComponent {
             s.apply(&mut label);
         });
 
-        let close_button = create_button(nd_l.style.as_slice());
         let name = notification_id_to_notification_compnent_name(nd_l.id);
+        let close_button = create_button(
+            nd_l.style.as_slice(),
+            nd_l.id,
+            name.clone(),
+            notification_manager_cmd.clone(),
+        );
         let actions = nd_l.actions.clone();
         let notification_state_id = nd_l.notification_update_id;
         drop(nd_l);
@@ -91,13 +96,6 @@ impl NotificationComponent {
             self.notification_manager_cmd.clone(),
         );
         *self = new;
-    }
-
-    fn on_close_button_click(&self, mc: &mut dyn ManageComponents) {
-        debug!("Closing notification");
-        self.notification_manager_cmd
-            .notification_closed(self.id(), CloseReason::Closed);
-        mc.remove_by_name(self.name().expect("NotificationComponent has no name"));
     }
 
     fn on_notification_right_click(&mut self, mc: &mut dyn ManageComponents) {
@@ -142,21 +140,6 @@ impl Component for NotificationComponent {
         )
     }
 
-    fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
-        let Some(instance) = ce.get_instance() else {
-            return;
-        };
-        match ce.get_button() {
-            // Button clicked
-            1 if self.close_button.instance() == instance => self.on_close_button_click(mc),
-            // Notification clicked
-            1 => self.on_notification_click(),
-            // Notification right click
-            3 => self.on_notification_right_click(mc),
-            _ => {}
-        }
-    }
-
     fn update(&mut self, dt: f64) {
         let notification_lock = self.notification.read();
         if let Ok(notification) = &notification_lock {
@@ -185,14 +168,53 @@ impl Component for NotificationComponent {
     fn name(&self) -> Option<&str> {
         Some(&self.name)
     }
+
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        dyn Iterator<
+                Item = (
+                    i3_bar_components::property::Instance,
+                    *const dyn EventTarget,
+                ),
+            > + 'a,
+    > {
+        Box::new(
+            self.close_button
+                .event_targets()
+                .chain(std::iter::once((self.label.instance(), self as *const _))),
+        )
+    }
 }
 
-fn create_button(style: &[Style]) -> Button {
+impl EventTarget for NotificationComponent {
+    fn event(&mut self, mc: &mut dyn ManageComponents, event: &ClickEvent) {
+        match event.get_button() {
+            // Notification clicked
+            1 => self.on_notification_click(),
+            // Notification right click
+            3 => self.on_notification_right_click(mc),
+            _ => {}
+        }
+    }
+}
+
+fn create_button(
+    style: &[Style],
+    id: NotificationId,
+    name: String,
+    notification_manager_cmd: NotificationManagerCommands,
+) -> Button {
     let mut b = Button::new(Box::new(format!(" {} ", icons::X_ICON)));
     b.set_show(true);
     b.set_block_width(Some(10));
     style.iter().for_each(|s| {
         s.apply(&mut b);
+    });
+    b.set_on_click(move |_, cm, _| {
+        debug!("Notification({id}) close button clicked");
+        notification_manager_cmd.notification_closed(id, CloseReason::Closed);
+        cm.remove_by_name(&name);
     });
     b
 }

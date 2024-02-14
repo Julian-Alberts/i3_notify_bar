@@ -123,11 +123,18 @@ pub trait SimpleComponent: Component {
 }
 pub trait Component {
     fn update(&mut self, dt: f64);
-    fn event(&mut self, cm: &mut dyn ManageComponents, event: &ClickEvent);
     fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a>;
     fn name(&self) -> Option<&str> {
         None
     }
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<dyn Iterator<Item = (property::Instance, *const dyn EventTarget)> + 'a> {
+        Box::new(std::iter::empty())
+    }
+}
+pub trait EventTarget {
+    fn event(&mut self, cm: &mut dyn ManageComponents, event: &ClickEvent);
 }
 
 impl<T> Padding for T

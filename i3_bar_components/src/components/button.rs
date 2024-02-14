@@ -50,13 +50,31 @@ impl Component for Button {
         self.text.update(dt);
         self.set_full(self.text.to_component_text());
     }
+    fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
+        Box::new([self.properties()].into_iter())
+    }
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        (dyn Iterator<
+            Item = (
+                crate::property::Instance,
+                *const (dyn EventTarget + 'static),
+            ),
+        > + 'a),
+    > {
+        Box::new(std::iter::once((
+            self.properties().instance,
+            self as *const _,
+        )))
+    }
+}
+
+impl EventTarget for Button {
     fn event(&mut self, mc: &mut dyn ManageComponents, ce: &ClickEvent) {
         let self_ptr: *mut _ = self;
         let self_ref = unsafe { self_ptr.as_mut().unwrap() };
         (self.on_click)(self_ref, mc, ce);
-    }
-    fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
-        Box::new([self.properties()].into_iter())
     }
 }
 

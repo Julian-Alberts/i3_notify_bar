@@ -1,5 +1,11 @@
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Instance(usize);
+
+impl From<usize> for Instance {
+    fn from(value: usize) -> Self {
+        Instance(value)
+    }
+}
 
 #[derive(Default, Debug, PartialEq, serde::Serialize)]
 pub struct Properties {

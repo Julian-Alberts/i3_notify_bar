@@ -1,8 +1,5 @@
-use i3_bar_components::component_manager::ManageComponents;
-use i3_bar_components::{
-    components::{prelude::Component, Button, ProgressBar},
-    protocol::ClickEvent,
-};
+use i3_bar_components::components::prelude::EventTarget;
+use i3_bar_components::components::{prelude::Component, Button, ProgressBar};
 
 pub struct CloseType {
     button: Button,
@@ -31,10 +28,16 @@ impl Component for CloseType {
         )
     }
 
-    fn event(&mut self, mc: &mut dyn ManageComponents, event: &ClickEvent) {
-        if let Some(t) = self.timer.as_mut() {
-            t.event(mc, event);
-        }
-        self.button.event(mc, event);
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        dyn Iterator<
+                Item = (
+                    i3_bar_components::property::Instance,
+                    *const dyn EventTarget,
+                ),
+            > + 'a,
+    > {
+        self.button.event_targets()
     }
 }

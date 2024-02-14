@@ -83,17 +83,34 @@ impl Component for NotificationGroup {
         self.label.all_properties()
     }
 
+    fn update(&mut self, dt: f64) {
+        self.label.update(dt)
+    }
+
+    fn name(&self) -> Option<&str> {
+        Some(&self.group_name)
+    }
+
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        dyn Iterator<
+                Item = (
+                    i3_bar_components::property::Instance,
+                    *const dyn EventTarget,
+                ),
+            > + 'a,
+    > {
+        Box::new(std::iter::once((self.label.instance(), self as *const _)))
+    }
+}
+
+impl EventTarget for NotificationGroup {
     fn event(
         &mut self,
         cm: &mut dyn i3_bar_components::ManageComponents,
         event: &i3_bar_components::protocol::ClickEvent,
     ) {
-        let Some(event_instance) = event.get_instance() else {
-            return;
-        };
-        if self.label.instance() != event_instance {
-            return;
-        }
         cm.new_layer();
         self.notifications.iter().for_each(|n| {
             cm.add_component(Box::new(super::NotificationComponent::new(
@@ -105,24 +122,16 @@ impl Component for NotificationGroup {
         });
         cm.add_component(Box::new(NotificationGroupCloseButton::new()));
     }
-
-    fn update(&mut self, dt: f64) {
-        self.label.update(dt)
-    }
-
-    fn name(&self) -> Option<&str> {
-        Some(&self.group_name)
-    }
 }
 
 impl NotificationGroupCloseButton {
     fn new() -> Self {
-        Self {
-            button: Button::new(Box::new(format!(
-                " {} ",
-                icons::get_icon("close").unwrap_or('X')
-            ))),
-        }
+        let mut button = Button::new(Box::new(format!(
+            " {} ",
+            icons::get_icon("close").unwrap_or('X')
+        )));
+        button.set_on_click(|_, cm, _| cm.pop_layer());
+        Self { button }
     }
 }
 
@@ -142,21 +151,20 @@ impl Component for NotificationGroupCloseButton {
         self.button.all_properties()
     }
 
-    fn event(
-        &mut self,
-        cm: &mut dyn i3_bar_components::ManageComponents,
-        event: &i3_bar_components::protocol::ClickEvent,
-    ) {
-        let Some(event_instance) = event.get_instance() else {
-            return;
-        };
-        if self.button.instance() != event_instance {
-            return;
-        }
-        cm.pop_layer();
-    }
-
     fn update(&mut self, dt: f64) {
         self.button.update(dt)
+    }
+
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        dyn Iterator<
+                Item = (
+                    i3_bar_components::property::Instance,
+                    *const dyn EventTarget,
+                ),
+            > + 'a,
+    > {
+        self.button.event_targets()
     }
 }

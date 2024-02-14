@@ -1,5 +1,3 @@
-use crate::{component_manager::ManageComponents, protocol::ClickEvent};
-
 use super::{prelude::*, BaseComponent};
 
 pub struct ProgressBar {
@@ -31,8 +29,6 @@ impl SimpleComponent for ProgressBar {
 }
 
 impl Component for ProgressBar {
-    fn event(&mut self, _: &mut dyn ManageComponents, _: &ClickEvent) {}
-
     fn update(&mut self, _: f64) {
         let step = (self.current / self.max * 8_f64).floor() as u8;
 
@@ -53,5 +49,18 @@ impl Component for ProgressBar {
 
     fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &crate::property::Properties> + 'a> {
         Box::new([self.properties()].into_iter())
+    }
+
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        (dyn Iterator<
+            Item = (
+                crate::property::Instance,
+                *const (dyn crate::components::prelude::EventTarget + 'static),
+            ),
+        > + 'a),
+    > {
+        Box::new(std::iter::empty())
     }
 }

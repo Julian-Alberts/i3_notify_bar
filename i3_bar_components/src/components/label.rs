@@ -46,8 +46,19 @@ impl<Text: ComponentString> Component for Label<Text> {
         self.text.update(dt);
         self.set_full(self.text.to_component_text())
     }
-    fn event(&mut self, _: &mut dyn ManageComponents, _: &ClickEvent) {}
     fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
         Box::new([self.properties()].into_iter())
+    }
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        (dyn Iterator<
+            Item = (
+                crate::property::Instance,
+                *const (dyn crate::components::prelude::EventTarget + 'static),
+            ),
+        > + 'a),
+    > {
+        Box::new(std::iter::empty())
     }
 }

@@ -57,7 +57,39 @@ impl<K: Copy + PartialEq + 'static, LT: ComponentString> ButtonGroup<K, LT> {
     }
 }
 
-impl<K: Copy + PartialEq + 'static, LT: ComponentString> Component for ButtonGroup<K, LT> {
+impl<K: Copy + PartialEq + 'static, LT: ComponentString + 'static> Component
+    for ButtonGroup<K, LT>
+{
+    fn update(&mut self, dt: f64) {
+        self.buttons.iter_mut().for_each(|btn| btn.update(dt));
+        if let Some(description) = self.description.as_mut() {
+            description.update(dt);
+        }
+    }
+
+    fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
+        Box::new(self.buttons.iter().flat_map(|b| b.all_properties()))
+    }
+
+    fn event_targets<'a>(
+        &'a self,
+    ) -> Box<
+        (dyn Iterator<
+            Item = (
+                crate::property::Instance,
+                *const (dyn EventTarget + 'static),
+            ),
+        > + 'a),
+    > {
+        Box::new(
+            self.buttons
+                .iter()
+                .map(|b| (b.properties().instance, self as *const _)),
+        )
+    }
+}
+
+impl<K: Copy + PartialEq + 'static, LT: ComponentString> EventTarget for ButtonGroup<K, LT> {
     fn event(&mut self, _: &mut dyn ManageComponents, event: &ClickEvent) {
         let Some(clicked_element) = event.get_instance() else {
             return;
@@ -73,17 +105,6 @@ impl<K: Copy + PartialEq + 'static, LT: ComponentString> Component for ButtonGro
         if let Some(selected) = selected {
             self.select(selected);
         }
-    }
-
-    fn update(&mut self, dt: f64) {
-        self.buttons.iter_mut().for_each(|btn| btn.update(dt));
-        if let Some(description) = self.description.as_mut() {
-            description.update(dt);
-        }
-    }
-
-    fn all_properties<'a>(&'a self) -> Box<dyn Iterator<Item = &Properties> + 'a> {
-        Box::new(self.buttons.iter().flat_map(|b| b.all_properties()))
     }
 }
 
@@ -119,10 +140,6 @@ impl<K: Copy + PartialEq + 'static> SimpleComponent for GroupButton<K> {
 }
 
 impl<K: Copy + PartialEq + 'static> Component for GroupButton<K> {
-    fn event(&mut self, cm: &mut dyn ManageComponents, event: &ClickEvent) {
-        self.button.event(cm, event)
-    }
-
     fn update(&mut self, dt: f64) {
         self.button.update(dt)
     }
