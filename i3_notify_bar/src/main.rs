@@ -94,7 +94,7 @@ async fn run(
     refresh_rate: u64,
 ) {
     let (system_command_tx, system_command_rx) = std::sync::mpsc::channel();
-    let minimal_urgency = Arc::new(RwLock::new(MinimalUrgency::All));
+    let minimal_urgency = Arc::new(RwLock::new(MinimalUrgency::Normal));
 
     let mut component_manager = ComponentManagerBuilder::new()
         .with_click_events(true)
