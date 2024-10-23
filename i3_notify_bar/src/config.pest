@@ -1,28 +1,22 @@
 WHITESPACE = _{ " "|"\t" }
 
-config = {SOI ~ NEWLINE* ~ (definition ~ NEWLINE*)* ~ EOI}
+config = {SOI ~ NEWLINE* ~ (rule ~ NEWLINE*)* ~ EOI}
 
-definition = {
+rule = {
     "rule" ~ NEWLINE ~
         (section ~ NEWLINE )* ~
     "end"
 }
 
-section = {condition_section|action_section|style_section|definition}
+section = {condition_section|action_section|style_section|rule}
 
 condition_section = { 
     "condition" ~ NEWLINE ~
         (condition ~ NEWLINE)* ~
     "end"
 }
-condition = { number_condition|string_condition|legacy_condition }
-legacy_condition = { legacy_condition_key ~ compare_eq ~ eol }
-legacy_condition_key = { app_icon|app_name|urgency }
-string_condition = { string_condition_key ~ compare ~ eol }
-string_condition_key = { summary|body|group }
-
-number_condition = { number_condition_key ~ (compare_eq | compare_lt | compare_le | compare_gt | compare_ge) ~ eol }
-number_condition_key = { expire_timeout }
+condition = { property ~ compare_op ~ assign_value }
+property = ${ ('a'..'z' | '0'..'9' | "_")+ }
 
 action_section = { 
     "action" ~ NEWLINE ~
@@ -32,8 +26,7 @@ action_section = {
 action = { stop_action|ignore_action|set_action }
 stop_action = { "stop" }
 ignore_action = { "ignore" }
-set_action = { "set" ~ set_action_key ~ eol}
-set_action_key = { app_icon|text|expire_timeout|emoji_mode|group }
+set_action = { "set" ~ property ~ assign_value}
 
 style_section = {
     "style" ~ NEWLINE ~
@@ -41,23 +34,9 @@ style_section = {
     "end"
 }
 
-style = {background_style|text_style}
-background_style = {"background" ~ color}
-text_style = {"text" ~ color}
+style = {property ~ assign_value}
 
-color = @{"#" ~ (ASCII_HEX_DIGIT{3}){1,2}}
-
-app_name = { "app_name" }
-app_icon = { "app_icon" }
-summary = { "summary" }
-body = { "body" }
-urgency = { "urgency" }
-expire_timeout = { "expire_timeout" }
-emoji_mode = { "emoji_mode" }
-text = {"text"}
-group = {"group"}
-
-eol = {(!NEWLINE ~ ANY)+}
+assign_value = {(!NEWLINE ~ ANY)+}
 
 compare_eq = { "=" }
 compare_lt = { "<" } 
@@ -66,3 +45,4 @@ compare_gt = { ">" }
 compare_ge = { ">=" }
 compare_match = { "match" }
 compare = { compare_eq|compare_match }
+compare_op = { compare_eq | compare_lt | compare_le | compare_gt | compare_ge | compare_match }

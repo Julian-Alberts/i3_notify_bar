@@ -87,7 +87,7 @@ async fn main() {
 }
 
 async fn run(
-    config: Vec<Definition>,
+    config: crate::rule::Config,
     emoji_mode: EmojiMode,
     max_text_length: usize,
     animation_chars_per_second: usize,
@@ -110,7 +110,7 @@ async fn run(
         emoji_mode,
         Arc::clone(&minimal_urgency),
         notify_server,
-        RuleExcutor::new(config),
+        RuleExcutor::new(config.rules),
     );
 
     component_manager.add_component(Box::new(NotificationBar::new(
@@ -143,26 +143,26 @@ async fn run(
     }
 }
 
-fn read_config(config_file: Option<&Path>) -> Vec<crate::rule::Definition> {
+fn read_config(config_file: Option<&Path>) -> crate::rule::Config {
     match config_file {
         Some(path) => {
             let config_file = match std::fs::File::open(path) {
                 Ok(f) => f,
                 Err(e) => {
                     error!("Could not open file {:#?} error: {:#?}", path, e);
-                    return Vec::new();
+                    return crate::rule::Config::default();
                 }
             };
             let mut config_file = BufReader::new(config_file);
             match rule::parse_config(&mut config_file) {
-                Ok(r) => r,
+                Ok(r) => r.try_into().unwrap(),
                 Err(e) => {
                     error!("{}", e.to_string());
                     print_error(e.to_string());
                 }
             }
         }
-        None => Vec::new(),
+        None => crate::rule::Config::default(),
     }
 }
 

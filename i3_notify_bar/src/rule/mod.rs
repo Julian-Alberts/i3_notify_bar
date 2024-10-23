@@ -10,6 +10,11 @@ use crate::{
 use emoji::{self, EmojiMode};
 pub use eval::{EvalRules, RuleExcutor};
 
+#[derive(Default)]
+pub struct Config {
+    pub rules: Vec<Definition>,
+}
+
 pub struct NotificationRuleData<'a> {
     pub app_icon: &'a str,
     pub app_name: &'a str,
@@ -145,6 +150,164 @@ impl Style {
     }
 }
 
+mod from_config_file {
+    use std::borrow::Cow;
+
+    use super::*;
+
+    #[derive(Debug, thiserror::Error)]
+    pub enum Error {
+        #[error("Unknown property {0}")]
+        UnknownProperty(String),
+        #[error("Unsupported value \"{value}\" for property \"{property}\"")]
+        UnsupportedValue {
+            property: Cow<'static, str>,
+            value: String,
+        },
+        #[error("Unknown style property {0}")]
+        UnknownStyleProperty(String),
+        #[error("Unknown property {0}")]
+        UnsupportedOperation(Cow<'static, str>, crate::config_parser::CompareOperation),
+    }
+
+    fn vec_try_into<T, O, E>(i: Vec<T>) -> Result<Vec<O>, E>
+    where
+        O: TryFrom<T, Error = E>,
+    {
+        i.into_iter().map(TryFrom::try_from).collect()
+    }
+
+    impl TryFrom<crate::config_parser::ConfigDef> for Config {
+        type Error = Error;
+        fn try_from(value: crate::config_parser::ConfigDef) -> Result<Self, Self::Error> {
+            Ok(Self {
+                rules: vec_try_into(value.rules)?,
+            })
+        }
+    }
+
+    impl TryFrom<crate::config_parser::RuleDef> for Definition {
+        type Error = Error;
+        fn try_from(value: crate::config_parser::RuleDef) -> Result<Self, Self::Error> {
+            Ok(Self {
+                conditions: vec_try_into(value.conditions)?,
+                actions: vec_try_into(value.actions)?,
+                style: vec_try_into(value.style)?,
+                sub_definition: vec_try_into(value.sub_rules)?,
+            })
+        }
+    }
+
+    impl TryFrom<crate::config_parser::ConditionDef> for Conditions {
+        type Error = Error;
+        fn try_from(value: crate::config_parser::ConditionDef) -> Result<Self, Self::Error> {
+            use crate::config_parser::CompareOperation::*;
+
+            let cond = match (value.property.0.as_str(), value.op) {
+                ("body", Eq) => Conditions::Body(ConditionTypeString::Literal(value.value.0)),
+                ("body", Match) => Conditions::Body(ConditionTypeString::Regex(
+                    Regex::new(value.value.0.as_str()).unwrap(),
+                )),
+                ("body", op) => return Err(Error::UnsupportedOperation(Cow::from("body"), op)),
+
+                ("group", Eq) => Conditions::Group(ConditionTypeString::Literal(value.value.0)),
+                ("group", op) => return Err(Error::UnsupportedOperation(Cow::from("group"), op)),
+
+                ("app_name", Eq) => Conditions::AppName(value.value.0),
+                ("app_name", op) => {
+                    return Err(Error::UnsupportedOperation(Cow::from("app_name"), op))
+                }
+
+                ("app_icon", Eq) => Conditions::AppIcon(value.value.0),
+                ("app_icon", op) => {
+                    return Err(Error::UnsupportedOperation(Cow::from("app_icon"), op))
+                }
+
+                ("summary", Eq) => Conditions::Summary(ConditionTypeString::Literal(value.value.0)),
+                ("summary", Match) => Conditions::Summary(ConditionTypeString::Regex(
+                    Regex::new(value.value.0.as_str()).unwrap(),
+                )),
+                ("summary", op) => {
+                    return Err(Error::UnsupportedOperation(Cow::from("summary"), op))
+                }
+
+                ("urgency", Eq) => Conditions::Urgency(value.value.0),
+                ("urgency", op) => {
+                    return Err(Error::UnsupportedOperation(Cow::from("urgency"), op))
+                }
+
+                ("expire_timeout", Eq) => {
+                    Conditions::ExpireTimeout(NumberCondition::Eq(value.value.0.parse().unwrap()))
+                }
+                ("expire_timeout", Lt) => {
+                    Conditions::ExpireTimeout(NumberCondition::Lt(value.value.0.parse().unwrap()))
+                }
+                ("expire_timeout", Le) => {
+                    Conditions::ExpireTimeout(NumberCondition::Le(value.value.0.parse().unwrap()))
+                }
+                ("expire_timeout", Ge) => {
+                    Conditions::ExpireTimeout(NumberCondition::Ge(value.value.0.parse().unwrap()))
+                }
+                ("expire_timeout", Gt) => {
+                    Conditions::ExpireTimeout(NumberCondition::Gt(value.value.0.parse().unwrap()))
+                }
+                ("expire_timeout", op) => {
+                    return Err(Error::UnsupportedOperation(Cow::from("expire_timeout"), op))
+                }
+                _ => unreachable!(),
+            };
+            Ok(cond)
+        }
+    }
+
+    impl TryFrom<crate::config_parser::ActionDef> for Action {
+        type Error = Error;
+        fn try_from(value: crate::config_parser::ActionDef) -> Result<Self, Self::Error> {
+            use crate::config_parser::ActionDef;
+            let action = match value {
+                ActionDef::Stop => Self::Stop,
+                ActionDef::Ignore => Self::Ignore,
+                ActionDef::Set(set) => Self::Set(set.try_into()?),
+            };
+            Ok(action)
+        }
+    }
+
+    impl TryFrom<crate::config_parser::ActionSetDef> for SetProperty {
+        type Error = Error;
+        fn try_from(value: crate::config_parser::ActionSetDef) -> Result<Self, Self::Error> {
+            let set = match (value.property.0.as_str(), value.value.0) {
+                ("expire_timeout", v) => Self::ExpireTimeout(v.parse().unwrap()),
+                ("group", v) => Self::Group(v),
+                ("icon", v) => Self::Icon(v.chars().next().unwrap_or('\0')),
+                ("text", v) => Self::Text(template::add_template(v).unwrap()),
+                ("emoji", v) if v == "ignore" => Self::EmojiMode(EmojiMode::Ignore),
+                ("emoji", v) if v == "remove" => Self::EmojiMode(EmojiMode::Remove),
+                ("emoji", v) if v == "replace" => Self::EmojiMode(EmojiMode::Replace),
+                ("emoji", v) => {
+                    return Err(Error::UnsupportedValue {
+                        property: "emoji".into(),
+                        value: v,
+                    })
+                }
+                (k, _) => return Err(Error::UnknownProperty(k.into())),
+            };
+            Ok(set)
+        }
+    }
+
+    impl TryFrom<crate::config_parser::StyleDef> for Style {
+        type Error = Error;
+        fn try_from(value: crate::config_parser::StyleDef) -> Result<Self, Self::Error> {
+            let style = match value.property.0.as_str() {
+                "text" => Self::Text(value.value.0),
+                "background" => Self::Background(value.value.0),
+                k => return Err(Error::UnknownStyleProperty(k.into())),
+            };
+            Ok(style)
+        }
+    }
+}
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

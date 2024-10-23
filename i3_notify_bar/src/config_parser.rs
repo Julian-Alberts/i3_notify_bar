@@ -1,25 +1,69 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::io::BufRead;
-use std::str::FromStr;
 
 use log::{error, info};
 use pest::{iterators::Pair, Parser};
-use regex::Regex;
 
-use crate::rule::NumberCondition;
-use crate::{
-    icons,
-    rule::{Action, ConditionTypeString, Conditions as Condition, Definition, SetProperty, Style},
-    template,
-};
-use emoji::EmojiMode;
+#[derive(Debug, Default, PartialEq)]
+pub struct ConfigDef {
+    pub rules: Vec<RuleDef>,
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct RuleDef {
+    pub conditions: Vec<ConditionDef>,
+    pub actions: Vec<ActionDef>,
+    pub style: Vec<StyleDef>,
+    pub sub_rules: Vec<RuleDef>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ConditionDef {
+    pub property: PropertyName,
+    pub op: CompareOperation,
+    pub value: Value,
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct PropertyName(pub String);
+#[derive(Debug, Default, PartialEq)]
+pub struct Value(pub String);
+
+#[derive(Debug, PartialEq)]
+pub enum CompareOperation {
+    Eq,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Match,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ActionDef {
+    Set(ActionSetDef),
+    Stop,
+    Ignore,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct ActionSetDef {
+    pub property: PropertyName,
+    pub value: Value,
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct StyleDef {
+    pub property: PropertyName,
+    pub value: Value,
+}
 
 #[derive(Parser)]
 #[grammar = "config.pest"]
-struct ConfigParser;
+pub struct ConfigParser;
 
-pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<Vec<Definition>> {
+pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<ConfigDef> {
     info!("Reading conditions");
     let config = config
         .lines()
@@ -42,13 +86,14 @@ pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<Vec<Definition>> {
         None => return Err(ParseError::UnexpectedEnd),
     };
 
-    let definitions = config.into_inner().filter(|def| match def.as_rule() {
-        Rule::definition => true,
+    let rules = config.into_inner().filter(|def| match def.as_rule() {
+        Rule::rule => true,
         Rule::EOI => false,
-        rule => unreachable!("Unexpected rule: {:#?}", rule),
+        other => unreachable!("Unexpected rule: {:#?}", other),
     });
 
-    definitions.map(parse_definition).collect::<Result<_, _>>()
+    let rules = rules.map(parse_rule).collect::<Result<_, _>>()?;
+    Ok(ConfigDef { rules })
 }
 
 fn unwrap_line(result: Result<String, std::io::Error>) -> String {
@@ -61,8 +106,8 @@ fn unwrap_line(result: Result<String, std::io::Error>) -> String {
     }
 }
 
-fn parse_definition(definition: Pair<Rule>) -> ParseResult<Definition> {
-    let mut def = Definition::default();
+fn parse_rule(definition: Pair<Rule>) -> ParseResult<RuleDef> {
+    let mut rule = RuleDef::default();
     let groups = definition.into_inner();
     for section in groups {
         let section = section
@@ -70,69 +115,52 @@ fn parse_definition(definition: Pair<Rule>) -> ParseResult<Definition> {
             .next()
             .ok_or(ParseError::UnexpectedEnd)?;
         match section.as_rule() {
-            Rule::condition_section => parse_condition_section(section, &mut def.conditions)?,
-            Rule::style_section => def.style = parse_style_section(section)?,
-            Rule::action_section => def.actions = parse_action_section(section)?,
-            Rule::definition => def.sub_definition.push(parse_definition(section)?),
+            Rule::condition_section => parse_condition_section(section, &mut rule.conditions)?,
+            Rule::style_section => parse_style_section(section, &mut rule.style)?,
+            Rule::action_section => parse_action_section(section, &mut rule.actions)?,
+            Rule::rule => rule.sub_rules.push(parse_rule(section)?),
             _ => unreachable!(),
         }
     }
-    Ok(def)
+    Ok(rule)
 }
 
-fn parse_action_section(action_section: Pair<Rule>) -> ParseResult<Vec<Action>> {
+fn parse_action_section(
+    action_section: Pair<Rule>,
+    actions: &mut Vec<ActionDef>,
+) -> ParseResult<()> {
     action_section
         .into_inner()
         .map(parse_action)
-        .collect::<Result<_, _>>()
+        .try_fold(actions, try_collect)?;
+    Ok(())
 }
 
-fn parse_action(action: Pair<Rule>) -> ParseResult<Action> {
+fn parse_action(action: Pair<Rule>) -> ParseResult<ActionDef> {
     let action = action
         .into_inner()
         .next()
         .ok_or(ParseError::UnexpectedEnd)?;
     match action.as_rule() {
-        Rule::set_action => parse_set_action(action),
-        Rule::stop_action => Ok(Action::Stop),
-        Rule::ignore_action => Ok(Action::Ignore),
+        Rule::set_action => parse_set_action(action).map(ActionDef::Set),
+        Rule::stop_action => Ok(ActionDef::Stop),
+        Rule::ignore_action => Ok(ActionDef::Ignore),
         _ => unreachable!(),
     }
 }
 
-fn parse_set_action(set_action: Pair<Rule>) -> ParseResult<Action> {
+fn parse_set_action(set_action: Pair<Rule>) -> ParseResult<ActionSetDef> {
     let mut inner = set_action.into_inner();
-    let key = inner
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?
-        .into_inner()
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?;
-    let value = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
+    let key = inner.next().ok_or(ParseError::UnexpectedEnd)?;
+    let property = parse_property(key);
+    let value = parse_value(inner.next().ok_or(ParseError::UnexpectedEnd)?);
 
-    let action = match key.as_rule() {
-        Rule::app_icon => Action::Set(SetProperty::Icon(icons::get_icon(value).unwrap_or('\u{0}'))),
-        Rule::text => Action::Set(SetProperty::Text(
-            match template::add_template(value.to_owned()) {
-                Ok(id) => id,
-                Err(_) => template::DEFAULT_TEMPLATE_ID,
-            },
-        )),
-        Rule::expire_timeout => Action::Set(SetProperty::ExpireTimeout(
-            value.parse().map_err(ParseError::NumParse)?,
-        )),
-        Rule::emoji_mode => Action::Set(SetProperty::EmojiMode(
-            EmojiMode::from_str(value).map_err(ParseError::EmojiMode)?,
-        )),
-        Rule::group => Action::Set(SetProperty::Group(value.to_string())),
-        _ => unreachable!(),
-    };
-    Ok(action)
+    Ok(ActionSetDef { property, value })
 }
 
 fn parse_condition_section(
     condition_section: Pair<Rule>,
-    conditions: &mut Vec<Condition>,
+    conditions: &mut Vec<ConditionDef>,
 ) -> ParseResult<()> {
     let mut new_conditions = condition_section
         .into_inner()
@@ -144,126 +172,69 @@ fn parse_condition_section(
     Ok(())
 }
 
-fn parse_condition(condition: Pair<Rule>) -> ParseResult<Condition> {
-    let condition = condition
-        .into_inner()
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?;
-    let c = match condition.as_rule() {
-        Rule::number_condition => parse_number_condition(condition)?,
-        Rule::string_condition => parse_string_condition(condition)?,
-        Rule::legacy_condition => parse_legacy_condition(condition)?,
-        _ => unreachable!(),
-    };
-    Ok(c)
+fn parse_condition(condition: Pair<Rule>) -> ParseResult<ConditionDef> {
+    let mut condition_iter = condition.into_inner();
+    let property_name = condition_iter.next().ok_or(ParseError::UnexpectedEnd)?;
+    let property = parse_property(property_name);
+
+    let op = condition_iter.next().ok_or(ParseError::UnexpectedEnd)?;
+    let op = parse_compare_op(op);
+    let value = condition_iter.next().ok_or(ParseError::UnexpectedEnd)?;
+    let value = parse_value(value);
+    Ok(ConditionDef {
+        property,
+        op,
+        value,
+    })
 }
 
-fn parse_number_condition(number_condition: Pair<Rule>) -> ParseResult<Condition> {
-    let mut inner = number_condition.into_inner();
-    let name = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
-    let operation = inner.next().ok_or(ParseError::UnexpectedEnd)?;
-    let number_string = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
-
-    let value = number_string.parse().map_err(ParseError::NumParse)?;
-    let operation = match operation.as_rule() {
-        Rule::compare_eq => NumberCondition::Eq(value),
-        Rule::compare_lt => NumberCondition::Lt(value),
-        Rule::compare_le => NumberCondition::Le(value),
-        Rule::compare_gt => NumberCondition::Gt(value),
-        Rule::compare_ge => NumberCondition::Ge(value),
-        _ => unreachable!(),
-    };
-    match name {
-        "expire_timeout" => Ok(Condition::ExpireTimeout(operation)),
-        _ => unimplemented!(),
+fn parse_value(value: Pair<'_, Rule>) -> Value {
+    if value.as_rule() != Rule::assign_value {
+        unreachable!()
     }
+    Value(value.as_str().to_string())
 }
 
-fn parse_string_condition(string_condition: Pair<Rule>) -> ParseResult<Condition> {
-    let mut inner = string_condition.into_inner();
-    let name = inner
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?
-        .into_inner()
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?
-        .as_rule();
-    let eq = inner
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?
-        .into_inner()
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?
-        .as_rule();
-    let value = inner.next().ok_or(ParseError::UnexpectedEnd)?.as_str();
-
-    let condition_type = match eq {
-        Rule::compare_eq => ConditionTypeString::Literal(value.to_owned()),
-        Rule::compare_match => {
-            ConditionTypeString::Regex(Regex::new(value).map_err(ParseError::Regex)?)
-        }
-        _ => unreachable!(),
-    };
-
-    match name {
-        Rule::summary => Ok(Condition::Summary(condition_type)),
-        Rule::body => Ok(Condition::Body(condition_type)),
-        Rule::group => Ok(Condition::Group(condition_type)),
+fn parse_compare_op(op: Pair<'_, Rule>) -> CompareOperation {
+    if op.as_rule() != Rule::compare_op {
+        unreachable!()
+    }
+    match op.into_inner().next().unwrap().as_rule() {
+        Rule::compare_eq => CompareOperation::Eq,
+        Rule::compare_lt => CompareOperation::Lt,
+        Rule::compare_le => CompareOperation::Le,
+        Rule::compare_gt => CompareOperation::Gt,
+        Rule::compare_ge => CompareOperation::Ge,
+        Rule::compare_match => CompareOperation::Match,
         _ => unreachable!(),
     }
 }
 
-fn parse_legacy_condition(legacy_condition: Pair<Rule>) -> ParseResult<Condition> {
-    let mut inner = legacy_condition.into_inner();
-    let name = inner
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?
+fn parse_property(property: Pair<Rule>) -> PropertyName {
+    if property.as_rule() == Rule::property {
+        PropertyName(property.as_str().to_owned())
+    } else {
+        unreachable!()
+    }
+}
+
+fn parse_style_section(style_section: Pair<Rule>, styles: &mut Vec<StyleDef>) -> ParseResult<()> {
+    style_section
         .into_inner()
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?
-        .as_rule();
-    let mut inner = inner.skip(1);
-    let value = inner
-        .next()
-        .ok_or(ParseError::UnexpectedEnd)?
-        .as_str()
-        .to_owned();
-
-    match name {
-        Rule::app_icon => Ok(Condition::AppIcon(value)),
-        Rule::app_name => Ok(Condition::AppName(value)),
-        Rule::urgency => Ok(Condition::Urgency(value)),
-        _ => unreachable!(),
-    }
+        .map(parse_style)
+        .try_fold(styles, try_collect)?;
+    Ok(())
 }
 
-fn parse_style_section(style_section: Pair<Rule>) -> ParseResult<Vec<Style>> {
-    style_section.into_inner().map(parse_style).collect()
-}
+fn parse_style(style: Pair<Rule>) -> ParseResult<StyleDef> {
+    let mut token_iter = style.into_inner();
+    let property = parse_property(token_iter.next().ok_or(ParseError::UnexpectedEnd)?);
 
-fn parse_style(style: Pair<Rule>) -> ParseResult<Style> {
-    let style = style.into_inner().next().ok_or(ParseError::UnexpectedEnd)?;
-    match style.as_rule() {
-        Rule::background_style => {
-            let color = style
-                .into_inner()
-                .next()
-                .ok_or(ParseError::UnexpectedEnd)?
-                .as_str()
-                .to_owned();
-            Ok(Style::Background(color))
-        }
-        Rule::text_style => {
-            let color = style
-                .into_inner()
-                .next()
-                .ok_or(ParseError::UnexpectedEnd)?
-                .as_str()
-                .to_owned();
-            Ok(Style::Text(color))
-        }
-        _ => unreachable!(),
-    }
+    let color = parse_value(token_iter.next().ok_or(ParseError::UnexpectedEnd)?);
+    Ok(StyleDef {
+        property,
+        value: color,
+    })
 }
 
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -272,9 +243,6 @@ pub type ParseResult<T> = Result<T, ParseError>;
 pub enum ParseError {
     PestError(Box<pest::error::Error<Rule>>),
     UnexpectedEnd,
-    NumParse(std::num::ParseIntError),
-    EmojiMode(emoji::EmojiModeError),
-    Regex(regex::Error),
 }
 
 impl Display for ParseError {
@@ -282,9 +250,6 @@ impl Display for ParseError {
         let e: &dyn Error = match self {
             Self::PestError(e) => e,
             Self::UnexpectedEnd => return write!(f, "Unexpected end of config file"),
-            Self::NumParse(e) => e,
-            Self::EmojiMode(e) => e,
-            Self::Regex(e) => e,
         };
 
         Display::fmt(e, f)
@@ -292,6 +257,11 @@ impl Display for ParseError {
 }
 
 impl Error for ParseError {}
+
+fn try_collect<T, E>(c: &mut Vec<T>, v: Result<T, E>) -> Result<&mut Vec<T>, E> {
+    c.push(v?);
+    Ok(c)
+}
 
 #[cfg(test)]
 mod tests {
@@ -318,34 +288,21 @@ mod tests {
         .unwrap()
         .next()
         .unwrap();
-        let styles = parse_style_section(style_section).unwrap();
-        assert_eq!(styles, vec![Style::Background(String::from("#fff"))]);
+        let mut styles = Vec::new();
+        parse_style_section(style_section, &mut styles).unwrap();
+        assert_eq!(
+            styles,
+            vec![StyleDef {
+                property: PropertyName("background".to_string()),
+                value: Value("#fff".to_owned())
+            }]
+        );
     }
 
     #[test]
-    fn parse_string_condition_app_name() {
-        let condition = ConfigParser::parse(Rule::legacy_condition, "app_name = test")
-            .unwrap()
-            .next()
-            .unwrap();
-        let condition = parse_legacy_condition(condition).unwrap();
-        assert_eq!(condition, Condition::AppName("test".to_owned()));
-    }
-
-    #[test]
-    fn parse_number_condition_expire_timeout() {
-        let condition = ConfigParser::parse(Rule::number_condition, "expire_timeout = 42")
-            .unwrap()
-            .next()
-            .unwrap();
-        let condition = parse_number_condition(condition).unwrap();
-        assert_eq!(condition, Condition::ExpireTimeout(NumberCondition::Eq(42)));
-    }
-
-    #[test]
-    fn parse_single_definition() {
+    fn parse_single_rule() {
         let definition = ConfigParser::parse(
-            Rule::definition,
+            Rule::rule,
             r#"rule
             action
                 stop
@@ -358,11 +315,11 @@ mod tests {
 
         let definition = definition.unwrap().next().unwrap();
 
-        let definition = parse_definition(definition).unwrap();
+        let definition = parse_rule(definition).unwrap();
         assert_eq!(
             definition,
-            Definition {
-                actions: vec![Action::Stop, Action::Ignore],
+            RuleDef {
+                actions: vec![ActionDef::Stop, ActionDef::Ignore],
                 ..Default::default()
             }
         )
@@ -371,7 +328,7 @@ mod tests {
     #[test]
     fn parse_rule_with_sub_rule() {
         let definition = ConfigParser::parse(
-            Rule::definition,
+            Rule::rule,
             r#"rule
                 action
                     stop
@@ -391,14 +348,18 @@ mod tests {
 
         let definition = definition.unwrap().next().unwrap();
 
-        let definition = parse_definition(definition).unwrap();
+        let definition = parse_rule(definition).unwrap();
         assert_eq!(
             definition,
-            Definition {
-                actions: vec![Action::Stop],
-                sub_definition: vec![Definition {
-                    conditions: vec![Condition::AppName("TestApp".into())],
-                    actions: vec![Action::Ignore],
+            RuleDef {
+                actions: vec![ActionDef::Stop],
+                sub_rules: vec![RuleDef {
+                    conditions: vec![ConditionDef {
+                        property: PropertyName("app_name".to_owned()),
+                        op: CompareOperation::Eq,
+                        value: Value("TestApp".to_string())
+                    }],
+                    actions: vec![ActionDef::Ignore],
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -424,9 +385,21 @@ mod tests {
         assert_eq!(
             conditions,
             vec![
-                Condition::AppName(String::from("Thunderbird")),
-                Condition::ExpireTimeout(NumberCondition::Eq(10)),
-                Condition::Body(ConditionTypeString::Regex(Regex::new("new").unwrap()))
+                ConditionDef {
+                    property: PropertyName(String::from("app_name")),
+                    op: CompareOperation::Eq,
+                    value: Value("Thunderbird".to_owned())
+                },
+                ConditionDef {
+                    property: PropertyName(String::from("expire_timeout")),
+                    op: CompareOperation::Eq,
+                    value: Value("10".to_owned())
+                },
+                ConditionDef {
+                    property: PropertyName(String::from("body")),
+                    op: CompareOperation::Match,
+                    value: Value("new".to_owned())
+                },
             ]
         );
     }
@@ -444,15 +417,19 @@ mod tests {
         .unwrap()
         .next()
         .unwrap();
-        let actions = parse_action_section(action_section).unwrap();
+        let mut actions = Vec::new();
+        parse_action_section(action_section, &mut actions).unwrap();
         assert_eq!(actions.len(), 3);
-        match actions[0] {
-            // Comparing ids could break the test based on test order
-            Action::Set(SetProperty::Text(_)) => assert!(true),
-            _ => assert!(false),
-        }
-        assert_eq!(actions[1], Action::Stop);
-        assert_eq!(actions[2], Action::Ignore);
+
+        assert_eq!(
+            actions[0],
+            ActionDef::Set(ActionSetDef {
+                property: PropertyName("text".to_owned()),
+                value: Value("Hello World".to_owned()),
+            })
+        );
+        assert_eq!(actions[1], ActionDef::Stop);
+        assert_eq!(actions[2], ActionDef::Ignore);
     }
 
     #[test]
@@ -471,12 +448,24 @@ mod tests {
         let config = parse_config(&mut config.as_bytes());
         assert_eq!(
             config.unwrap(),
-            vec![Definition {
-                conditions: vec![Condition::AppName("Thunderbird".to_owned())],
-                actions: vec![Action::Set(SetProperty::ExpireTimeout(-1))],
-                style: vec![Style::Background("#ff00ff".to_owned())],
-                sub_definition: vec![]
-            }]
+            ConfigDef {
+                rules: vec![RuleDef {
+                    conditions: vec![ConditionDef {
+                        property: PropertyName("app_name".to_owned()),
+                        op: CompareOperation::Eq,
+                        value: Value("Thunderbird".to_owned()),
+                    }],
+                    actions: vec![ActionDef::Set(ActionSetDef {
+                        property: PropertyName("expire_timeout".to_string()),
+                        value: Value("-1".to_owned())
+                    })],
+                    style: vec![StyleDef {
+                        property: PropertyName("background".to_owned()),
+                        value: Value("#ff00ff".to_owned()),
+                    }],
+                    sub_rules: vec![]
+                }]
+            }
         )
     }
 
@@ -484,7 +473,7 @@ mod tests {
     fn parse_empty_config() {
         let config = "   \n ";
         let config = parse_config(&mut config.as_bytes()).unwrap();
-        assert_eq!(config, vec![])
+        assert_eq!(config, ConfigDef::default())
     }
 
     #[test]
@@ -507,20 +496,29 @@ end"#;
         let config = parse_config(&mut config.as_bytes()).unwrap();
         assert_eq!(
             config,
-            vec![
-                Definition {
-                    conditions: vec![Condition::AppName("Thunderbird".to_owned())],
-                    ..Default::default()
-                },
-                Definition {
-                    actions: vec![Action::Ignore],
-                    ..Default::default()
-                },
-                Definition {
-                    style: vec![Style::Background("#ff00ff".to_owned())],
-                    ..Default::default()
-                }
-            ]
+            ConfigDef {
+                rules: vec![
+                    RuleDef {
+                        conditions: vec![ConditionDef {
+                            property: PropertyName("app_name".to_owned()),
+                            op: CompareOperation::Eq,
+                            value: Value("Thunderbird".to_owned())
+                        }],
+                        ..Default::default()
+                    },
+                    RuleDef {
+                        actions: vec![ActionDef::Ignore],
+                        ..Default::default()
+                    },
+                    RuleDef {
+                        style: vec![StyleDef {
+                            property: PropertyName("background".to_owned()),
+                            value: Value("#ff00ff".to_owned())
+                        }],
+                        ..Default::default()
+                    }
+                ]
+            }
         );
     }
 }
@@ -531,61 +529,6 @@ mod pest_tests {
     use pest::Parser;
 
     use super::*;
-
-    macro_rules! rule_test {
-        ($rule: ident, $key: literal $compare: literal $value: literal) => {
-            let line = format!("{} {} {}\n", $key, $compare, $value);
-            let parsed_rule = ConfigParser::parse(Rule::condition, &line);
-            assert!(parsed_rule.is_ok());
-            let parsed_rule = parsed_rule.unwrap().next();
-            assert!(parsed_rule.is_some());
-            let pair = parsed_rule.unwrap().into_inner().next().unwrap();
-
-            let mut inner = pair.into_inner();
-
-            let rule_key = inner.next();
-            assert!(rule_key.is_some());
-            assert_eq!(rule_key.unwrap().as_str(), $key);
-
-            let compare = inner.next();
-            assert!(compare.is_some());
-            assert_eq!(compare.unwrap().as_str(), $compare);
-
-            let eol = inner.next();
-            assert!(eol.is_some());
-            assert_eq!(eol.unwrap().as_str(), $value);
-        };
-    }
-
-    #[test]
-    fn rule_app_name() {
-        rule_test!(app_name, "app_name" "=" "test app name");
-    }
-
-    #[test]
-    fn rule_app_icon() {
-        rule_test!(app_icon, "app_icon" "=" "test icon");
-    }
-
-    #[test]
-    fn rule_summary() {
-        rule_test!(summary, "summary" "match" "regex expr");
-    }
-
-    #[test]
-    fn rule_body() {
-        rule_test!(body, "body" "=" "test body");
-    }
-
-    #[test]
-    fn rule_urgency() {
-        rule_test!(urgency, "urgency" "=" "test urgency");
-    }
-
-    #[test]
-    fn rule_expire_timeout() {
-        rule_test!(expire_timeout, "expire_timeout" "=" "test expire_timeouturgency");
-    }
 
     #[test]
     fn rule_section() {
@@ -598,7 +541,6 @@ mod pest_tests {
             end"#,
         );
 
-        assert!(parsed.is_ok(), "{:#?}", parsed);
         let mut parsed = parsed.unwrap();
 
         let rule_section = parsed.next().unwrap();
@@ -685,7 +627,7 @@ mod pest_tests {
     #[test]
     fn definition() {
         let parsed = ConfigParser::parse(
-            Rule::definition,
+            Rule::rule,
             r#"rule
         style
             background #ff00ff
