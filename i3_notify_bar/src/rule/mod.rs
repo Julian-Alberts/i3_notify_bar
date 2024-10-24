@@ -12,7 +12,7 @@ pub use eval::{EvalRules, RuleExcutor};
 
 #[derive(Default)]
 pub struct Config {
-    pub rules: Vec<Definition>,
+    pub rules: Vec<Rule>,
 }
 
 pub struct NotificationRuleData<'a> {
@@ -26,14 +26,14 @@ pub struct NotificationRuleData<'a> {
 }
 
 #[derive(Default, Debug, PartialEq)]
-pub struct Definition {
+pub struct Rule {
     pub conditions: Vec<Conditions>,
     pub actions: Vec<Action>,
     pub style: Vec<Style>,
-    pub sub_definition: Vec<Definition>,
+    pub sub_rule: Vec<Rule>,
 }
 
-impl Definition {
+impl Rule {
     pub fn matches(&self, notification: &NotificationRuleData) -> bool {
         !self.conditions.iter().any(|r| !r.is_match(notification))
     }
@@ -186,14 +186,14 @@ mod from_config_file {
         }
     }
 
-    impl TryFrom<crate::config_parser::RuleDef> for Definition {
+    impl TryFrom<crate::config_parser::RuleDef> for Rule {
         type Error = Error;
         fn try_from(value: crate::config_parser::RuleDef) -> Result<Self, Self::Error> {
             Ok(Self {
                 conditions: vec_try_into(value.conditions)?,
                 actions: vec_try_into(value.actions)?,
                 style: vec_try_into(value.style)?,
-                sub_definition: vec_try_into(value.sub_rules)?,
+                sub_rule: vec_try_into(value.sub_rules)?,
             })
         }
     }
@@ -331,14 +331,14 @@ mod tests {
     fn definition_matches_all() {
         let mut n = new_notification();
         n.app_name = "test-app";
-        let def = Definition {
+        let def = Rule {
             conditions: vec![
                 Conditions::AppName("test-app".to_owned()),
                 Conditions::ExpireTimeout(NumberCondition::Eq(10)),
             ],
             actions: Default::default(),
             style: Vec::default(),
-            sub_definition: Vec::default(),
+            sub_rule: Vec::default(),
         };
         assert!(def.matches(&n))
     }
@@ -348,14 +348,14 @@ mod tests {
         let mut n = new_notification();
         n.app_name = "test-app";
         n.expire_timeout = 9;
-        let def = Definition {
+        let def = Rule {
             conditions: vec![
                 Conditions::AppName("test-app".to_owned()),
                 Conditions::ExpireTimeout(NumberCondition::Eq(10)),
             ],
             actions: Default::default(),
             style: Vec::default(),
-            sub_definition: Vec::default(),
+            sub_rule: Vec::default(),
         };
         assert!(!def.matches(&n))
     }

@@ -21,7 +21,7 @@ use i3_bar_components::{
 use log::{debug, error};
 use notification_bar::{MinimalUrgency, NotificationEvent, NotificationManager};
 use path_manager::PathManager;
-use rule::{Definition, RuleExcutor};
+use rule::{Rule, RuleExcutor};
 use std::{
     io::BufReader,
     path::Path,

@@ -5,14 +5,14 @@ use crate::{
     rule::{Action, NotificationRuleData},
 };
 
-use super::Definition;
+use super::Rule;
 
 pub struct RuleExcutor {
-    rules: Vec<Definition>,
+    rules: Vec<Rule>,
 }
 
 impl RuleExcutor {
-    pub fn new(rules: Vec<Definition>) -> Self {
+    pub fn new(rules: Vec<Rule>) -> Self {
         Self { rules }
     }
 }
@@ -34,12 +34,12 @@ impl EvalRules for RuleExcutor {
 }
 
 fn execute_rules_inner(
-    definitions: &[Definition],
+    rules: &[Rule],
     n: &notify_server::notification::Notification,
     notification_template_data: &mut NotificationTemplateData,
     notification_data: &mut NotificationData,
 ) -> ControlFlow<ExecuteActionBreakReason> {
-    for rule in definitions {
+    for rule in rules {
         use ExecuteActionBreakReason::*;
         let rule_data = NotificationRuleData {
             app_icon: &n.app_icon,
@@ -66,7 +66,7 @@ fn execute_rules_inner(
         notification_data.style.extend(rule.style.clone());
 
         let sub_rule_result = execute_rules_inner(
-            &rule.sub_definition,
+            &rule.sub_rule,
             n,
             notification_template_data,
             notification_data,
@@ -118,7 +118,7 @@ mod tests {
 
     use crate::{
         notification_bar::{NotificationData, NotificationTemplateData},
-        rule::{Action, Conditions, Definition},
+        rule::{Action, Conditions, Rule},
     };
 
     fn notification(id: impl Into<notify_server::NotificationId>) -> NotificationData {
@@ -166,7 +166,7 @@ mod tests {
         let mut ntd = notification_template();
         let mut nd = notification(0);
         super::execute_rules_inner(
-            &[Definition {
+            &[Rule {
                 actions: vec![Action::Ignore],
                 ..Default::default()
             }],
@@ -195,7 +195,7 @@ mod tests {
         let mut ntd = notification_template();
         let mut nd = notification(0);
         super::execute_rules_inner(
-            &[Definition {
+            &[Rule {
                 actions: vec![Action::Set(crate::rule::SetProperty::Group(
                     "TestGroup".into(),
                 ))],
@@ -215,11 +215,11 @@ mod tests {
         let mut nd = notification(0);
         super::execute_rules_inner(
             &[
-                Definition {
+                Rule {
                     actions: vec![Action::Stop],
                     ..Default::default()
                 },
-                Definition {
+                Rule {
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
                     ))],
@@ -240,11 +240,11 @@ mod tests {
         let mut nd = notification(0);
         super::execute_rules_inner(
             &[
-                Definition {
+                Rule {
                     actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
                     ..Default::default()
                 },
-                Definition {
+                Rule {
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
                     ))],
@@ -266,11 +266,11 @@ mod tests {
         let mut nd = notification(0);
         super::execute_rules_inner(
             &[
-                Definition {
+                Rule {
                     actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
                     ..Default::default()
                 },
-                Definition {
+                Rule {
                     conditions: vec![Conditions::AppName("other name".to_string())],
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
@@ -292,9 +292,9 @@ mod tests {
         let mut ntd = notification_template();
         let mut nd = notification(0);
         super::execute_rules_inner(
-            &[Definition {
+            &[Rule {
                 actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
-                sub_definition: vec![Definition {
+                sub_rule: vec![Rule {
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
                     ))],
@@ -317,15 +317,15 @@ mod tests {
         let mut nd = notification(0);
         super::execute_rules_inner(
             &[
-                Definition {
+                Rule {
                     actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
-                    sub_definition: vec![Definition {
+                    sub_rule: vec![Rule {
                         actions: vec![Action::Stop],
                         ..Default::default()
                     }],
                     ..Default::default()
                 },
-                Definition {
+                Rule {
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
                     ))],
@@ -347,15 +347,15 @@ mod tests {
         let mut nd = notification(0);
         super::execute_rules_inner(
             &[
-                Definition {
+                Rule {
                     actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
-                    sub_definition: vec![Definition {
+                    sub_rule: vec![Rule {
                         actions: vec![Action::Ignore],
                         ..Default::default()
                     }],
                     ..Default::default()
                 },
-                Definition {
+                Rule {
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
                     ))],
