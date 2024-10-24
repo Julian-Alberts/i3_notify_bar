@@ -118,7 +118,7 @@ mod tests {
 
     use crate::{
         notification_bar::{NotificationData, NotificationTemplateData},
-        rule::{Action, Conditions, Rule},
+        rule::{Action, Condition, Rule},
     };
 
     fn notification(id: impl Into<notify_server::NotificationId>) -> NotificationData {
@@ -271,7 +271,7 @@ mod tests {
                     ..Default::default()
                 },
                 Rule {
-                    conditions: vec![Conditions::AppName("other name".to_string())],
+                    conditions: vec![Condition::AppName("other name".to_string())],
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
                     ))],

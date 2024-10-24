@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 use zbus::zvariant::Value;
 
 use crate::NotificationId;
@@ -54,15 +54,26 @@ impl From<Value<'_>> for Urgency {
 }
 
 impl FromStr for Urgency {
-    type Err = String;
+    type Err = UnknownUrgeny;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "low" => Urgency::Low,
             "normal" => Urgency::Normal,
             "critical" => Urgency::Critical,
-            _ => return Err(format!("Can not convert {} to urgency", s)),
+            _ => return Err(UnknownUrgeny(s.to_owned())),
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct UnknownUrgeny(String);
+
+impl std::error::Error for UnknownUrgeny {}
+
+impl Display for UnknownUrgeny {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Can not convert {} to urgency", self.0)
     }
 }
 

@@ -1,6 +1,7 @@
 mod eval;
 
 pub use crate::config_parser::parse_config;
+use notify_server::notification::Urgency;
 use regex::Regex;
 
 use crate::{
@@ -79,7 +80,7 @@ pub enum Condition {
     Summary(ConditionTypeString),
     Body(ConditionTypeString),
     Group(ConditionTypeString),
-    Urgency(String),
+    Urgency(NumberCondition<Urgency>),
     ExpireTimeout(NumberCondition),
 }
 
@@ -96,11 +97,12 @@ impl Condition {
             Condition::Group(ConditionTypeString::Regex(v)) => {
                 v.is_match(other.group.unwrap_or(""))
             }
-            Condition::Urgency(v) => match &other.urgency {
-                notify_server::notification::Urgency::Low => v == "low",
-                notify_server::notification::Urgency::Normal => v == "normal",
-                notify_server::notification::Urgency::Critical => v == "critical",
-            },
+            Condition::Urgency(NumberCondition::Eq(v)) => *v == *other.urgency,
+            Condition::Urgency(NumberCondition::Lt(v)) => *v > *other.urgency,
+            Condition::Urgency(NumberCondition::Le(v)) => *v >= *other.urgency,
+            Condition::Urgency(NumberCondition::Gt(v)) => *v < *other.urgency,
+            Condition::Urgency(NumberCondition::Ge(v)) => *v <= *other.urgency,
+                
             Condition::ExpireTimeout(NumberCondition::Eq(v)) => *v == other.expire_timeout,
             Condition::ExpireTimeout(NumberCondition::Lt(v)) => *v > other.expire_timeout,
             Condition::ExpireTimeout(NumberCondition::Le(v)) => *v >= other.expire_timeout,
@@ -111,12 +113,12 @@ impl Condition {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum NumberCondition {
-    Eq(i32),
-    Lt(i32),
-    Le(i32),
-    Gt(i32),
-    Ge(i32),
+pub enum NumberCondition<T=i32> {
+    Eq(T),
+    Lt(T),
+    Le(T),
+    Gt(T),
+    Ge(T),
 }
 
 #[derive(Debug)]
@@ -151,7 +153,7 @@ impl Style {
 }
 
 mod from_config_file {
-    use std::borrow::Cow;
+    use std::{borrow::Cow, str::FromStr};
 
     use super::*;
 
@@ -203,7 +205,7 @@ mod from_config_file {
             })
         }
     }
-
+    
     impl TryFrom<crate::config_parser::ConditionDef> for Condition {
         type Error = Error;
         fn try_from(value: crate::config_parser::ConditionDef) -> Result<Self, Self::Error> {
@@ -245,7 +247,31 @@ mod from_config_file {
                     return Err(Error::UnsupportedOperation(Cow::from("summary"), op))
                 }
 
-                ("urgency", Eq) => Condition::Urgency(value.value.0),
+                ("urgency", Eq) => Condition::Urgency(NumberCondition::Eq(Urgency::from_str(value.value.0.as_str()).map_err(|e| Error::ParseError { 
+                    property: "urgency".into(), 
+                    value: value.value.0, 
+                    error: Box::new(e)
+                })?)),
+                ("urgency", Lt) => Condition::Urgency(NumberCondition::Lt(Urgency::from_str(value.value.0.as_str()).map_err(|e| Error::ParseError { 
+                    property: "urgency".into(), 
+                    value: value.value.0, 
+                    error: Box::new(e)
+                })?)),
+                ("urgency", Le) => Condition::Urgency(NumberCondition::Le(Urgency::from_str(value.value.0.as_str()).map_err(|e| Error::ParseError { 
+                    property: "urgency".into(), 
+                    value: value.value.0, 
+                    error: Box::new(e)
+                })?)),
+                ("urgency", Ge) => Condition::Urgency(NumberCondition::Ge(Urgency::from_str(value.value.0.as_str()).map_err(|e| Error::ParseError { 
+                    property: "urgency".into(), 
+                    value: value.value.0, 
+                    error: Box::new(e)
+                })?)),
+                ("urgency", Gt) => Condition::Urgency(NumberCondition::Gt(Urgency::from_str(value.value.0.as_str()).map_err(|e| Error::ParseError { 
+                    property: "urgency".into(), 
+                    value: value.value.0, 
+                    error: Box::new(e)
+                })?)),
                 ("urgency", op) => {
                     return Err(Error::UnsupportedOperation(Cow::from("urgency"), op))
                 }
