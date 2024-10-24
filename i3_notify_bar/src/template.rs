@@ -25,20 +25,24 @@ pub fn render_template(tpl_id: &u64, context: &NotificationTemplateData) -> Stri
     }
 }
 
-pub fn add_template(template: String) -> Result<u64, ()> {
+#[derive(Debug, thiserror::Error)]
+pub struct ParseErrorWrapper(mini_template::ParseError);
+
+impl std::fmt::Display for ParseErrorWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.to_string())
+    }
+}
+
+pub fn add_template(template: String) -> Result<u64, ParseErrorWrapper> {
     unsafe {
         let id = NEXT_TEMPLATE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let id_str = id.to_string();
-        let old_template = TEMPLATE_MANAGER
+        TEMPLATE_MANAGER
             .get_or_init(init_template_manager)
             .write()
             .unwrap_or_else(|e| e.into_inner())
-            .add_template(id_str, template);
-
-        match old_template {
-            Ok(_) => Ok(id),
-            Err(_) => Err(()), // TODO return better error
-        }
+            .add_template(id_str, template).map(|_| id).map_err(ParseErrorWrapper)
     }
 }
 

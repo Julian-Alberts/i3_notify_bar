@@ -27,7 +27,7 @@ pub struct NotificationRuleData<'a> {
 
 #[derive(Default, Debug, PartialEq)]
 pub struct Rule {
-    pub conditions: Vec<Conditions>,
+    pub conditions: Vec<Condition>,
     pub actions: Vec<Action>,
     pub style: Vec<Style>,
     pub sub_rule: Vec<Rule>,
@@ -73,7 +73,7 @@ impl SetProperty {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Conditions {
+pub enum Condition {
     AppName(String),
     AppIcon(String),
     Summary(ConditionTypeString),
@@ -83,29 +83,29 @@ pub enum Conditions {
     ExpireTimeout(NumberCondition),
 }
 
-impl Conditions {
+impl Condition {
     fn is_match(&self, other: &NotificationRuleData) -> bool {
         match self {
-            Conditions::AppIcon(v) => v == other.app_icon,
-            Conditions::AppName(v) => v == other.app_name,
-            Conditions::Summary(ConditionTypeString::Literal(v)) => v == other.summary,
-            Conditions::Summary(ConditionTypeString::Regex(v)) => v.is_match(other.summary),
-            Conditions::Body(ConditionTypeString::Literal(v)) => v == other.body,
-            Conditions::Body(ConditionTypeString::Regex(v)) => v.is_match(other.body),
-            Conditions::Group(ConditionTypeString::Literal(v)) => v == other.group.unwrap_or(""),
-            Conditions::Group(ConditionTypeString::Regex(v)) => {
+            Condition::AppIcon(v) => v == other.app_icon,
+            Condition::AppName(v) => v == other.app_name,
+            Condition::Summary(ConditionTypeString::Literal(v)) => v == other.summary,
+            Condition::Summary(ConditionTypeString::Regex(v)) => v.is_match(other.summary),
+            Condition::Body(ConditionTypeString::Literal(v)) => v == other.body,
+            Condition::Body(ConditionTypeString::Regex(v)) => v.is_match(other.body),
+            Condition::Group(ConditionTypeString::Literal(v)) => v == other.group.unwrap_or(""),
+            Condition::Group(ConditionTypeString::Regex(v)) => {
                 v.is_match(other.group.unwrap_or(""))
             }
-            Conditions::Urgency(v) => match &other.urgency {
+            Condition::Urgency(v) => match &other.urgency {
                 notify_server::notification::Urgency::Low => v == "low",
                 notify_server::notification::Urgency::Normal => v == "normal",
                 notify_server::notification::Urgency::Critical => v == "critical",
             },
-            Conditions::ExpireTimeout(NumberCondition::Eq(v)) => *v == other.expire_timeout,
-            Conditions::ExpireTimeout(NumberCondition::Lt(v)) => *v > other.expire_timeout,
-            Conditions::ExpireTimeout(NumberCondition::Le(v)) => *v >= other.expire_timeout,
-            Conditions::ExpireTimeout(NumberCondition::Gt(v)) => *v < other.expire_timeout,
-            Conditions::ExpireTimeout(NumberCondition::Ge(v)) => *v <= other.expire_timeout,
+            Condition::ExpireTimeout(NumberCondition::Eq(v)) => *v == other.expire_timeout,
+            Condition::ExpireTimeout(NumberCondition::Lt(v)) => *v > other.expire_timeout,
+            Condition::ExpireTimeout(NumberCondition::Le(v)) => *v >= other.expire_timeout,
+            Condition::ExpireTimeout(NumberCondition::Gt(v)) => *v < other.expire_timeout,
+            Condition::ExpireTimeout(NumberCondition::Ge(v)) => *v <= other.expire_timeout,
         }
     }
 }
@@ -164,6 +164,12 @@ mod from_config_file {
             property: Cow<'static, str>,
             value: String,
         },
+        #[error("Unable to parse value \"{value}\" for property \"{property}\": {error}")]
+        ParseError {
+            property: Cow<'static, str>,
+            value: String,
+            error: Box<dyn std::error::Error>
+        },
         #[error("Unknown style property {0}")]
         UnknownStyleProperty(String),
         #[error("Unknown property {0}")]
@@ -198,58 +204,86 @@ mod from_config_file {
         }
     }
 
-    impl TryFrom<crate::config_parser::ConditionDef> for Conditions {
+    impl TryFrom<crate::config_parser::ConditionDef> for Condition {
         type Error = Error;
         fn try_from(value: crate::config_parser::ConditionDef) -> Result<Self, Self::Error> {
             use crate::config_parser::CompareOperation::*;
 
             let cond = match (value.property.0.as_str(), value.op) {
-                ("body", Eq) => Conditions::Body(ConditionTypeString::Literal(value.value.0)),
-                ("body", Match) => Conditions::Body(ConditionTypeString::Regex(
-                    Regex::new(value.value.0.as_str()).unwrap(),
+                ("body", Eq) => Condition::Body(ConditionTypeString::Literal(value.value.0)),
+                ("body", Match) => Condition::Body(ConditionTypeString::Regex(
+                    Regex::new(value.value.0.as_str()).map_err(|e| Error::ParseError { 
+                        property: "body".into(), 
+                        value: value.value.0, 
+                        error: Box::new(e)
+                    })?,
                 )),
                 ("body", op) => return Err(Error::UnsupportedOperation(Cow::from("body"), op)),
 
-                ("group", Eq) => Conditions::Group(ConditionTypeString::Literal(value.value.0)),
+                ("group", Eq) => Condition::Group(ConditionTypeString::Literal(value.value.0)),
                 ("group", op) => return Err(Error::UnsupportedOperation(Cow::from("group"), op)),
 
-                ("app_name", Eq) => Conditions::AppName(value.value.0),
+                ("app_name", Eq) => Condition::AppName(value.value.0),
                 ("app_name", op) => {
                     return Err(Error::UnsupportedOperation(Cow::from("app_name"), op))
                 }
 
-                ("app_icon", Eq) => Conditions::AppIcon(value.value.0),
+                ("app_icon", Eq) => Condition::AppIcon(value.value.0),
                 ("app_icon", op) => {
                     return Err(Error::UnsupportedOperation(Cow::from("app_icon"), op))
                 }
 
-                ("summary", Eq) => Conditions::Summary(ConditionTypeString::Literal(value.value.0)),
-                ("summary", Match) => Conditions::Summary(ConditionTypeString::Regex(
-                    Regex::new(value.value.0.as_str()).unwrap(),
-                )),
+                ("summary", Eq) => Condition::Summary(ConditionTypeString::Literal(value.value.0)),
+                ("summary", Match) => Condition::Summary(ConditionTypeString::Regex(
+                    Regex::new(value.value.0.as_str()).map_err(|e| Error::ParseError { 
+                        property: "summary".into(), 
+                        value: value.value.0, 
+                        error: Box::new(e)
+                    }
+                )?)),
                 ("summary", op) => {
                     return Err(Error::UnsupportedOperation(Cow::from("summary"), op))
                 }
 
-                ("urgency", Eq) => Conditions::Urgency(value.value.0),
+                ("urgency", Eq) => Condition::Urgency(value.value.0),
                 ("urgency", op) => {
                     return Err(Error::UnsupportedOperation(Cow::from("urgency"), op))
                 }
 
                 ("expire_timeout", Eq) => {
-                    Conditions::ExpireTimeout(NumberCondition::Eq(value.value.0.parse().unwrap()))
+                    Condition::ExpireTimeout(NumberCondition::Eq(value.value.0.parse().map_err(|e| Error::ParseError { 
+                        property: "expire_timeout".into(), 
+                        value: value.value.0, 
+                        error: Box::new(e)
+                    })?))
                 }
                 ("expire_timeout", Lt) => {
-                    Conditions::ExpireTimeout(NumberCondition::Lt(value.value.0.parse().unwrap()))
+                    Condition::ExpireTimeout(NumberCondition::Lt(value.value.0.parse().map_err(|e| Error::ParseError { 
+                        property: "expire_timeout".into(), 
+                        value: value.value.0, 
+                        error: Box::new(e)
+                    })?))
                 }
                 ("expire_timeout", Le) => {
-                    Conditions::ExpireTimeout(NumberCondition::Le(value.value.0.parse().unwrap()))
+                    Condition::ExpireTimeout(NumberCondition::Le(value.value.0.parse().map_err(|e| Error::ParseError { 
+                        property: "expire_timeout".into(), 
+                        value: value.value.0, 
+                        error: Box::new(e)
+                    })?))
                 }
                 ("expire_timeout", Ge) => {
-                    Conditions::ExpireTimeout(NumberCondition::Ge(value.value.0.parse().unwrap()))
+                    Condition::ExpireTimeout(NumberCondition::Ge(value.value.0.parse().map_err(|e| Error::ParseError { 
+                        property: "expire_timeout".into(), 
+                        value: value.value.0, 
+                        error: Box::new(e)
+                    })?))
                 }
                 ("expire_timeout", Gt) => {
-                    Conditions::ExpireTimeout(NumberCondition::Gt(value.value.0.parse().unwrap()))
+                    Condition::ExpireTimeout(NumberCondition::Gt(value.value.0.parse().map_err(|e| Error::ParseError { 
+                        property: "expire_timeout".into(), 
+                        value: value.value.0, 
+                        error: Box::new(e)
+                    })?))
                 }
                 ("expire_timeout", op) => {
                     return Err(Error::UnsupportedOperation(Cow::from("expire_timeout"), op))
@@ -277,10 +311,18 @@ mod from_config_file {
         type Error = Error;
         fn try_from(value: crate::config_parser::ActionSetDef) -> Result<Self, Self::Error> {
             let set = match (value.property.0.as_str(), value.value.0) {
-                ("expire_timeout", v) => Self::ExpireTimeout(v.parse().unwrap()),
+                ("expire_timeout", v) => Self::ExpireTimeout(v.parse().map_err(|e| Error::ParseError { 
+                    property: "expire_timeout".into(), 
+                    value: v, 
+                    error: Box::new(e)
+                })?),
                 ("group", v) => Self::Group(v),
                 ("icon", v) => Self::Icon(v.chars().next().unwrap_or('\0')),
-                ("text", v) => Self::Text(template::add_template(v).unwrap()),
+                ("text", v) => Self::Text(template::add_template(v.clone()).map_err(|e| Error::ParseError { 
+                    property: "expire_timeout".into(), 
+                    value: v, 
+                    error: Box::new(e)
+                })?),
                 ("emoji", v) if v == "ignore" => Self::EmojiMode(EmojiMode::Ignore),
                 ("emoji", v) if v == "remove" => Self::EmojiMode(EmojiMode::Remove),
                 ("emoji", v) if v == "replace" => Self::EmojiMode(EmojiMode::Replace),
@@ -333,8 +375,8 @@ mod tests {
         n.app_name = "test-app";
         let def = Rule {
             conditions: vec![
-                Conditions::AppName("test-app".to_owned()),
-                Conditions::ExpireTimeout(NumberCondition::Eq(10)),
+                Condition::AppName("test-app".to_owned()),
+                Condition::ExpireTimeout(NumberCondition::Eq(10)),
             ],
             actions: Default::default(),
             style: Vec::default(),
@@ -350,8 +392,8 @@ mod tests {
         n.expire_timeout = 9;
         let def = Rule {
             conditions: vec![
-                Conditions::AppName("test-app".to_owned()),
-                Conditions::ExpireTimeout(NumberCondition::Eq(10)),
+                Condition::AppName("test-app".to_owned()),
+                Condition::ExpireTimeout(NumberCondition::Eq(10)),
             ],
             actions: Default::default(),
             style: Vec::default(),
@@ -491,7 +533,7 @@ mod tests {
 
         #[test]
         fn app_icon() {
-            let condition = Conditions::AppIcon(String::from("#"));
+            let condition = Condition::AppIcon(String::from("#"));
             let mut n = new_notification();
             n.app_icon = "#";
             assert!(condition.is_match(&n));
@@ -501,7 +543,7 @@ mod tests {
 
         #[test]
         fn app_name() {
-            let condition = Conditions::AppName(String::from("name"));
+            let condition = Condition::AppName(String::from("name"));
             let mut n = new_notification();
             n.app_name = "name";
             assert!(condition.is_match(&n));
@@ -512,7 +554,7 @@ mod tests {
         #[test]
         fn summary_literal() {
             let condition =
-                Conditions::Summary(ConditionTypeString::Literal(String::from("summary")));
+                Condition::Summary(ConditionTypeString::Literal(String::from("summary")));
             let mut n = new_notification();
             n.summary = "summary";
             assert!(condition.is_match(&n));
@@ -523,7 +565,7 @@ mod tests {
         #[test]
         fn summary_regex() {
             let condition =
-                Conditions::Summary(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
+                Condition::Summary(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
             let mut n = new_notification();
             n.summary = "summary";
             assert!(condition.is_match(&n));
@@ -533,7 +575,7 @@ mod tests {
 
         #[test]
         fn body_literal() {
-            let condition = Conditions::Body(ConditionTypeString::Literal(String::from("body")));
+            let condition = Condition::Body(ConditionTypeString::Literal(String::from("body")));
             let mut n = new_notification();
             n.body = "body";
             assert!(condition.is_match(&n));
@@ -544,7 +586,7 @@ mod tests {
         #[test]
         fn body_regex() {
             let condition =
-                Conditions::Body(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
+                Condition::Body(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
             let mut n = new_notification();
             n.body = "body";
             assert!(condition.is_match(&n));
@@ -554,7 +596,7 @@ mod tests {
 
         #[test]
         fn urgency_low() {
-            let condition = Conditions::Urgency("low".to_owned());
+            let condition = Condition::Urgency("low".to_owned());
             let mut n = new_notification();
             n.urgency = &notify_server::notification::Urgency::Low;
             assert!(condition.is_match(&n));
@@ -566,7 +608,7 @@ mod tests {
 
         #[test]
         fn urgency_normal() {
-            let condition = Conditions::Urgency("normal".to_owned());
+            let condition = Condition::Urgency("normal".to_owned());
             let mut n = new_notification();
             n.urgency = &notify_server::notification::Urgency::Low;
             assert!(!condition.is_match(&n));
@@ -578,7 +620,7 @@ mod tests {
 
         #[test]
         fn urgency_critical() {
-            let condition = Conditions::Urgency("critical".to_owned());
+            let condition = Condition::Urgency("critical".to_owned());
             let mut n = new_notification();
             n.urgency = &notify_server::notification::Urgency::Low;
             assert!(!condition.is_match(&n));
@@ -590,7 +632,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_eq() {
-            let condition = Conditions::ExpireTimeout(NumberCondition::Eq(42));
+            let condition = Condition::ExpireTimeout(NumberCondition::Eq(42));
             let mut n = new_notification();
             n.expire_timeout = 42;
             assert!(condition.is_match(&n));
@@ -600,7 +642,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_lt() {
-            let condition = Conditions::ExpireTimeout(NumberCondition::Lt(10));
+            let condition = Condition::ExpireTimeout(NumberCondition::Lt(10));
             let mut n = new_notification();
             n.expire_timeout = 9;
             assert!(condition.is_match(&n));
@@ -610,7 +652,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_le() {
-            let condition = Conditions::ExpireTimeout(NumberCondition::Le(10));
+            let condition = Condition::ExpireTimeout(NumberCondition::Le(10));
             let mut n = new_notification();
             n.expire_timeout = 9;
             assert!(condition.is_match(&n));
@@ -622,7 +664,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_gt() {
-            let condition = Conditions::ExpireTimeout(NumberCondition::Gt(10));
+            let condition = Condition::ExpireTimeout(NumberCondition::Gt(10));
             let mut n = new_notification();
             n.expire_timeout = 11;
             assert!(condition.is_match(&n));
@@ -632,7 +674,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_ge() {
-            let condition = Conditions::ExpireTimeout(NumberCondition::Ge(10));
+            let condition = Condition::ExpireTimeout(NumberCondition::Ge(10));
             let mut n = new_notification();
             n.expire_timeout = 10;
             assert!(condition.is_match(&n));
@@ -654,16 +696,16 @@ mod tests {
 
         #[test]
         fn group() {
-            let mut condition = Conditions::Group(ConditionTypeString::Literal("".to_owned()));
+            let mut condition = Condition::Group(ConditionTypeString::Literal("".to_owned()));
             let mut n = new_notification();
             assert!(n.group.is_none());
             assert!(condition.is_match(&n));
 
-            condition = Conditions::Group(ConditionTypeString::Literal("test".to_owned()));
+            condition = Condition::Group(ConditionTypeString::Literal("test".to_owned()));
             n.group = Some("test");
             assert!(condition.is_match(&n));
 
-            condition = Conditions::Group(ConditionTypeString::Regex(Regex::new("test").unwrap()));
+            condition = Condition::Group(ConditionTypeString::Regex(Regex::new("test").unwrap()));
             n.group = Some("test");
             assert!(condition.is_match(&n));
         }
