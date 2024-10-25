@@ -46,7 +46,7 @@ fn execute_rules_inner(
             app_name: &n.app_name,
             body: &n.body,
             expire_timeout: notification_data.expire_timeout,
-            group: notification_data.group.as_deref(),
+            group: &notification_data.group,
             summary: &n.summary,
             urgency: &n.urgency,
         };
@@ -118,7 +118,7 @@ mod tests {
 
     use crate::{
         notification_bar::{NotificationData, NotificationTemplateData},
-        rule::{Action, Condition, Rule},
+        rule::{Action, Condition, ConditionT, Rule},
     };
 
     fn notification(id: impl Into<notify_server::NotificationId>) -> NotificationData {
@@ -271,7 +271,7 @@ mod tests {
                     ..Default::default()
                 },
                 Rule {
-                    conditions: vec![Condition::AppName("other name".to_string())],
+                    conditions: vec![Box::new(ConditionT { value: "other-name".to_string(), get_property_fn: |d| d.app_name, is_true_fn: PartialEq::eq })],
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
                     ))],
