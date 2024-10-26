@@ -21,7 +21,7 @@ use i3_bar_components::{
 use log::{debug, error};
 use notification_bar::{MinimalUrgency, NotificationEvent, NotificationManager};
 use path_manager::PathManager;
-use rule::{Rule, RuleExcutor};
+use rule::RuleExcutor;
 use std::{
     io::BufReader,
     path::Path,
@@ -154,8 +154,12 @@ fn read_config(config_file: Option<&Path>) -> crate::rule::Config {
                 }
             };
             let mut config_file = BufReader::new(config_file);
-            match rule::parse_config(&mut config_file) {
-                Ok(r) => r.try_into().unwrap(),
+            match rule::parse_config(&mut config_file).map(crate::rule::Config::try_from) {
+                Ok(Ok(r)) => r,
+                Ok(Err(e)) => {
+                    error!("{}", e.to_string());
+                    print_error(e.to_string());
+                }
                 Err(e) => {
                     error!("{}", e.to_string());
                     print_error(e.to_string());

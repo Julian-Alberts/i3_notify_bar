@@ -271,7 +271,10 @@ mod tests {
                     ..Default::default()
                 },
                 Rule {
-                    conditions: vec![Box::new(Condition::<_,_,super::super::Eq>::new("other-name".to_string(), |d| d.app_name))],
+                    conditions: vec![Box::new(Condition::<_, _, super::super::Eq>::new(
+                        "other-name".to_string(),
+                        |d| d.app_name,
+                    ))],
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
                     ))],

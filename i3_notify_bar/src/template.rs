@@ -30,7 +30,7 @@ pub struct ParseErrorWrapper(mini_template::ParseError);
 
 impl std::fmt::Display for ParseErrorWrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.to_string())
+        write!(f, "{}", self.0)
     }
 }
 
@@ -42,7 +42,9 @@ pub fn add_template(template: String) -> Result<u64, ParseErrorWrapper> {
             .get_or_init(init_template_manager)
             .write()
             .unwrap_or_else(|e| e.into_inner())
-            .add_template(id_str, template).map(|_| id).map_err(ParseErrorWrapper)
+            .add_template(id_str, template)
+            .map(|_| id)
+            .map_err(ParseErrorWrapper)
     }
 }
 

@@ -199,7 +199,12 @@ fn parse_compare_op(op: Pair<'_, Rule>) -> CompareOperation {
     if op.as_rule() != Rule::compare_op {
         unreachable!()
     }
-    match op.into_inner().next().unwrap().as_rule() {
+    match op
+        .into_inner()
+        .next()
+        .expect("Compare is missing operator")
+        .as_rule()
+    {
         Rule::compare_eq => CompareOperation::Eq,
         Rule::compare_lt => CompareOperation::Lt,
         Rule::compare_le => CompareOperation::Le,
