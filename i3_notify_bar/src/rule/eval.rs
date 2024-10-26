@@ -118,7 +118,7 @@ mod tests {
 
     use crate::{
         notification_bar::{NotificationData, NotificationTemplateData},
-        rule::{Action, Condition, ConditionT, Rule},
+        rule::{Action, Condition, Rule},
     };
 
     fn notification(id: impl Into<notify_server::NotificationId>) -> NotificationData {
@@ -271,7 +271,7 @@ mod tests {
                     ..Default::default()
                 },
                 Rule {
-                    conditions: vec![Box::new(ConditionT { value: "other-name".to_string(), get_property_fn: |d| d.app_name, is_true_fn: PartialEq::eq })],
+                    conditions: vec![Box::new(Condition::<_,_,super::super::Eq>::new("other-name".to_string(), |d| d.app_name))],
                     actions: vec![Action::Set(crate::rule::SetProperty::Group(
                         "TestGroup".into(),
                     ))],

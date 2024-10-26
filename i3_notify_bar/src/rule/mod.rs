@@ -81,96 +81,74 @@ impl SetProperty {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Condition {
-    AppIcon(String),
-    Summary(ConditionTypeString),
-    Body(ConditionTypeString),
-    Group(ConditionTypeString),
-    Urgency(NumberCondition<Urgency>),
-    ExpireTimeout(NumberCondition),
-}
+pub struct Eq;
+pub struct Le;
+pub struct Lt;
+pub struct Gt;
+pub struct Ge;
+pub struct Match;
 
 #[derive(Debug)]
-pub struct ConditionT<A,B> where B: Debug, A: ?Sized {
+pub struct Condition<A,B,Op> where B: Debug, A: ?Sized {
     value: B,
     get_property_fn: for<'a> fn(&'a NotificationRuleData<'a>) -> &'a A,
-    is_true_fn: fn(&A, &B) -> bool,
+    _p: std::marker::PhantomData<Op>,
 }
 
-impl <A,B> CheckCondition for ConditionT<A,B> where B: Debug, A: ?Sized {
-    fn is_true<'a>(&self, data: &NotificationRuleData<'a>) -> bool {
-        let p = (self.get_property_fn)(data);
-        (self.is_true_fn)(p, &self.value)
+impl <A,B,O> Condition<A,B,O> where B: Debug, A: ?Sized {
+    fn new(value: B, get_property_fn: for<'a> fn(&'a NotificationRuleData<'a>) -> &'a A) -> Self {
+        Self {
+            value,
+            get_property_fn,
+            _p: Default::default()
+        }
     }
 }
 
-trait CheckCondition {
+impl <A,B> CheckCondition for Condition<A,B,Eq> where B: Debug, A: ?Sized + PartialEq<B> {
+    fn is_true<'a>(&self, data: &NotificationRuleData<'a>) -> bool {
+        let p = (self.get_property_fn)(data);
+        p.eq(&self.value)
+    }
+}
+impl <A,B> CheckCondition for Condition<A,B,Le> where B: Debug, A: ?Sized + PartialOrd<B> {
+    fn is_true<'a>(&self, data: &NotificationRuleData<'a>) -> bool {
+        let p = (self.get_property_fn)(data);
+        p.le(&self.value)
+    }
+}
+impl <A,B> CheckCondition for Condition<A,B,Lt> where B: Debug, A: ?Sized + PartialOrd<B> {
+    fn is_true<'a>(&self, data: &NotificationRuleData<'a>) -> bool {
+        let p = (self.get_property_fn)(data);
+        p.lt(&self.value)
+    }
+}
+impl <A,B> CheckCondition for Condition<A,B,Gt> where B: Debug, A: ?Sized + PartialOrd<B> {
+    fn is_true<'a>(&self, data: &NotificationRuleData<'a>) -> bool {
+        let p = (self.get_property_fn)(data);
+        p.gt(&self.value)
+    }
+}
+impl <A,B> CheckCondition for Condition<A,B,Ge> where B: Debug, A: ?Sized + PartialOrd<B> {
+    fn is_true<'a>(&self, data: &NotificationRuleData<'a>) -> bool {
+        let p = (self.get_property_fn)(data);
+        p.ge(&self.value)
+    }
+}
+impl CheckCondition for Condition<str,Regex,Match> {
+    fn is_true<'a>(&self, data: &NotificationRuleData<'a>) -> bool {
+        let p = (self.get_property_fn)(data);
+        self.value.is_match(p)
+    }
+}
+
+pub trait CheckCondition {
     fn is_true(&self, data: &NotificationRuleData) -> bool;
 }
 
-impl <A,B> PartialEq for ConditionT<A,B> where B: Debug + PartialEq {
+impl <A,B,O> PartialEq for Condition<A,B,O> where B: Debug + PartialEq {
     fn eq(&self, other: &Self) -> bool {
-        self.value == other.value && self.get_property_fn == other.get_property_fn && self.is_true_fn == other.is_true_fn
-    }
-}
-
-impl CheckCondition for Condition {
-    fn is_true(&self, data: &NotificationRuleData) -> bool {
-        self.is_match(data)
-    }
-}
-
-impl Condition {
-    #[deprecated]
-    fn is_match(&self, other: &NotificationRuleData) -> bool {
-        match self {
-            Condition::AppIcon(v) => v == other.app_icon,
-            Condition::Summary(ConditionTypeString::Literal(v)) => v == other.summary,
-            Condition::Summary(ConditionTypeString::Regex(v)) => v.is_match(other.summary),
-            Condition::Body(ConditionTypeString::Literal(v)) => v == other.body,
-            Condition::Body(ConditionTypeString::Regex(v)) => v.is_match(other.body),
-            Condition::Group(ConditionTypeString::Literal(v)) => v == other.group.as_ref().map(String::as_str).unwrap_or(""),
-            Condition::Group(ConditionTypeString::Regex(v)) => {
-                v.is_match(other.group.as_ref().map(|s| s.as_str()).unwrap_or_default())
-            }
-            Condition::Urgency(NumberCondition::Eq(v)) => *v == *other.urgency,
-            Condition::Urgency(NumberCondition::Lt(v)) => *v > *other.urgency,
-            Condition::Urgency(NumberCondition::Le(v)) => *v >= *other.urgency,
-            Condition::Urgency(NumberCondition::Gt(v)) => *v < *other.urgency,
-            Condition::Urgency(NumberCondition::Ge(v)) => *v <= *other.urgency,
-                
-            Condition::ExpireTimeout(NumberCondition::Eq(v)) => *v == other.expire_timeout,
-            Condition::ExpireTimeout(NumberCondition::Lt(v)) => *v > other.expire_timeout,
-            Condition::ExpireTimeout(NumberCondition::Le(v)) => *v >= other.expire_timeout,
-            Condition::ExpireTimeout(NumberCondition::Gt(v)) => *v < other.expire_timeout,
-            Condition::ExpireTimeout(NumberCondition::Ge(v)) => *v <= other.expire_timeout,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum NumberCondition<T=i32> {
-    Eq(T),
-    Lt(T),
-    Le(T),
-    Gt(T),
-    Ge(T),
-}
-
-#[derive(Debug)]
-pub enum ConditionTypeString {
-    Literal(String),
-    Regex(Regex),
-}
-
-impl PartialEq for ConditionTypeString {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Literal(s), Self::Literal(o)) => s == o,
-            (Self::Regex(s), Self::Regex(o)) => s.as_str() == o.as_str(),
-            _ => false,
-        }
+        self.value == other.value && self.get_property_fn == other.get_property_fn
     }
 }
 
@@ -213,8 +191,8 @@ mod from_config_file {
         },
         #[error("Unknown style property {0}")]
         UnknownStyleProperty(String),
-        #[error("Unknown property {0}")]
-        UnsupportedOperation(Cow<'static, str>, crate::config_parser::CompareOperation),
+        #[error("Unsupported operation {0:?}")]
+        UnsupportedOperation(crate::config_parser::CompareOperation),
     }
 
     fn vec_try_into<T, O, E>(i: Vec<T>) -> Result<Vec<O>, E>
@@ -248,160 +226,89 @@ mod from_config_file {
     impl TryFrom<crate::config_parser::ConditionDef> for Box<dyn CheckCondition + Send + Sync> {
         type Error = Error;
         fn try_from(crate::config_parser::ConditionDef { property: PropertyName(property), op, value: Value(value) }: crate::config_parser::ConditionDef) -> Result<Self, Self::Error> {
-            use crate::config_parser::CompareOperation::*;
-
-            let cond: Box<dyn CheckCondition + Send + Sync> = match (property.as_str(), op) {
-                ("body", Eq) => Box::new(ConditionT { value, get_property_fn: |d| d.body, is_true_fn: |a,b| a == b }),
-                ("body", Match) => {
-                    let value = Regex::new(value.as_str()).map_err(|e| Error::ParseError { 
-                        property: "body".into(), 
+            match property.as_str() {
+                "body" => body_cond(value, op),
+                "group" => group_cond(value, op),
+                "app_name" => app_name_cond(value, op),
+                "app_icon" => app_icon_cond(value, op),
+                "summary" => summary_cond(value, op),
+                "urgency" => {
+                    let value = Urgency::from_str(value.as_str()).map_err(|e| Error::ParseError { 
+                        property: "urgency".into(), 
                         value, 
                         error: Box::new(e)
                     })?;
-                    Box::new(ConditionT { value, get_property_fn: |d| d.body, is_true_fn: |a,regex| regex.is_match(a)})
+                    urgency_condition(value, op)
                 },
-                ("body", op) => return Err(Error::UnsupportedOperation(Cow::from("body"), op)),
-
-                ("group", Eq) => Box::new(ConditionT { 
-                    value, 
-                    get_property_fn: |d| d.group,
-                    is_true_fn: |a,b| a.as_ref().map(|a| a == b).unwrap_or_default()
-                }),
-                ("group", op) => return Err(Error::UnsupportedOperation(Cow::from("group"), op)),
-
-                ("app_name", Eq) => Box::new(ConditionT { 
-                    value,
-                    get_property_fn: |d| d.app_name, 
-                    is_true_fn: PartialEq::eq
-                }),
-                ("app_name", op) => {
-                    return Err(Error::UnsupportedOperation(Cow::from("app_name"), op))
-                }
-
-                ("app_icon", Eq) => Box::new(ConditionT {
-                    value,
-                    get_property_fn: |d| d.app_icon,
-                    is_true_fn: PartialEq::eq,
-                }),
-                ("app_icon", op) => {
-                    return Err(Error::UnsupportedOperation(Cow::from("app_icon"), op))
-                }
-
-                ("summary", Eq) => Box::new(ConditionT { value, get_property_fn: |d| d.summary, is_true_fn: PartialEq::eq }),
-                ("summary", Match) => {
-                    let value = Regex::new(value.as_str()).map_err(|e| Error::ParseError { 
-                        property: "summary".into(), 
-                        value,
+                "expire_timeout" => {
+                    let value = value.parse().map_err(|e| Error::ParseError { 
+                        property: "expire_timeout".into(), 
+                        value, 
                         error: Box::new(e)
                     })?;
-                    Box::new(ConditionT { value, get_property_fn: |d| d.summary, is_true_fn: |a,regex| regex.is_match(a)})
+                    expire_timeout_cond(value, op)
                 },
-                ("summary", op) => {
-                    return Err(Error::UnsupportedOperation(Cow::from("summary"), op))
-                }
-
-                ("urgency", Eq) => Box::new(ConditionT {
-                    value: Urgency::from_str(value.as_str()).map_err(|e| Error::ParseError { 
-                        property: "urgency".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| d.urgency,
-                    is_true_fn: |a,b| a == b,
-                }),
-                ("urgency", Lt) => Box::new(ConditionT {
-                    value: Urgency::from_str(value.as_str()).map_err(|e| Error::ParseError { 
-                        property: "urgency".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| d.urgency,
-                    is_true_fn: |a,b| a < b,
-                }),                
-                ("urgency", Le) => Box::new(ConditionT {
-                    value: Urgency::from_str(value.as_str()).map_err(|e| Error::ParseError { 
-                        property: "urgency".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| d.urgency,
-                    is_true_fn: |a,b| a <= b,
-                }),
-                ("urgency", Ge) => Box::new(ConditionT {
-                    value: Urgency::from_str(value.as_str()).map_err(|e| Error::ParseError { 
-                        property: "urgency".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| d.urgency,
-                    is_true_fn: |a,b| a >= b,
-                }),
-                ("urgency", Gt) => Box::new(ConditionT {
-                    value: Urgency::from_str(value.as_str()).map_err(|e| Error::ParseError { 
-                        property: "urgency".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| d.urgency,
-                    is_true_fn: |a,b| a > b,
-                }),
-                ("urgency", op) => {
-                    return Err(Error::UnsupportedOperation(Cow::from("urgency"), op))
-                }
-
-                ("expire_timeout", Eq) => Box::new(ConditionT {
-                    value: value.parse().map_err(|e| Error::ParseError { 
-                        property: "expire_timeout".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| &d.expire_timeout,
-                    is_true_fn: |a,b:&i32| a == b,
-                }),
-                ("expire_timeout", Lt) => Box::new(ConditionT {
-                    value: value.parse().map_err(|e| Error::ParseError { 
-                        property: "expire_timeout".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| &d.expire_timeout,
-                    is_true_fn: PartialOrd::lt,
-                }),
-                ("expire_timeout", Le) => Box::new(ConditionT {
-                    value: value.parse().map_err(|e| Error::ParseError { 
-                        property: "expire_timeout".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| &d.expire_timeout,
-                    is_true_fn: PartialOrd::le,
-                }),
-                ("expire_timeout", Ge) => Box::new(ConditionT {
-                    value: value.parse().map_err(|e| Error::ParseError { 
-                        property: "expire_timeout".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| &d.expire_timeout,
-                    is_true_fn: PartialOrd::ge,
-                }),
-                ("expire_timeout", Gt) => Box::new(ConditionT {
-                    value: value.parse().map_err(|e| Error::ParseError { 
-                        property: "expire_timeout".into(), 
-                        value, 
-                        error: Box::new(e)
-                    })?,
-                    get_property_fn: |d| &d.expire_timeout,
-                    is_true_fn: PartialOrd::gt,
-                }),
-                ("expire_timeout", op) => {
-                    return Err(Error::UnsupportedOperation(Cow::from("expire_timeout"), op))
-                }
                 _ => unreachable!(),
-            };
-            Ok(cond)
+            }
         }
     }
+
+    fn body_cond(value: String, op: CompareOperation) -> Result<Box<dyn CheckCondition + Send + Sync>, Error> {
+        str_cond(value, op, |d| d.body)
+    }
+    fn group_cond(value: String, op: CompareOperation) -> Result<Box<dyn CheckCondition + Send + Sync>, Error> {
+        str_cond(value, op, |d| d.group.as_ref().map(String::as_str).unwrap_or_default())
+    }
+    fn app_name_cond(value: String, op: CompareOperation) -> Result<Box<dyn CheckCondition + Send + Sync>, Error> {
+        str_cond(value, op, |d| d.app_name)
+    }
+    fn app_icon_cond(value: String, op: CompareOperation) -> Result<Box<dyn CheckCondition + Send + Sync>, Error> {
+        str_cond(value, op, |d| d.app_icon)
+    }
+    fn summary_cond(value: String, op: CompareOperation) -> Result<Box<dyn CheckCondition + Send + Sync>, Error> {
+        str_cond(value, op, |d| d.summary)
+    }
+
+    fn str_cond(value: String, op: CompareOperation, get: for<'a> fn(&'a NotificationRuleData<'a>) -> &'a str) -> Result<Box<dyn CheckCondition + Send + Sync>,Error> {
+        let cond: Box<dyn CheckCondition + Send + Sync> = match op {
+            CompareOperation::Eq => Box::new(Condition::<_,_,Eq>::new(value, get)),
+            CompareOperation::Match => {
+                let value = Regex::new(value.as_str()).map_err(|e| Error::ParseError { 
+                    property: "body".into(), 
+                    value, 
+                    error: Box::new(e)
+                })?;
+                Box::new(Condition::<_,_,Match>::new(value, get))
+            },
+            op => return Err(Error::UnsupportedOperation(op)),
+        };
+        Ok(cond)
+    }
+    fn urgency_condition(value: Urgency, op: CompareOperation) -> Result<Box<dyn CheckCondition + Send + Sync>,Error> {
+        let get: for<'a> fn(&'a NotificationRuleData<'a>) -> &'a Urgency = |d| d.urgency;
+        let cond: Box<dyn CheckCondition + Send + Sync> = match op {
+            CompareOperation::Lt => Box::new(Condition::<_,_,Lt>::new(value, get)),
+            CompareOperation::Le => Box::new(Condition::<_,_,Le>::new(value, get)),
+            CompareOperation::Eq => Box::new(Condition::<_,_,Eq>::new(value, get)),
+            CompareOperation::Ge => Box::new(Condition::<_,_,Ge>::new(value, get)),
+            CompareOperation::Gt => Box::new(Condition::<_,_,Gt>::new(value, get)),
+            op => return Err(Error::UnsupportedOperation(op)),
+        };
+        Ok(cond)
+    }
+    fn expire_timeout_cond(value: i32, op: CompareOperation) -> Result<Box<dyn CheckCondition + Send + Sync>,Error> {
+        let get: for<'a> fn(&'a NotificationRuleData<'a>) -> &'a i32 = |d| &d.expire_timeout;
+        let cond: Box<dyn CheckCondition + Send + Sync> = match op {
+            CompareOperation::Lt => Box::new(Condition::<_,_,Lt>::new(value, get)),
+            CompareOperation::Le => Box::new(Condition::<_,_,Le>::new(value, get)),
+            CompareOperation::Eq => Box::new(Condition::<_,_,Eq>::new(value, get)),
+            CompareOperation::Ge => Box::new(Condition::<_,_,Ge>::new(value, get)),
+            CompareOperation::Gt => Box::new(Condition::<_,_,Gt>::new(value, get)),
+            op => return Err(Error::UnsupportedOperation(op)),
+        };
+        Ok(cond)
+    }
+
 
     impl TryFrom<crate::config_parser::ActionDef> for Action {
         type Error = Error;
@@ -484,8 +391,8 @@ mod tests {
         n.app_name = "test-app";
         let def = Rule {
             conditions: vec![
-                Box::new(ConditionT { value: "test-app".to_owned(), get_property_fn: |d| d.app_name, is_true_fn: |a,b| a==b }),
-                Box::new(Condition::ExpireTimeout(NumberCondition::Eq(10))),
+                Box::new(Condition::<str, String, Eq>::new("test-app".to_owned(), |d| d.app_name)),
+                Box::new(Condition::<_,_,Eq>::new(10, |d| &d.expire_timeout)),
             ],
             actions: Default::default(),
             style: Vec::default(),
@@ -501,8 +408,8 @@ mod tests {
         n.expire_timeout = 9;
         let def = Rule {
             conditions: vec![
-                Box::new(ConditionT { value: "test-app".to_owned(), get_property_fn: |d| d.app_name, is_true_fn: |a,b| a==b }),
-                Box::new(Condition::ExpireTimeout(NumberCondition::Eq(10))),
+                Box::new(Condition::<str, String, super::Eq>::new("test-app".to_owned(), |d| d.app_name)),
+                Box::new(Condition::<_,_,Eq>::new(10, |d| &d.expire_timeout)),
             ],
             actions: Default::default(),
             style: Vec::default(),
@@ -638,21 +545,37 @@ mod tests {
 
     mod condition_match {
 
+        use crate::config_parser::{CompareOperation, ConditionDef, PropertyName, Value};
+
         use super::*;
+
+        type BoxedCond = Box<dyn CheckCondition + Send + Sync>;
+        
+        macro_rules! cond_def {
+            ($p: literal $op:ident $value:expr) => {
+                ConditionDef {
+                    property: PropertyName($p.into()),
+                    op: CompareOperation::$op,
+                    value: Value($value),
+                }
+            };
+        }
 
         #[test]
         fn app_icon() {
-            let condition = Condition::AppIcon(String::from("#"));
+            let condition = cond_def!("app_icon" Eq "#".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.app_icon = "#";
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.app_icon = "";
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn app_name() {
-            let condition = ConditionT{ value: "name".to_string(), get_property_fn: |d| d.app_name, is_true_fn: PartialEq::eq };
+            let condition = cond_def!("app_name" Eq "name".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.app_name = "name";
             assert!(condition.is_true(&n));
@@ -662,163 +585,165 @@ mod tests {
 
         #[test]
         fn summary_literal() {
-            let condition =
-                Condition::Summary(ConditionTypeString::Literal(String::from("summary")));
+            let condition = cond_def!("summary" Eq "summary".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.summary = "summary";
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.summary = "other";
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn summary_regex() {
-            let condition =
-                Condition::Summary(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
+            let condition = cond_def!("summary" Match "^[a-z]+$".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.summary = "summary";
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.summary = "o2ther";
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn body_literal() {
-            let condition = Condition::Body(ConditionTypeString::Literal(String::from("body")));
+            let condition = cond_def!("body" Eq "body".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.body = "body";
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.body = "other";
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn body_regex() {
-            let condition =
-                Condition::Body(ConditionTypeString::Regex(Regex::new("^[a-z]+$").unwrap()));
+            let condition = cond_def!("body" Match "^[a-z]+$".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.body = "body";
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.body = "bo2dy";
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn urgency_low() {
-            let condition = Condition::Urgency(NumberCondition::Eq(Urgency::Low));
+            let condition = cond_def!("urgency" Eq "low".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.urgency = &notify_server::notification::Urgency::Low;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.urgency = &notify_server::notification::Urgency::Normal;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
             n.urgency = &notify_server::notification::Urgency::Critical;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn urgency_normal() {
-            let condition = Condition::Urgency(NumberCondition::Eq(Urgency::Normal));
+            let condition = cond_def!("urgency" Eq "normal".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.urgency = &notify_server::notification::Urgency::Low;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
             n.urgency = &notify_server::notification::Urgency::Normal;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.urgency = &notify_server::notification::Urgency::Critical;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn urgency_critical() {
-            let condition = Condition::Urgency(NumberCondition::Eq(Urgency::Critical));
+            let condition = cond_def!("urgency" Eq "critical".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.urgency = &notify_server::notification::Urgency::Low;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
             n.urgency = &notify_server::notification::Urgency::Normal;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
             n.urgency = &notify_server::notification::Urgency::Critical;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
         }
 
         #[test]
         fn expire_timeout_eq() {
-            let condition = Condition::ExpireTimeout(NumberCondition::Eq(42));
+            let condition = cond_def!("expire_timeout" Eq "42".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.expire_timeout = 42;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.expire_timeout = 21;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn expire_timeout_lt() {
-            let condition = Condition::ExpireTimeout(NumberCondition::Lt(10));
+            let condition = cond_def!("expire_timeout" Lt "10".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.expire_timeout = 9;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.expire_timeout = 10;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn expire_timeout_le() {
-            let condition = Condition::ExpireTimeout(NumberCondition::Le(10));
+            let condition = cond_def!("expire_timeout" Le "10".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.expire_timeout = 9;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.expire_timeout = 10;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.expire_timeout = 11;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn expire_timeout_gt() {
-            let condition = Condition::ExpireTimeout(NumberCondition::Gt(10));
+            let condition = cond_def!("expire_timeout" Gt "10".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.expire_timeout = 11;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
             n.expire_timeout = 10;
-            assert!(!condition.is_match(&n));
+            assert!(!condition.is_true(&n));
         }
 
         #[test]
         fn expire_timeout_ge() {
-            let condition = Condition::ExpireTimeout(NumberCondition::Ge(10));
+            let condition = cond_def!("expire_timeout" Ge "10".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
-            n.expire_timeout = 10;
-            assert!(condition.is_match(&n));
-            n.expire_timeout = 11;
-            assert!(condition.is_match(&n));
             n.expire_timeout = 9;
-            assert!(!condition.is_match(&n));
-        }
-
-        #[test]
-        fn condition_type_string_eq() {
-            let regex = ConditionTypeString::Regex(Regex::new("").unwrap());
-            let lit = ConditionTypeString::Literal("".to_owned());
-            assert_eq!(regex, regex);
-            assert_eq!(lit, lit);
-            assert_ne!(regex, lit);
-            assert_ne!(lit, regex);
+            assert!(!condition.is_true(&n));
+            n.expire_timeout = 10;
+            assert!(condition.is_true(&n));
+            n.expire_timeout = 11;
+            assert!(condition.is_true(&n));
         }
 
         #[test]
         fn group() {
-            let mut condition = Condition::Group(ConditionTypeString::Literal("".to_owned()));
+            let condition = cond_def!("group" Eq "".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             assert!(n.group.is_none());
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
 
-            condition = Condition::Group(ConditionTypeString::Literal("test".to_owned()));
+            let condition = cond_def!("group" Eq "test".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let group = Some("test".to_string());
             n.group = &group;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
 
-            condition = Condition::Group(ConditionTypeString::Regex(Regex::new("test").unwrap()));
+            let condition = cond_def!("group" Match "test".to_string());
+            let condition = BoxedCond::try_from(condition).unwrap();
             let group = Some("test".to_string());
             n.group = &group;
-            assert!(condition.is_match(&n));
+            assert!(condition.is_true(&n));
         }
     }
 }
