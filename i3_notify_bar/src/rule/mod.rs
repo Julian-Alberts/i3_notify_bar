@@ -42,37 +42,55 @@ impl Rule {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum Action {
     Ignore,
-    Set(SetProperty),
+    Set(Box<dyn SetProp + Send + Sync>),
     Stop,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum SetProperty {
-    Icon(char),
-    Text(u64),
-    ExpireTimeout(i32),
-    EmojiMode(EmojiMode),
-    Group(String),
+#[derive(Debug)]
+pub struct SetProperty<S, V>
+where
+    S: Debug,
+    V: Debug,
+{
+    value: S,
+    calc_value_fn: fn(&S, &NotificationTemplateData) -> V,
+    set_prop_fn: for<'a> fn(&'a mut NotificationData, V),
 }
 
-impl SetProperty {
-    pub fn set(&self, nd: &mut NotificationData, n: &NotificationTemplateData) {
-        match self {
-            Self::Icon(i) => nd.icon = *i,
-            Self::Text(i) => {
-                nd.text = emoji::handle(template::render_template(i, n), &nd.emoji_mode)
-            }
-            Self::ExpireTimeout(i) => {
-                nd.expire_timeout = *i;
-                nd.remove_in_secs = Some(*i as f64);
-            }
-            Self::EmojiMode(em) => nd.emoji_mode = em.clone(),
-            Self::Group(g) => nd.group = Some(g.clone()),
+impl<S, V> SetProperty<S, V>
+where
+    S: Debug,
+    V: Debug,
+{
+    pub fn new(
+        value: S,
+        calc_value_fn: fn(&S, &NotificationTemplateData) -> V,
+        set_prop_fn: for<'a> fn(&'a mut NotificationData, V),
+    ) -> Self {
+        Self {
+            value,
+            calc_value_fn,
+            set_prop_fn,
         }
     }
+}
+
+impl<S, V> SetProp for SetProperty<S, V>
+where
+    S: Debug,
+    V: Debug,
+{
+    fn set_prop<'a>(&self, data: &'a mut NotificationData, template: &NotificationTemplateData) {
+        let value = (self.calc_value_fn)(&self.value, template);
+        (self.set_prop_fn)(data, value)
+    }
+}
+
+pub trait SetProp: Debug {
+    fn set_prop<'a>(&self, data: &'a mut NotificationData, template: &NotificationTemplateData);
 }
 
 pub struct Eq;
@@ -193,7 +211,9 @@ impl Style {
 }
 
 mod from_config_file {
-    use std::{borrow::Cow, str::FromStr};
+    use std::borrow::Cow;
+
+    use template::render_template;
 
     use crate::config_parser::{CompareOperation, PropertyName, Value};
 
@@ -264,12 +284,17 @@ mod from_config_file {
                 "app_icon" => app_icon_cond(value, op),
                 "summary" => summary_cond(value, op),
                 "urgency" => {
-                    let value =
-                        Urgency::from_str(value.as_str()).map_err(|e| Error::ParseError {
-                            property: "urgency".into(),
-                            value,
-                            error: Box::new(e),
-                        })?;
+                    let value = match value.as_str() {
+                        "low" => Urgency::Low,
+                        "normal" => Urgency::Normal,
+                        "critical" => Urgency::Critical,
+                        _ => {
+                            return Err(Error::UnsupportedValue {
+                                property: "urgency".into(),
+                                value,
+                            })
+                        }
+                    };
                     urgency_condition(value, op)
                 }
                 "expire_timeout" => {
@@ -381,37 +406,69 @@ mod from_config_file {
         }
     }
 
-    impl TryFrom<crate::config_parser::ActionSetDef> for SetProperty {
+    impl TryFrom<crate::config_parser::ActionSetDef> for Box<dyn SetProp + Send + Sync> {
         type Error = Error;
         fn try_from(value: crate::config_parser::ActionSetDef) -> Result<Self, Self::Error> {
-            let set = match (value.property.0.as_str(), value.value.0) {
-                ("expire_timeout", v) => {
-                    Self::ExpireTimeout(v.parse().map_err(|e| Error::ParseError {
-                        property: "expire_timeout".into(),
-                        value: v,
-                        error: Box::new(e),
-                    })?)
-                }
-                ("group", v) => Self::Group(v),
-                ("icon", v) => Self::Icon(v.chars().next().unwrap_or('\0')),
-                ("text", v) => Self::Text(template::add_template(v.clone()).map_err(|e| {
-                    Error::ParseError {
-                        property: "expire_timeout".into(),
-                        value: v,
-                        error: Box::new(e),
+            let set: Box<dyn SetProp + Send + Sync> =
+                match (value.property.0.as_str(), value.value.0) {
+                    ("expire_timeout", v) => {
+                        let value = v.parse().map_err(|e| Error::ParseError {
+                            property: "expire_timeout".into(),
+                            value: v,
+                            error: Box::new(e),
+                        })?;
+                        Box::new(SetProperty::new(
+                            value,
+                            |v, _| *v,
+                            |d, v| {
+                                d.expire_timeout = v;
+                                d.remove_in_secs = Some(v as f64)
+                            },
+                        ))
                     }
-                })?),
-                ("emoji", v) if v == "ignore" => Self::EmojiMode(EmojiMode::Ignore),
-                ("emoji", v) if v == "remove" => Self::EmojiMode(EmojiMode::Remove),
-                ("emoji", v) if v == "replace" => Self::EmojiMode(EmojiMode::Replace),
-                ("emoji", v) => {
-                    return Err(Error::UnsupportedValue {
-                        property: "emoji".into(),
-                        value: v,
-                    })
-                }
-                (k, _) => return Err(Error::UnknownProperty(k.into())),
-            };
+                    ("group", v) => Box::new(SetProperty::new(
+                        v,
+                        |v, _| v.clone(),
+                        |d, v| d.group = Some(v),
+                    )),
+                    ("icon", v) => Box::new(SetProperty::new(
+                        v.chars().next().unwrap_or('\0'),
+                        |v, _| *v,
+                        |d, v| d.icon = v,
+                    )),
+                    ("text", v) => {
+                        let template_id =
+                            template::add_template(v.clone()).map_err(|e| Error::ParseError {
+                                property: "expire_timeout".into(),
+                                value: v,
+                                error: Box::new(e),
+                            })?;
+                        Box::new(SetProperty::new(
+                            template_id,
+                            |v, t| render_template(v, t),
+                            |d, v| d.text = v,
+                        ))
+                    }
+                    ("emoji", v) => {
+                        let mode = match v.as_str() {
+                            "ignore" => EmojiMode::Ignore,
+                            "remove" => EmojiMode::Remove,
+                            "replace" => EmojiMode::Replace,
+                            _ => {
+                                return Err(Error::UnsupportedValue {
+                                    property: "emoji".into(),
+                                    value: v,
+                                })
+                            }
+                        };
+                        Box::new(SetProperty::new(
+                            mode,
+                            |v, _| v.clone(),
+                            |d, v| d.emoji_mode = v,
+                        ))
+                    }
+                    (k, _) => return Err(Error::UnknownProperty(k.into())),
+                };
             Ok(set)
         }
     }
@@ -493,9 +550,21 @@ mod tests {
             use notify_server::notification::{Notification, Urgency};
 
             use crate::{
+                config_parser::{ActionSetDef, PropertyName, Value},
                 notification_bar::{NotificationData, NotificationTemplateData},
-                rule::SetProperty,
+                rule::{SetProp, SetProperty},
             };
+
+            macro_rules! action_set_def {
+                ($p: literal $value:expr) => {
+                    ActionSetDef {
+                        property: PropertyName($p.into()),
+                        value: Value($value),
+                    }
+                };
+            }
+
+            type BoxedActionSet = Box<dyn SetProp + Send + Sync>;
 
             fn new_nd() -> NotificationData {
                 NotificationData {
@@ -530,22 +599,23 @@ mod tests {
             fn icon() {
                 let icon = '#';
                 let mut nd = new_nd();
-                let prop = SetProperty::Icon(icon);
+                let prop = action_set_def!("icon" icon.to_string());
+                let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(icon, nd.icon);
-                prop.set(&mut nd, &n);
+                prop.set_prop(&mut nd, &n);
                 assert_eq!(icon, nd.icon);
             }
 
             #[test]
             fn text() {
                 let text = "New Text";
-                let template_id = crate::template::add_template(text.to_owned()).unwrap();
                 let mut nd = new_nd();
-                let prop = SetProperty::Text(template_id);
+                let prop = action_set_def!("text" text.to_string());
+                let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(text, nd.text);
-                prop.set(&mut nd, &n);
+                prop.set_prop(&mut nd, &n);
                 assert_eq!(text, nd.text);
             }
 
@@ -553,11 +623,12 @@ mod tests {
             fn expire_timeout() {
                 let timeout = 100;
                 let mut nd = new_nd();
-                let prop = SetProperty::ExpireTimeout(timeout);
+                let prop = action_set_def!("expire_timeout" timeout.to_string());
+                let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(timeout, nd.expire_timeout);
                 assert!(nd.remove_in_secs.is_none());
-                prop.set(&mut nd, &n);
+                prop.set_prop(&mut nd, &n);
                 assert_eq!(timeout, nd.expire_timeout);
                 assert_eq!(Some(timeout as f64), nd.remove_in_secs)
             }
@@ -566,10 +637,11 @@ mod tests {
             fn emoji_mode() {
                 let emoji = EmojiMode::Remove;
                 let mut nd = new_nd();
-                let prop = SetProperty::EmojiMode(emoji.clone());
+                let prop = action_set_def!("emoji" "remove".to_string());
+                let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(emoji, nd.emoji_mode);
-                prop.set(&mut nd, &n);
+                prop.set_prop(&mut nd, &n);
                 assert_eq!(emoji, nd.emoji_mode);
             }
 
@@ -577,10 +649,11 @@ mod tests {
             fn group() {
                 let group = "TestGroup";
                 let mut nd = new_nd();
-                let prop = SetProperty::Group(group.to_owned());
+                let prop = action_set_def!("group" group.to_string());
+                let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(Some(group), nd.group.as_deref());
-                prop.set(&mut nd, &n);
+                prop.set_prop(&mut nd, &n);
                 assert_eq!(Some(group), nd.group.as_deref());
             }
         }

@@ -105,7 +105,7 @@ fn excute_action(
             ControlFlow::Break(Ignore)
         }
         Action::Set(set_property) => {
-            set_property.set(notification_data, notification_template_data);
+            set_property.set_prop(notification_data, notification_template_data);
             ControlFlow::Continue(())
         }
         Action::Stop => ControlFlow::Break(Stop),
@@ -196,9 +196,11 @@ mod tests {
         let mut nd = notification(0);
         super::execute_rules_inner(
             &[Rule {
-                actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                    "TestGroup".into(),
-                ))],
+                actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                    "TestGroup",
+                    |v, _| v.to_string(),
+                    |d, v| d.group = Some(v),
+                )))],
                 ..Default::default()
             }],
             &n,
@@ -220,9 +222,11 @@ mod tests {
                     ..Default::default()
                 },
                 Rule {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        "TestGroup",
+                        |v, _| v.to_string(),
+                        |d, v| d.group = Some(v),
+                    )))],
                     ..Default::default()
                 },
             ],
@@ -241,13 +245,19 @@ mod tests {
         super::execute_rules_inner(
             &[
                 Rule {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        'W',
+                        |v, _| *v,
+                        |d, v| d.icon = v,
+                    )))],
                     ..Default::default()
                 },
                 Rule {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        "TestGroup",
+                        |v, _| v.to_string(),
+                        |d, v| d.group = Some(v),
+                    )))],
                     ..Default::default()
                 },
             ],
@@ -267,7 +277,11 @@ mod tests {
         super::execute_rules_inner(
             &[
                 Rule {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        'W',
+                        |v, _| *v,
+                        |d, v| d.icon = v,
+                    )))],
                     ..Default::default()
                 },
                 Rule {
@@ -275,9 +289,11 @@ mod tests {
                         "other-name".to_string(),
                         |d| d.app_name,
                     ))],
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        "TestGroup",
+                        |v, _| v.to_string(),
+                        |d, v| d.group = Some(v),
+                    )))],
                     ..Default::default()
                 },
             ],
@@ -296,11 +312,17 @@ mod tests {
         let mut nd = notification(0);
         super::execute_rules_inner(
             &[Rule {
-                actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                    'W',
+                    |v, _| *v,
+                    |d, v| d.icon = v,
+                )))],
                 sub_rule: vec![Rule {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        "TestGroup",
+                        |v, _| v.to_string(),
+                        |d, v| d.group = Some(v),
+                    )))],
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -321,7 +343,11 @@ mod tests {
         super::execute_rules_inner(
             &[
                 Rule {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        'W',
+                        |v, _| *v,
+                        |d, v| d.icon = v,
+                    )))],
                     sub_rule: vec![Rule {
                         actions: vec![Action::Stop],
                         ..Default::default()
@@ -329,9 +355,11 @@ mod tests {
                     ..Default::default()
                 },
                 Rule {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        "TestGroup",
+                        |v, _| v.to_string(),
+                        |d, v| d.group = Some(v),
+                    )))],
                     ..Default::default()
                 },
             ],
@@ -351,7 +379,11 @@ mod tests {
         super::execute_rules_inner(
             &[
                 Rule {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Icon('W'))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        'W',
+                        |v, _| *v,
+                        |d, v| d.icon = v,
+                    )))],
                     sub_rule: vec![Rule {
                         actions: vec![Action::Ignore],
                         ..Default::default()
@@ -359,9 +391,11 @@ mod tests {
                     ..Default::default()
                 },
                 Rule {
-                    actions: vec![Action::Set(crate::rule::SetProperty::Group(
-                        "TestGroup".into(),
-                    ))],
+                    actions: vec![Action::Set(Box::new(crate::rule::SetProperty::new(
+                        "TestGroup",
+                        |v, _| v.to_string(),
+                        |d, v| d.group = Some(v),
+                    )))],
                     ..Default::default()
                 },
             ],
