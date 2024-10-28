@@ -1,7 +1,7 @@
 #![deny(clippy::unwrap_used)]
 mod args;
 mod components;
-mod config_parser;
+mod config;
 // Currently disabled
 //mod debug_config;
 mod icons;
@@ -154,7 +154,7 @@ fn read_config(config_file: Option<&Path>) -> crate::rule::Config {
                 }
             };
             let mut config_file = BufReader::new(config_file);
-            match rule::parse_config(&mut config_file).map(crate::rule::Config::try_from) {
+            match config::parser::parse_config(&mut config_file).map(crate::rule::Config::try_from) {
                 Ok(Ok(r)) => r,
                 Ok(Err(e)) => {
                     error!("{}", e.to_string());
