@@ -154,7 +154,8 @@ fn read_config(config_file: Option<&Path>) -> crate::rule::Config {
                 }
             };
             let mut config_file = BufReader::new(config_file);
-            match config::parser::parse_config(&mut config_file).map(crate::rule::Config::try_from) {
+            match config::parser::parse_config(&mut config_file).map(crate::rule::Config::try_from)
+            {
                 Ok(Ok(r)) => r,
                 Ok(Err(e)) => {
                     error!("{}", e.to_string());

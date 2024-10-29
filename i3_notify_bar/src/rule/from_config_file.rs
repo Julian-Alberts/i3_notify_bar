@@ -181,14 +181,16 @@ fn expire_timeout_cond(
     Ok(cond)
 }
 
-impl TryFrom<ActionDef> for Action {
+impl TryFrom<ActionDef> for Box<dyn ExecAction> {
     type Error = Error;
     fn try_from(value: ActionDef) -> Result<Self, Self::Error> {
         use ActionDef;
-        let action = match value {
-            ActionDef::Stop => Self::Stop,
-            ActionDef::Ignore => Self::Ignore,
-            ActionDef::Set(set) => Self::Set(set.try_into()?),
+        let action: Box<dyn ExecAction> = match value {
+            ActionDef::Stop => Box::new(StopAction),
+            ActionDef::Ignore => Box::new(IgnoreAction),
+            ActionDef::Set(set) => Box::new(SetAction {
+                set_property: set.try_into()?,
+            }),
         };
         Ok(action)
     }
@@ -197,66 +199,65 @@ impl TryFrom<ActionDef> for Action {
 impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
     type Error = Error;
     fn try_from(value: ActionSetDef) -> Result<Self, Self::Error> {
-        let set: Box<dyn SetProp + Send + Sync> =
-            match (value.property.0.as_str(), value.value.0) {
-                ("expire_timeout", v) => {
-                    let value = v.parse().map_err(|e| Error::ParseError {
+        let set: Box<dyn SetProp + Send + Sync> = match (value.property.0.as_str(), value.value.0) {
+            ("expire_timeout", v) => {
+                let value = v.parse().map_err(|e| Error::ParseError {
+                    property: "expire_timeout".into(),
+                    value: v,
+                    error: Box::new(e),
+                })?;
+                Box::new(SetProperty::new(
+                    value,
+                    |v, _| *v,
+                    |d, v| {
+                        d.expire_timeout = v;
+                        d.remove_in_secs = Some(v as f64)
+                    },
+                ))
+            }
+            ("group", v) => Box::new(SetProperty::new(
+                v,
+                |v, _| v.clone(),
+                |d, v| d.group = Some(v),
+            )),
+            ("icon", v) => Box::new(SetProperty::new(
+                v.chars().next().unwrap_or('\0'),
+                |v, _| *v,
+                |d, v| d.icon = v,
+            )),
+            ("text", v) => {
+                let template_id =
+                    crate::template::add_template(v.clone()).map_err(|e| Error::ParseError {
                         property: "expire_timeout".into(),
                         value: v,
                         error: Box::new(e),
                     })?;
-                    Box::new(SetProperty::new(
-                        value,
-                        |v, _| *v,
-                        |d, v| {
-                            d.expire_timeout = v;
-                            d.remove_in_secs = Some(v as f64)
-                        },
-                    ))
-                }
-                ("group", v) => Box::new(SetProperty::new(
-                    v,
-                    |v, _| v.clone(),
-                    |d, v| d.group = Some(v),
-                )),
-                ("icon", v) => Box::new(SetProperty::new(
-                    v.chars().next().unwrap_or('\0'),
-                    |v, _| *v,
-                    |d, v| d.icon = v,
-                )),
-                ("text", v) => {
-                    let template_id =
-                        crate::template::add_template(v.clone()).map_err(|e| Error::ParseError {
-                            property: "expire_timeout".into(),
+                Box::new(SetProperty::new(
+                    template_id,
+                    |v, t| crate::template::render_template(v, t),
+                    |d, v| d.text = v,
+                ))
+            }
+            ("emoji", v) => {
+                let mode = match v.as_str() {
+                    "ignore" => EmojiMode::Ignore,
+                    "remove" => EmojiMode::Remove,
+                    "replace" => EmojiMode::Replace,
+                    _ => {
+                        return Err(Error::UnsupportedValue {
+                            property: "emoji".into(),
                             value: v,
-                            error: Box::new(e),
-                        })?;
-                    Box::new(SetProperty::new(
-                        template_id,
-                        |v, t| crate::template::render_template(v, t),
-                        |d, v| d.text = v,
-                    ))
-                }
-                ("emoji", v) => {
-                    let mode = match v.as_str() {
-                        "ignore" => EmojiMode::Ignore,
-                        "remove" => EmojiMode::Remove,
-                        "replace" => EmojiMode::Replace,
-                        _ => {
-                            return Err(Error::UnsupportedValue {
-                                property: "emoji".into(),
-                                value: v,
-                            })
-                        }
-                    };
-                    Box::new(SetProperty::new(
-                        mode,
-                        |v, _| v.clone(),
-                        |d, v| d.emoji_mode = v,
-                    ))
-                }
-                (k, _) => return Err(Error::UnknownProperty(k.into())),
-            };
+                        })
+                    }
+                };
+                Box::new(SetProperty::new(
+                    mode,
+                    |v, _| v.clone(),
+                    |d, v| d.emoji_mode = v,
+                ))
+            }
+            (k, _) => return Err(Error::UnknownProperty(k.into())),
+        };
         Ok(set)
     }
 }
@@ -272,4 +273,3 @@ impl TryFrom<StyleDef> for Style {
         Ok(style)
     }
 }
-
