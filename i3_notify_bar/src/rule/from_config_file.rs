@@ -261,6 +261,23 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
                 |v, _| v.to_path_buf(),
                 |d, v| d.notification_sound = Some(v),
             )),
+            ("volume", v) => Box::new(SetProperty::new(
+                v.parse::<f32>().map_err(|e| Error::ParseError {
+                    property: "volume".into(),
+                    value: v,
+                    error: Box::new(e),
+                })?,
+                |v, _| {
+                    if *v > 100. {
+                        1.
+                    } else if *v < 0. {
+                        0.
+                    } else {
+                        *v / 100.
+                    }
+                },
+                |d, v| d.volume = v,
+            )),
             (k, _) => return Err(Error::UnknownProperty(k.into())),
         };
         Ok(set)

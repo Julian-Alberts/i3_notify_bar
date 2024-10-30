@@ -133,7 +133,10 @@ where
         }
 
         if let Some(audio) = &notification_data.notification_sound {
-            if let Err(e) = self.audio_manager.play_file(audio) {
+            if let Err(e) = self
+                .audio_manager
+                .play_file(audio, notification_data.volume)
+            {
                 log::error!("Error loading audio file: {e}")
             }
         }
@@ -237,7 +240,8 @@ struct AudioManager {
 }
 
 impl AudioManager {
-    fn play_file(&self, path: &Path) -> Result<(), awedio::Error> {
+    fn play_file(&self, path: &Path, volume: f32) -> Result<(), awedio::Error> {
+        use awedio::Sound;
         let path = path.to_owned();
         let manager = Arc::clone(&self.manager);
         let sound = match awedio::sounds::open_file(path) {
@@ -246,7 +250,8 @@ impl AudioManager {
                 error!("Error playing notification sound {e}");
                 return Err(e);
             }
-        };
+        }
+        .with_adjustable_volume_of(volume);
         info!("Playing notification sound");
         manager.lock().unwrap().play(Box::new(sound));
         info!("Queued notification sound");
@@ -376,6 +381,7 @@ pub struct NotificationData {
     pub actions: Vec<NotificationAction>,
     pub group: Option<String>,
     pub notification_sound: Option<std::path::PathBuf>,
+    pub volume: f32,
 }
 
 impl NotificationData {
@@ -399,6 +405,7 @@ impl NotificationData {
             actions: notification.actions.clone(),
             group: None,
             notification_sound: None,
+            volume: 1.,
         }
     }
 }
@@ -504,6 +511,7 @@ mod tests {
             style: Default::default(),
             text: Default::default(),
             notification_sound: None,
+            volume: 1.,
         }
     }
 
