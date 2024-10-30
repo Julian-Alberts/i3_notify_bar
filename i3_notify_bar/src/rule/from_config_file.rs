@@ -256,10 +256,10 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
                     |d, v| d.emoji_mode = v,
                 ))
             }
-            ("audio_file", v) => Box::new(SetProperty::new(
+            ("notification_sound", v) => Box::new(SetProperty::new(
                 std::path::PathBuf::from(v),
                 |v, _| v.to_path_buf(),
-                |d, v| d.audio = Some(v),
+                |d, v| d.notification_sound = Some(v),
             )),
             (k, _) => return Err(Error::UnknownProperty(k.into())),
         };

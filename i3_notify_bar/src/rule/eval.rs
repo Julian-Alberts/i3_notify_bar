@@ -112,6 +112,7 @@ mod tests {
             remove_in_secs: None,
             style: Default::default(),
             text: Default::default(),
+            notification_sound: None,
         }
     }
 

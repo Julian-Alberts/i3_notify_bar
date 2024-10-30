@@ -343,6 +343,7 @@ mod tests {
                     ignore: false,
                     style: Vec::default(),
                     text: "Test Text".to_owned(),
+                    notification_sound: None,
                 }
             }
 

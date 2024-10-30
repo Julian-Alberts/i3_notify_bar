@@ -36,8 +36,7 @@ pub enum SystemCommand {
     ForceUpdate,
 }
 
-#[async_std::main]
-async fn main() {
+fn main() {
     let mut path_manager = PathManager::default();
     let Args {
         emoji_mode,
@@ -71,21 +70,19 @@ async fn main() {
     drop(path_manager);
 
     match command {
-        args::Command::Run => {
-            run(
-                config,
-                emoji_mode,
-                max_text_length,
-                animation_chars_per_second,
-                refresh_rate,
-            )
-            .await
-        }
+        args::Command::Run => run(
+            config,
+            emoji_mode,
+            max_text_length,
+            animation_chars_per_second,
+            refresh_rate,
+        ),
         args::Command::DebugConfig(_) => eprintln!("Currently disabled"),
         // args::Command::DebugConfig(dc) => debug_config::debug_config(&config, emoji_mode, dc),
     }
 }
 
+#[tokio::main]
 async fn run(
     config: crate::rule::Config,
     emoji_mode: EmojiMode,

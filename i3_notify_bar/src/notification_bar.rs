@@ -1,11 +1,13 @@
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::RwLock;
 
 use crate::icons;
 use crate::rule::EvalRules;
 use crate::rule::RuleExcutor;
 use emoji::EmojiMode;
+use log::error;
 use log::{debug, info};
 use mini_template::macros::ValueContainer;
 use notify_server::notification::Action as NotificationAction;
@@ -32,7 +34,7 @@ where
     commands_tx: std::sync::mpsc::Sender<NotificationManagerCommand>,
     events_tx: std::sync::mpsc::Sender<NotificationEvent>,
     events_rx: Option<std::sync::mpsc::Receiver<NotificationEvent>>,
-    audio_manager: awedio::manager::Manager,
+    audio_manager: AudioManager,
 }
 
 pub trait InvokeAction {
@@ -70,7 +72,7 @@ where
             commands_tx: tx,
             events_tx,
             events_rx: Some(events_rx),
-            audio_manager: awedio::start().unwrap().0,
+            audio_manager: AudioManager::default(),
         }
     }
 
@@ -129,11 +131,13 @@ where
             *n = notification_data;
             return;
         }
-        if let Some(audio) = &notification_data.audio {
-            if let Err(e) = play_file(audio, &mut self.audio_manager) {
+
+        if let Some(audio) = &notification_data.notification_sound {
+            if let Err(e) = self.audio_manager.play_file(audio) {
                 log::error!("Error loading audio file: {e}")
             }
         }
+
         let notification = Arc::new(RwLock::new(notification_data));
         self.notifications.push(Arc::clone(&notification));
         self.events_tx
@@ -221,11 +225,6 @@ where
         }
     }
 
-    #[cfg(tray_icon)]
-    pub fn set_minimal_urgency(&mut self, min: Urgency) {
-        self.minimum_urgency = min;
-    }
-
     pub fn linked_commands(&self) -> NotificationManagerCommands {
         NotificationManagerCommands {
             commands: self.commands_tx.clone(),
@@ -233,13 +232,36 @@ where
     }
 }
 
-fn play_file(
-    path: &Path,
-    audio_manager: &mut awedio::manager::Manager,
-) -> Result<(), awedio::Error> {
-    let sound = awedio::sounds::open_file(path)?;
-    audio_manager.play(sound);
-    Ok(())
+struct AudioManager {
+    manager: Arc<Mutex<awedio::manager::Manager>>,
+}
+
+impl AudioManager {
+    fn play_file(&self, path: &Path) -> Result<(), awedio::Error> {
+        let path = path.to_owned();
+        let manager = Arc::clone(&self.manager);
+        let sound = match awedio::sounds::open_file(path) {
+            Ok(s) => s,
+            Err(e) => {
+                error!("Error playing notification sound {e}");
+                return Err(e);
+            }
+        };
+        info!("Playing notification sound");
+        manager.lock().unwrap().play(Box::new(sound));
+        info!("Queued notification sound");
+        Ok(())
+    }
+}
+
+impl Default for AudioManager {
+    fn default() -> Self {
+        let (manager, backend) = awedio::start().unwrap();
+        Box::leak(Box::new(backend));
+        AudioManager {
+            manager: Arc::new(Mutex::new(manager)),
+        }
+    }
 }
 
 impl<Src, RE> InvokeAction for NotificationManager<Src, RE>
@@ -353,7 +375,7 @@ pub struct NotificationData {
     pub ignore: bool,
     pub actions: Vec<NotificationAction>,
     pub group: Option<String>,
-    pub audio: Option<std::path::PathBuf>,
+    pub notification_sound: Option<std::path::PathBuf>,
 }
 
 impl NotificationData {
@@ -376,7 +398,7 @@ impl NotificationData {
             ignore: false,
             actions: notification.actions.clone(),
             group: None,
-            audio: None,
+            notification_sound: None,
         }
     }
 }
@@ -481,7 +503,7 @@ mod tests {
             remove_in_secs: None,
             style: Default::default(),
             text: Default::default(),
-            audio: None,
+            notification_sound: None,
         }
     }
 
@@ -550,7 +572,7 @@ mod tests {
         assert_eq!(nm.notifications.len(), 1);
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn notification_manager_action_invoked() {
         use mockall::predicate::eq;
         let mut notify_src = notify_server::MockNotificationSource::default();
@@ -568,7 +590,7 @@ mod tests {
         nm.update(0.0).await;
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn notification_manager_notification_closed() {
         use mockall::predicate::eq;
         let mut notify_src = notify_server::MockNotificationSource::default();
@@ -586,7 +608,7 @@ mod tests {
         nm.update(0.0).await;
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn notification_manager_close_all_notifications() {
         use mockall::predicate::{eq, in_iter};
         let notify_src = notify_server::MockNotificationSource::default();
