@@ -343,7 +343,10 @@ mod tests {
                     ignore: false,
                     style: Vec::default(),
                     text: "Test Text".to_owned(),
+                    #[cfg(feature = "audio")]
                     notification_sound: None,
+                    #[cfg(feature = "audio")]
+                    volume: 0.,
                 }
             }
 

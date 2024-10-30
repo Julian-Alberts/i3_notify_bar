@@ -256,11 +256,13 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
                     |d, v| d.emoji_mode = v,
                 ))
             }
+            #[cfg(feature = "audio")]
             ("notification_sound", v) => Box::new(SetProperty::new(
                 std::path::PathBuf::from(v),
                 |v, _| v.to_path_buf(),
                 |d, v| d.notification_sound = Some(v),
             )),
+            #[cfg(feature = "audio")]
             ("volume", v) => Box::new(SetProperty::new(
                 v.parse::<f32>().map_err(|e| Error::ParseError {
                     property: "volume".into(),

@@ -34,6 +34,7 @@ where
     commands_tx: std::sync::mpsc::Sender<NotificationManagerCommand>,
     events_tx: std::sync::mpsc::Sender<NotificationEvent>,
     events_rx: Option<std::sync::mpsc::Receiver<NotificationEvent>>,
+    #[cfg(feature = "audio")]
     audio_manager: AudioManager,
 }
 
@@ -72,6 +73,7 @@ where
             commands_tx: tx,
             events_tx,
             events_rx: Some(events_rx),
+            #[cfg(feature = "audio")]
             audio_manager: AudioManager::default(),
         }
     }
@@ -132,6 +134,7 @@ where
             return;
         }
 
+        #[cfg(feature = "audio")]
         if let Some(audio) = &notification_data.notification_sound {
             if let Err(e) = self
                 .audio_manager
@@ -235,10 +238,12 @@ where
     }
 }
 
+#[cfg(feature = "audio")]
 struct AudioManager {
     manager: Arc<Mutex<awedio::manager::Manager>>,
 }
 
+#[cfg(feature = "audio")]
 impl AudioManager {
     fn play_file(&self, path: &Path, volume: f32) -> Result<(), awedio::Error> {
         use awedio::Sound;
@@ -259,6 +264,7 @@ impl AudioManager {
     }
 }
 
+#[cfg(feature = "audio")]
 impl Default for AudioManager {
     fn default() -> Self {
         let (manager, backend) = awedio::start().unwrap();
@@ -380,7 +386,9 @@ pub struct NotificationData {
     pub ignore: bool,
     pub actions: Vec<NotificationAction>,
     pub group: Option<String>,
+    #[cfg(feature = "audio")]
     pub notification_sound: Option<std::path::PathBuf>,
+    #[cfg(feature = "audio")]
     pub volume: f32,
 }
 
@@ -404,7 +412,9 @@ impl NotificationData {
             ignore: false,
             actions: notification.actions.clone(),
             group: None,
+            #[cfg(feature = "audio")]
             notification_sound: None,
+            #[cfg(feature = "audio")]
             volume: 1.,
         }
     }
@@ -510,7 +520,9 @@ mod tests {
             remove_in_secs: None,
             style: Default::default(),
             text: Default::default(),
+            #[cfg(feature = "audio")]
             notification_sound: None,
+            #[cfg(feature = "audio")]
             volume: 1.,
         }
     }

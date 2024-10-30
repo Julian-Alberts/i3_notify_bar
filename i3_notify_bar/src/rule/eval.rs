@@ -112,7 +112,10 @@ mod tests {
             remove_in_secs: None,
             style: Default::default(),
             text: Default::default(),
+            #[cfg(feature = "audio")]
             notification_sound: None,
+            #[cfg(feature = "audio")]
+            volume: 1.,
         }
     }
 

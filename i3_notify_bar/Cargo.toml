@@ -35,6 +35,6 @@ features = ["regex"]
 fa_icons = []
 mini_template_render = []
 emoji_mode_replace = []
-default = ["fa_icons", "mini_template_render", "emoji_mode_replace", "audio"]
+default = ["fa_icons", "mini_template_render", "emoji_mode_replace"]
 audio = ["dep:awedio"]
 
