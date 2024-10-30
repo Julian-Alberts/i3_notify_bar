@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -31,6 +32,7 @@ where
     commands_tx: std::sync::mpsc::Sender<NotificationManagerCommand>,
     events_tx: std::sync::mpsc::Sender<NotificationEvent>,
     events_rx: Option<std::sync::mpsc::Receiver<NotificationEvent>>,
+    audio_manager: awedio::manager::Manager,
 }
 
 pub trait InvokeAction {
@@ -68,6 +70,7 @@ where
             commands_tx: tx,
             events_tx,
             events_rx: Some(events_rx),
+            audio_manager: awedio::start().unwrap().0,
         }
     }
 
@@ -125,6 +128,11 @@ where
         {
             *n = notification_data;
             return;
+        }
+        if let Some(audio) = &notification_data.audio {
+            if let Err(e) = play_file(audio, &mut self.audio_manager) {
+                log::error!("Error loading audio file: {e}")
+            }
         }
         let notification = Arc::new(RwLock::new(notification_data));
         self.notifications.push(Arc::clone(&notification));
@@ -223,6 +231,15 @@ where
             commands: self.commands_tx.clone(),
         }
     }
+}
+
+fn play_file(
+    path: &Path,
+    audio_manager: &mut awedio::manager::Manager,
+) -> Result<(), awedio::Error> {
+    let sound = awedio::sounds::open_file(path)?;
+    audio_manager.play(sound);
+    Ok(())
 }
 
 impl<Src, RE> InvokeAction for NotificationManager<Src, RE>
@@ -336,6 +353,7 @@ pub struct NotificationData {
     pub ignore: bool,
     pub actions: Vec<NotificationAction>,
     pub group: Option<String>,
+    pub audio: Option<std::path::PathBuf>,
 }
 
 impl NotificationData {
@@ -358,6 +376,7 @@ impl NotificationData {
             ignore: false,
             actions: notification.actions.clone(),
             group: None,
+            audio: None,
         }
     }
 }
@@ -462,6 +481,7 @@ mod tests {
             remove_in_secs: None,
             style: Default::default(),
             text: Default::default(),
+            audio: None,
         }
     }
 
