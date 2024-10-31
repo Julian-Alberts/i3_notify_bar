@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use regex::Regex;
 
 use crate::notification_bar::{NotificationData, NotificationTemplateData};
-pub use eval::{EvalRules, RuleExcutor};
+pub use eval::{EvalRules, MatchedRules, RuleExcutor};
 
 #[derive(Default)]
 pub struct Config {

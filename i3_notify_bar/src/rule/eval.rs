@@ -17,27 +17,31 @@ impl RuleExcutor {
     }
 }
 
-impl EvalRules for RuleExcutor {
+impl<MatchedRules: Default + MatchedRule> EvalRules<MatchedRules> for RuleExcutor {
     fn eval(
         &self,
         n: &notify_server::notification::Notification,
         notification_template_data: &mut NotificationTemplateData,
         notification_data: &mut NotificationData,
-    ) {
+    ) -> MatchedRules {
+        let mut rules = MatchedRules::default();
         execute_rules_inner(
             &self.rules,
             n,
             notification_template_data,
             notification_data,
+            &mut rules,
         );
+        rules
     }
 }
 
-fn execute_rules_inner(
+fn execute_rules_inner<MatchedRules: MatchedRule + Default>(
     rules: &[Rule],
     n: &notify_server::notification::Notification,
     notification_template_data: &mut NotificationTemplateData,
     notification_data: &mut NotificationData,
+    matched_rules: &mut MatchedRules,
 ) -> ControlFlow<ExecuteActionBreakReason> {
     for rule in rules {
         use ExecuteActionBreakReason::*;
@@ -70,6 +74,7 @@ fn execute_rules_inner(
             n,
             notification_template_data,
             notification_data,
+            matched_rules,
         );
         if matches!(sub_rule_result, ControlFlow::Break(_)) {
             return sub_rule_result;
@@ -84,13 +89,101 @@ enum ExecuteActionBreakReason {
 }
 
 #[mockall::automock]
-pub trait EvalRules {
+pub trait EvalRules<MatchedRules: Default + MatchedRule> {
     fn eval(
         &self,
         n: &notify_server::notification::Notification,
         notification_template_data: &mut NotificationTemplateData,
         notification_data: &mut NotificationData,
-    );
+    ) -> MatchedRules;
+}
+
+pub trait MatchedRule {
+    type Inner: MatchedRule;
+    fn add_rule(&mut self, rule_id: usize) -> &mut Self::Inner;
+}
+
+impl MatchedRule for () {
+    type Inner = Self;
+
+    fn add_rule(&mut self, _: usize) -> &mut Self::Inner {
+        self
+    }
+}
+
+#[derive(Default)]
+pub struct MatchedRules {
+    rules: Vec<MatchedRulesInner>,
+}
+
+impl MatchedRule for MatchedRules {
+    type Inner = MatchedRulesInner;
+    fn add_rule(&mut self, rule_id: usize) -> &mut Self::Inner {
+        self.rules.push(MatchedRulesInner {
+            rule_id,
+            sub_rules: Vec::default(),
+        });
+        let rule = self.rules.last_mut();
+        unsafe {
+            std::hint::assert_unchecked(rule.is_some());
+        }
+        rule.unwrap()
+    }
+}
+
+impl std::fmt::Display for MatchedRules {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut stack = Vec::default();
+        for r in &self.rules {
+            fmt_matched_rules(r, &mut stack, f)?;
+        }
+        Ok(())
+    }
+}
+
+fn fmt_matched_rules(
+    matched_rules: &MatchedRulesInner,
+    stack: &mut Vec<usize>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    stack.push(matched_rules.rule_id);
+    let mut stack_iter = stack.into_iter();
+    let id = stack_iter.next();
+    unsafe {
+        std::hint::assert_unchecked(id.is_some());
+    }
+    write!(f, "{}", id.unwrap())?;
+    for id in stack_iter {
+        write!(f, ".{id}")?;
+    }
+    writeln!(f)?;
+
+    matched_rules
+        .sub_rules
+        .iter()
+        .try_for_each(|r| fmt_matched_rules(r, stack, f))?;
+    stack.pop();
+    Ok(())
+}
+
+pub struct MatchedRulesInner {
+    rule_id: usize,
+    sub_rules: Vec<MatchedRulesInner>,
+}
+
+impl MatchedRule for MatchedRulesInner {
+    type Inner = MatchedRulesInner;
+    fn add_rule(&mut self, rule_id: usize) -> &mut Self::Inner {
+        self.sub_rules.push(MatchedRulesInner {
+            rule_id,
+            sub_rules: Vec::default(),
+        });
+        let rule = self.sub_rules.last_mut();
+        unsafe {
+            std::hint::assert_unchecked(rule.is_some());
+        }
+        rule.unwrap()
+    }
 }
 
 fn excute_action(
@@ -173,6 +266,7 @@ mod tests {
             &n,
             &mut ntd,
             &mut nd,
+            &mut (),
         );
         assert!(nd.ignore);
     }
@@ -182,7 +276,7 @@ mod tests {
         let n = server_notification();
         let mut ntd = notification_template();
         let mut nd = notification(0);
-        super::execute_rules_inner(&[], &n, &mut ntd, &mut nd);
+        super::execute_rules_inner(&[], &n, &mut ntd, &mut nd, &mut ());
         assert!(!nd.ignore);
         assert!(nd.actions.is_empty());
         assert_eq!(nd.expire_timeout, 10);
@@ -206,6 +300,7 @@ mod tests {
             &n,
             &mut ntd,
             &mut nd,
+            &mut (),
         );
         assert_eq!(nd.group, Some("TestGroup".into()));
     }
@@ -233,6 +328,7 @@ mod tests {
             &n,
             &mut ntd,
             &mut nd,
+            &mut (),
         );
         assert!(nd.group.is_none());
     }
@@ -264,6 +360,7 @@ mod tests {
             &n,
             &mut ntd,
             &mut nd,
+            &mut (),
         );
         assert_eq!(nd.group, Some("TestGroup".into()));
         assert_eq!(nd.icon, 'W');
@@ -300,6 +397,7 @@ mod tests {
             &n,
             &mut ntd,
             &mut nd,
+            &mut (),
         );
         assert_eq!(nd.group, None);
         assert_eq!(nd.icon, 'W');
@@ -330,6 +428,7 @@ mod tests {
             &n,
             &mut ntd,
             &mut nd,
+            &mut (),
         );
         assert_eq!(nd.group, Some("TestGroup".into()));
         assert_eq!(nd.icon, 'W');
@@ -366,6 +465,7 @@ mod tests {
             &n,
             &mut ntd,
             &mut nd,
+            &mut (),
         );
         assert!(nd.group.is_none());
         assert_eq!(nd.icon, 'W');
@@ -402,6 +502,7 @@ mod tests {
             &n,
             &mut ntd,
             &mut nd,
+            &mut (),
         );
         assert!(nd.ignore);
         assert!(nd.group.is_none());

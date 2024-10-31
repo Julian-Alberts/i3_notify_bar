@@ -20,7 +20,7 @@ use crate::rule::Style;
 pub struct NotificationManager<Src = NotifyServer, RE = RuleExcutor>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
-    RE: EvalRules,
+    RE: EvalRules<()>,
 {
     notifications: Vec<Arc<RwLock<NotificationData>>>,
     rule_executor: RE,
@@ -48,7 +48,7 @@ pub trait CloseAllNotifications {
 impl<Src, RE> NotificationManager<Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
-    RE: EvalRules + Send + Sync + 'static,
+    RE: EvalRules<()> + Send + Sync + 'static,
 {
     pub fn new(
         default_emoji_mode: EmojiMode,
@@ -228,7 +228,7 @@ where
 impl<Src, RE> InvokeAction for NotificationManager<Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
-    RE: EvalRules + Send + Sync + 'static,
+    RE: EvalRules<()> + Send + Sync + 'static,
 {
     fn action_invoked(&self, id: notify_server::NotificationId, action: impl Into<String>) {
         self.commands_tx
@@ -243,7 +243,7 @@ where
 impl<Src, RE> CloseNotification for NotificationManager<Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
-    RE: EvalRules + Send + Sync + 'static,
+    RE: EvalRules<()> + Send + Sync + 'static,
 {
     fn notification_closed(&self, id: notify_server::NotificationId, reason: CloseReason) {
         self.commands_tx
@@ -255,7 +255,7 @@ where
 impl<Src, RE> CloseAllNotifications for NotificationManager<Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
-    RE: EvalRules + Send + Sync + 'static,
+    RE: EvalRules<()> + Send + Sync + 'static,
 {
     fn close_all_notifications(&self, reason: CloseReason) {
         self.commands_tx
@@ -437,7 +437,7 @@ mod tests {
 
     use super::{MinimalUrgency, NotificationData, NotificationManager};
 
-    fn minimal_notification_manager<RE: EvalRules + Send + Sync + 'static>(
+    fn minimal_notification_manager<RE: EvalRules<()> + Send + Sync + 'static>(
         notify_src: notify_server::MockNotificationSource,
         rule_evaluator: RE,
     ) -> NotificationManager<notify_server::MockNotificationSource, RE> {

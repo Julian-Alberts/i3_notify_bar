@@ -4,12 +4,12 @@ use notify_server::notification::{NotificationBuilder, Urgency};
 
 use crate::{
     args::DebugConfig,
-    notification_bar::{execute_rules, NotificationData, NotificationTemplateData},
-    rule::Definition,
+    notification_bar::{NotificationData, NotificationTemplateData},
+    rule::{Config, EvalRules, RuleExcutor},
     EmojiMode,
 };
 
-pub fn debug_config(config: &[Definition], emoji_mode: EmojiMode, debug_config: DebugConfig) {
+pub fn debug_config(config: Config, emoji_mode: EmojiMode, debug_config: DebugConfig) {
     let DebugConfig {
         app_icon,
         app_name,
@@ -35,26 +35,20 @@ pub fn debug_config(config: &[Definition], emoji_mode: EmojiMode, debug_config: 
 
     let mut notification_template_data = NotificationTemplateData::from(&notification);
 
-    let matched_rules = execute_rules(
-        config,
+    let rule_executor = RuleExcutor::new(config.rules);
+
+    let matched_rules: crate::rule::MatchedRules = rule_executor.eval(
         &notification,
         &mut notification_template_data,
         &mut notification_data,
     );
+
     drop(notification_template_data);
 
     println!("##### Matched Rules #####");
     println!("{matched_rules}");
 
-    println!(
-        "##### Notification #####\nid: {}\nexpire_timeout: {}\nicon: {}\ntext: {}\nstyle: {:#?}\nemoji_mode: {:#?}",
-        notification_data.id,
-        notification_data.expire_timeout,
-        notification_data.icon,
-        notification_data.text,
-        notification_data.style,
-        notification_data.emoji_mode
-    );
+    println!("##### Notification #####\n {notification_data:#?}",);
 }
 
 pub struct MatchedDefinitionTree {

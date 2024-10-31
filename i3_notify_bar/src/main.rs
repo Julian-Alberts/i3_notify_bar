@@ -3,7 +3,7 @@ mod args;
 mod components;
 mod config;
 // Currently disabled
-//mod debug_config;
+mod debug_config;
 mod icons;
 mod notification_bar;
 mod path_manager;
@@ -81,8 +81,8 @@ async fn main() {
             )
             .await
         }
-        args::Command::DebugConfig(_) => eprintln!("Currently disabled"),
-        // args::Command::DebugConfig(dc) => debug_config::debug_config(&config, emoji_mode, dc),
+        // args::Command::DebugConfig(_) => eprintln!("Currently disabled"),
+        args::Command::DebugConfig(dc) => debug_config::debug_config(config, emoji_mode, dc),
     }
 }
 
@@ -154,7 +154,8 @@ fn read_config(config_file: Option<&Path>) -> crate::rule::Config {
                 }
             };
             let mut config_file = BufReader::new(config_file);
-            match config::parser::parse_config(&mut config_file).map(crate::rule::Config::try_from) {
+            match config::parser::parse_config(&mut config_file).map(crate::rule::Config::try_from)
+            {
                 Ok(Ok(r)) => r,
                 Ok(Err(e)) => {
                     error!("{}", e.to_string());
