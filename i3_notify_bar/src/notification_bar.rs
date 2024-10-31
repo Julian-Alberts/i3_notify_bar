@@ -1,13 +1,10 @@
-use std::path::Path;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::sync::RwLock;
 
 use crate::icons;
 use crate::rule::EvalRules;
 use crate::rule::RuleExcutor;
 use emoji::EmojiMode;
-use log::error;
 use log::{debug, info};
 use mini_template::macros::ValueContainer;
 use notify_server::notification::Action as NotificationAction;
@@ -20,6 +17,42 @@ use serde::Serialize;
 
 use crate::rule::Style;
 
+#[derive(Debug, Clone)]
+pub struct SharedConfig {
+    pub minimum_urgency: Arc<RwLock<MinimalUrgency>>,
+    #[cfg(feature = "audio")]
+    pub audio_enabled: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl Default for SharedConfig {
+    fn default() -> Self {
+        Self {
+            minimum_urgency: Arc::new(RwLock::new(MinimalUrgency::Normal)),
+            #[cfg(feature = "audio")]
+            audio_enabled: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        }
+    }
+}
+
+impl SharedConfig {
+    pub fn set_minimum_urgency(&self, u: MinimalUrgency) {
+        *self.minimum_urgency.write().unwrap() = u
+    }
+    pub fn minimum_urgency(&self) -> MinimalUrgency {
+        *self.minimum_urgency.read().unwrap()
+    }
+    #[cfg(feature = "audio")]
+    pub fn audio_enabled(&self, audio: bool) {
+        self.audio_enabled
+            .store(audio, std::sync::atomic::Ordering::Relaxed);
+    }
+    #[cfg(feature = "audio")]
+    pub fn is_audio_enabled(&self) -> bool {
+        self.audio_enabled
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
 pub struct NotificationManager<Src = NotifyServer, RE = RuleExcutor>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
@@ -28,14 +61,14 @@ where
     notifications: Vec<Arc<RwLock<NotificationData>>>,
     rule_executor: RE,
     default_emoji_mode: EmojiMode,
-    minimum_urgency: Arc<RwLock<MinimalUrgency>>,
+    config: SharedConfig,
     notify_server: Src,
     commands_rx: std::sync::mpsc::Receiver<NotificationManagerCommand>,
     commands_tx: std::sync::mpsc::Sender<NotificationManagerCommand>,
     events_tx: std::sync::mpsc::Sender<NotificationEvent>,
     events_rx: Option<std::sync::mpsc::Receiver<NotificationEvent>>,
     #[cfg(feature = "audio")]
-    audio_manager: AudioManager,
+    audio_manager: Option<AudioManager>,
 }
 
 pub trait InvokeAction {
@@ -57,7 +90,7 @@ where
 {
     pub fn new(
         default_emoji_mode: EmojiMode,
-        minimum_urgency: Arc<RwLock<MinimalUrgency>>,
+        config: SharedConfig,
         notify_server: Src,
         rule_executor: RE,
     ) -> Self {
@@ -67,14 +100,14 @@ where
             notifications: Vec::new(),
             rule_executor,
             default_emoji_mode,
-            minimum_urgency,
+            config,
             notify_server,
             commands_rx: rx,
             commands_tx: tx,
             events_tx,
             events_rx: Some(events_rx),
             #[cfg(feature = "audio")]
-            audio_manager: AudioManager::default(),
+            audio_manager: Some(AudioManager::default()),
         }
     }
 
@@ -101,12 +134,7 @@ where
             notification_template_data
         );
 
-        if *self
-            .minimum_urgency
-            .read()
-            .expect("Could not access urgency")
-            > notification.urgency
-        {
+        if self.config.minimum_urgency() > notification.urgency {
             return;
         }
 
@@ -135,12 +163,20 @@ where
         }
 
         #[cfg(feature = "audio")]
-        if let Some(audio) = &notification_data.notification_sound {
-            if let Err(e) = self
-                .audio_manager
-                .play_file(audio, notification_data.volume)
-            {
-                log::error!("Error loading audio file: {e}")
+        {
+            // TODO This is a horrible solution that requires some refactoring
+            match (&self.audio_manager, self.config.is_audio_enabled()) {
+                (Some(_), false) => self.audio_manager = None,
+                (None, true) => self.audio_manager = Some(AudioManager::default()),
+                _ => {}
+            }
+            if let Some(audio) = &notification_data.notification_sound {
+                if let Err(e) = self
+                    .audio_manager
+                    .play_file(audio, notification_data.volume)
+                {
+                    log::error!("Error loading audio file: {e}")
+                }
             }
         }
 
@@ -240,19 +276,32 @@ where
 
 #[cfg(feature = "audio")]
 struct AudioManager {
-    manager: Arc<Mutex<awedio::manager::Manager>>,
+    manager: Arc<std::sync::Mutex<awedio::manager::Manager>>,
 }
 
 #[cfg(feature = "audio")]
-impl AudioManager {
-    fn play_file(&self, path: &Path, volume: f32) -> Result<(), awedio::Error> {
+trait PlayAudio {
+    fn play_file(&self, path: &std::path::Path, volume: f32) -> Result<(), awedio::Error>;
+}
+
+#[cfg(feature = "audio")]
+impl PlayAudio for Option<AudioManager> {
+    fn play_file(&self, path: &std::path::Path, volume: f32) -> Result<(), awedio::Error> {
+        let Some(s) = self else { return Ok(()) };
+        s.play_file(path, volume)
+    }
+}
+
+#[cfg(feature = "audio")]
+impl PlayAudio for AudioManager {
+    fn play_file(&self, path: &std::path::Path, volume: f32) -> Result<(), awedio::Error> {
         use awedio::Sound;
         let path = path.to_owned();
         let manager = Arc::clone(&self.manager);
         let sound = match awedio::sounds::open_file(path) {
             Ok(s) => s,
             Err(e) => {
-                error!("Error playing notification sound {e}");
+                log::error!("Error playing notification sound {e}");
                 return Err(e);
             }
         }
@@ -270,7 +319,7 @@ impl Default for AudioManager {
         let (manager, backend) = awedio::start().unwrap();
         Box::leak(Box::new(backend));
         AudioManager {
-            manager: Arc::new(Mutex::new(manager)),
+            manager: Arc::new(std::sync::Mutex::new(manager)),
         }
     }
 }
@@ -501,7 +550,11 @@ mod tests {
     ) -> NotificationManager<notify_server::MockNotificationSource, RE> {
         NotificationManager::new(
             emoji::EmojiMode::Ignore,
-            Arc::new(RwLock::new(MinimalUrgency::Normal)),
+            super::SharedConfig {
+                minimum_urgency: Arc::new(RwLock::new(MinimalUrgency::Normal)),
+                #[cfg(feature = "audio")]
+                audio_enabled: Arc::new(std::sync::atomic::AtomicBool::new(true)),
+            },
             notify_src,
             rule_evaluator,
         )
@@ -545,17 +598,11 @@ mod tests {
         let notify_src = notify_server::MockNotificationSource::default();
         let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
 
-        let _ = nm
-            .minimum_urgency
-            .write()
-            .map(|mut m| *m = MinimalUrgency::Critical);
+        let _ = nm.config.set_minimum_urgency(MinimalUrgency::Critical);
 
         assert_eq!(nm.notifications.len(), 0);
         assert_eq!(nm.default_emoji_mode, emoji::EmojiMode::Ignore);
-        assert_eq!(
-            *nm.minimum_urgency.read().unwrap(),
-            MinimalUrgency::Critical
-        );
+        assert_eq!(nm.config.minimum_urgency(), MinimalUrgency::Critical);
     }
 
     #[test]
@@ -579,9 +626,7 @@ mod tests {
         let notify_src = notify_server::MockNotificationSource::default();
         let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
 
-        let mut urgency = nm.minimum_urgency.write().unwrap();
-        *urgency = MinimalUrgency::Critical;
-        drop(urgency);
+        nm.config.set_minimum_urgency(MinimalUrgency::Critical);
 
         let mut notification = server_notification();
         assert_eq!(nm.notifications.len(), 0);

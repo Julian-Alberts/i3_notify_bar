@@ -19,7 +19,7 @@ use i3_bar_components::{
     string::AnimatedString,
 };
 use log::{debug, error};
-use notification_bar::{MinimalUrgency, NotificationEvent, NotificationManager};
+use notification_bar::{MinimalUrgency, NotificationEvent, NotificationManager, SharedConfig};
 use path_manager::PathManager;
 use rule::RuleExcutor;
 use std::{
@@ -91,7 +91,7 @@ async fn run(
     refresh_rate: u64,
 ) {
     let (system_command_tx, system_command_rx) = std::sync::mpsc::channel();
-    let minimal_urgency = Arc::new(RwLock::new(MinimalUrgency::Normal));
+    let shared_config = SharedConfig::default();
 
     let mut component_manager = ComponentManagerBuilder::new()
         .with_click_events(true)
@@ -105,13 +105,13 @@ async fn run(
         notify_server::NotifyServer::start().expect("Error starting notification server.");
     let mut notification_manager = NotificationManager::new(
         emoji_mode,
-        Arc::clone(&minimal_urgency),
+        shared_config.clone(),
         notify_server,
         RuleExcutor::new(config.rules),
     );
 
     component_manager.add_component(Box::new(NotificationBar::new(
-        minimal_urgency,
+        shared_config,
         notification_manager.linked_commands(),
         notification_manager.event_channel(),
         max_text_length,
