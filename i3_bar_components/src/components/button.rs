@@ -34,6 +34,10 @@ impl Button {
     ) {
         self.on_click = Box::new(on_click);
     }
+
+    pub fn set_text(&mut self, text: impl ComponentString + 'static) {
+        self.text = Box::new(text);
+    }
 }
 
 impl SimpleComponent for Button {

@@ -31,7 +31,9 @@ icons!(
     "Thunderbird" => MAIL_ICON,
     "x" => X_ICON = '\u{F057}',
     "menu" => MENU_ICON = '\u{F0C9}',
-    "close" => CLOSE_ICON = '\u{F00D}'
+    "close" => CLOSE_ICON = '\u{F00D}',
+    "audio_active" => AUDIO_ACTIVE = '\u{F0F3}',
+    "audio_muted" => AUDIO_MUTED = '\u{F1F6}'
 );
 
 #[cfg(not(feature = "fa_icons"))]

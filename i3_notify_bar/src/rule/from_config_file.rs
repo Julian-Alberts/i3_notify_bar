@@ -181,14 +181,16 @@ fn expire_timeout_cond(
     Ok(cond)
 }
 
-impl TryFrom<ActionDef> for Action {
+impl TryFrom<ActionDef> for Box<dyn ExecAction> {
     type Error = Error;
     fn try_from(value: ActionDef) -> Result<Self, Self::Error> {
         use ActionDef;
-        let action = match value {
-            ActionDef::Stop => Self::Stop,
-            ActionDef::Ignore => Self::Ignore,
-            ActionDef::Set(set) => Self::Set(set.try_into()?),
+        let action: Box<dyn ExecAction> = match value {
+            ActionDef::Stop => Box::new(StopAction),
+            ActionDef::Ignore => Box::new(IgnoreAction),
+            ActionDef::Set(set) => Box::new(SetAction {
+                set_property: set.try_into()?,
+            }),
         };
         Ok(action)
     }
@@ -254,6 +256,30 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
                     |d, v| d.emoji_mode = v,
                 ))
             }
+            #[cfg(feature = "audio")]
+            ("notification_sound", v) => Box::new(SetProperty::new(
+                std::path::PathBuf::from(v),
+                |v, _| v.to_path_buf(),
+                |d, v| d.notification_sound = Some(v),
+            )),
+            #[cfg(feature = "audio")]
+            ("volume", v) => Box::new(SetProperty::new(
+                v.parse::<f32>().map_err(|e| Error::ParseError {
+                    property: "volume".into(),
+                    value: v,
+                    error: Box::new(e),
+                })?,
+                |v, _| {
+                    if *v > 100. {
+                        1.
+                    } else if *v < 0. {
+                        0.
+                    } else {
+                        *v / 100.
+                    }
+                },
+                |d, v| d.volume = v,
+            )),
             (k, _) => return Err(Error::UnknownProperty(k.into())),
         };
         Ok(set)

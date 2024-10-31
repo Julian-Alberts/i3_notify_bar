@@ -1,8 +1,9 @@
 mod eval;
 mod from_config_file;
 
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::ControlFlow};
 
+use eval::ExecuteActionBreakReason;
 use regex::Regex;
 
 use crate::notification_bar::{NotificationData, NotificationTemplateData};
@@ -26,7 +27,7 @@ pub struct NotificationRuleData<'a> {
 #[derive(Default)]
 pub struct Rule {
     pub conditions: Vec<Box<dyn CheckCondition + Send + Sync>>,
-    pub actions: Vec<Action>,
+    pub actions: Vec<Box<dyn ExecAction>>,
     pub style: Vec<Style>,
     pub sub_rule: Vec<Rule>,
 }
@@ -38,10 +39,54 @@ impl Rule {
 }
 
 #[derive(Debug)]
-pub enum Action {
-    Ignore,
-    Set(Box<dyn SetProp + Send + Sync>),
-    Stop,
+pub struct IgnoreAction;
+
+impl ExecAction for IgnoreAction {
+    fn exec_action<'a>(
+        &self,
+        nd: &'a mut NotificationData,
+        _: &NotificationTemplateData,
+    ) -> ControlFlow<ExecuteActionBreakReason> {
+        nd.ignore = true;
+        ControlFlow::Break(ExecuteActionBreakReason::Ignore)
+    }
+}
+
+#[derive(Debug)]
+pub struct SetAction {
+    pub(crate) set_property: Box<dyn SetProp + Send + Sync + 'static>,
+}
+
+impl ExecAction for SetAction {
+    fn exec_action<'a>(
+        &self,
+        data: &'a mut NotificationData,
+        template: &NotificationTemplateData,
+    ) -> ControlFlow<ExecuteActionBreakReason> {
+        self.set_property.set_prop(data, template);
+        ControlFlow::Continue(())
+    }
+}
+
+#[derive(Debug)]
+pub struct StopAction;
+
+impl ExecAction for StopAction {
+    fn exec_action<'a>(
+        &self,
+        _: &'a mut NotificationData,
+        _: &NotificationTemplateData,
+    ) -> ControlFlow<ExecuteActionBreakReason> {
+        ControlFlow::Break(ExecuteActionBreakReason::Stop)
+    }
+}
+
+pub trait ExecAction: Send + Sync {
+    fn exec_action<'a>(
+        &self,
+        data: &'a mut NotificationData,
+        template: &NotificationTemplateData,
+    ) -> ControlFlow<ExecuteActionBreakReason>;
 }
 
 #[derive(Debug)]
@@ -298,6 +343,10 @@ mod tests {
                     ignore: false,
                     style: Vec::default(),
                     text: "Test Text".to_owned(),
+                    #[cfg(feature = "audio")]
+                    notification_sound: None,
+                    #[cfg(feature = "audio")]
+                    volume: 0.,
                 }
             }
 

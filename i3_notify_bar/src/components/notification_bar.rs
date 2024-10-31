@@ -8,7 +8,7 @@ use i3_bar_components::{
 };
 
 use crate::notification_bar::{
-    CloseAllNotifications as _, NotificationEvent, NotificationManagerCommands,
+    CloseAllNotifications as _, NotificationEvent, NotificationManagerCommands, SharedConfig,
 };
 use crate::SystemCommand;
 use crate::{
@@ -31,7 +31,7 @@ pub struct NotificationBar {
 
 impl NotificationBar {
     pub fn new(
-        selected_urgency: Arc<RwLock<MinimalUrgency>>,
+        shared_config: SharedConfig,
         notification_manager_cmd: NotificationManagerCommands,
         notification_event_channel: std::sync::mpsc::Receiver<NotificationEvent>,
         max_width: usize,
@@ -52,7 +52,7 @@ impl NotificationBar {
                 return;
             }
             system_command_tx_menu_btn.send(SystemCommand::ForceUpdate);
-            open_menu(mc, ce, selected_urgency.clone(), nm_cmd.clone());
+            open_menu(mc, ce, shared_config.clone(), nm_cmd.clone());
         });
 
         Self {
@@ -183,7 +183,7 @@ fn remove_notification(
 fn open_menu(
     mc: &mut dyn ManageComponents,
     ce: &ClickEvent,
-    selected: Arc<RwLock<MinimalUrgency>>,
+    shared_config: SharedConfig,
     notification_manager_cmd: NotificationManagerCommands,
 ) {
     if ce.get_button() != 1 {
@@ -198,9 +198,36 @@ fn open_menu(
         };
         notification_manager_cmd.close_all_notifications(notify_server::CloseReason::Dismissed);
     });
-    let group = min_urgency_selector::init(selected);
+
+    #[cfg(feature = "audio")]
+    let toggle_audio = {
+        let toggle_audio_icon = if shared_config.is_audio_enabled() {
+            icons::AUDIO_ACTIVE
+        } else {
+            icons::AUDIO_MUTED
+        };
+        let shared_config_i = shared_config.clone();
+        let mut toggle_audio = Button::new(Box::new(toggle_audio_icon.to_string()));
+        toggle_audio.set_on_click(move |this, _, ce| {
+            if ce.get_button() != 1 {
+                return;
+            }
+            if shared_config_i.is_audio_enabled() {
+                shared_config_i.audio_enabled(false);
+                this.set_text(icons::AUDIO_MUTED.to_string());
+            } else {
+                shared_config_i.audio_enabled(true);
+                this.set_text(icons::AUDIO_ACTIVE.to_string());
+            }
+        });
+        toggle_audio
+    };
+
+    let group = min_urgency_selector::init(shared_config.minimum_urgency);
     mc.add_component(Box::new(close_all));
     mc.add_component(Box::new(group));
+    #[cfg(feature = "audio")]
+    mc.add_component(Box::new(toggle_audio));
     mc.add_component(Box::new(menu_button_close()));
 }
 
