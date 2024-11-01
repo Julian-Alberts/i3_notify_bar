@@ -76,62 +76,69 @@ fn main() {
     }
 }
 
-#[tokio::main]
-async fn run(
+fn run(
     config: crate::rule::Config,
     emoji_mode: EmojiMode,
     max_text_length: usize,
     animation_chars_per_second: usize,
     refresh_rate: u64,
 ) {
-    let (system_command_tx, system_command_rx) = std::sync::mpsc::channel();
-    let shared_config = SharedConfig::default();
+    let body = async {
+        let (system_command_tx, system_command_rx) = std::sync::mpsc::channel();
+        let shared_config = SharedConfig::default();
 
-    let mut component_manager = ComponentManagerBuilder::new()
-        .with_click_events(true)
-        .build();
+        let mut component_manager = ComponentManagerBuilder::new()
+            .with_click_events(true)
+            .build();
 
-    component_manager.set_global_event_listener(|_, ce| {
-        debug!("{}", ce.get_button().to_string());
-    });
+        component_manager.set_global_event_listener(|_, ce| {
+            debug!("{}", ce.get_button().to_string());
+        });
 
-    let notify_server =
-        notify_server::NotifyServer::start().expect("Error starting notification server.");
-    let mut notification_manager = NotificationManager::new(
-        emoji_mode,
-        shared_config.clone(),
-        notify_server,
-        RuleExcutor::new(config.rules),
-    );
+        let notify_server =
+            notify_server::NotifyServer::start().expect("Error starting notification server.");
+        let mut notification_manager = NotificationManager::new(
+            emoji_mode,
+            shared_config.clone(),
+            notify_server,
+            RuleExcutor::new(config.rules),
+        );
 
-    component_manager.add_component(Box::new(NotificationBar::new(
-        shared_config,
-        notification_manager.linked_commands(),
-        notification_manager.event_channel(),
-        max_text_length,
-        animation_chars_per_second,
-        system_command_tx,
-    )));
+        component_manager.add_component(Box::new(NotificationBar::new(
+            shared_config,
+            notification_manager.linked_commands(),
+            notification_manager.event_channel(),
+            max_text_length,
+            animation_chars_per_second,
+            system_command_tx,
+        )));
 
-    let mut last_update = std::time::SystemTime::now();
+        let mut last_update = std::time::SystemTime::now();
 
-    loop {
-        notification_manager
-            .update(
-                last_update
-                    .elapsed()
-                    .map(|e| e.as_secs_f64())
-                    .unwrap_or_default(),
-            )
-            .await;
-        last_update = std::time::SystemTime::now();
+        loop {
+            notification_manager
+                .update(
+                    last_update
+                        .elapsed()
+                        .map(|e| e.as_secs_f64())
+                        .unwrap_or_default(),
+                )
+                .await;
+            last_update = std::time::SystemTime::now();
 
-        component_manager.update();
-        match system_command_rx.recv_timeout(Duration::from_millis(refresh_rate)) {
-            Ok(SystemCommand::ForceUpdate) => {}
-            Err(_) => {}
+            component_manager.update();
+            match system_command_rx.recv_timeout(Duration::from_millis(refresh_rate)) {
+                Ok(SystemCommand::ForceUpdate) => {}
+                Err(_) => {}
+            }
         }
-    }
+    };
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(2)
+        .build()
+        .expect("Failed building the Runtime")
+        .block_on(body)
 }
 
 fn read_config(config_file: Option<&Path>) -> crate::rule::Config {
