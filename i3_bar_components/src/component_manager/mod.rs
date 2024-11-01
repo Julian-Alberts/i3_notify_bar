@@ -4,7 +4,6 @@ pub use component_manager_messenger::ComponentManagerMassenger;
 
 use log::*;
 use std::any::Any;
-use std::collections::HashMap;
 use std::sync::mpsc::Receiver;
 use std::{
     io::{BufRead, Read, Stdout, Write},
@@ -74,12 +73,12 @@ impl ComponentManager {
             let Some(element_id) = event.get_instance() else {
                 return;
             };
-            self.layers
+            if let Some(e) = self
+                .layers
                 .last()
                 .unwrap()
                 .iter()
-                .map(|l| l.event_targets())
-                .flatten()
+                .flat_map(|l| l.event_targets())
                 .find_map(|(id, handler)| {
                     if id == Instance::from(element_id) {
                         Some(handler)
@@ -87,7 +86,9 @@ impl ComponentManager {
                         None
                     }
                 })
-                .map(|e| unsafe { e.cast_mut().as_mut().unwrap().event(cmm, event) });
+            {
+                unsafe { e.cast_mut().as_mut().unwrap().event(cmm, event) };
+            }
         });
     }
 
@@ -97,14 +98,14 @@ impl ComponentManager {
 
     fn build_json(&mut self) -> std::io::Result<()> {
         let mut write = self.out_writer.lock();
-        write.write_all(&[b'['])?;
+        write.write_all(b"[")?;
         self.get_layer()
             .iter()
             .flat_map(|c| c.all_properties())
             .enumerate()
             .try_for_each(|(index, block)| {
                 if index != 0 {
-                    write.write_all(&[b','])?;
+                    write.write_all(b",")?;
                 }
                 if block.padding.left > 0 {
                     serde_json::to_writer(
@@ -112,12 +113,12 @@ impl ComponentManager {
                         &create_padding(block.padding.left, block.instance),
                     )
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                    write.write_all(&[b','])?;
+                    write.write_all(b",")?;
                 }
                 serde_json::to_writer(&mut write, block)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                 if block.padding.right > 0 {
-                    write.write_all(&[b','])?;
+                    write.write_all(b",")?;
                     serde_json::to_writer(
                         &mut write,
                         &create_padding(block.padding.right, block.instance),
@@ -126,7 +127,7 @@ impl ComponentManager {
                 }
                 Ok::<_, std::io::Error>(())
             })?;
-        write.write_all(&[b']', b',', 10])
+        write.write_all(b"],\n")
     }
 
     pub fn get_component_mut<'a, T: Component + 'static>(

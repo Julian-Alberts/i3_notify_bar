@@ -42,9 +42,9 @@ impl Rule {
 pub struct IgnoreAction;
 
 impl ExecAction for IgnoreAction {
-    fn exec_action<'a>(
+    fn exec_action(
         &self,
-        nd: &'a mut NotificationData,
+        nd: &mut NotificationData,
         _: &NotificationTemplateData,
     ) -> ControlFlow<ExecuteActionBreakReason> {
         nd.ignore = true;
@@ -58,9 +58,9 @@ pub struct SetAction {
 }
 
 impl ExecAction for SetAction {
-    fn exec_action<'a>(
+    fn exec_action(
         &self,
-        data: &'a mut NotificationData,
+        data: &mut NotificationData,
         template: &NotificationTemplateData,
     ) -> ControlFlow<ExecuteActionBreakReason> {
         self.set_property.set_prop(data, template);
@@ -72,9 +72,9 @@ impl ExecAction for SetAction {
 pub struct StopAction;
 
 impl ExecAction for StopAction {
-    fn exec_action<'a>(
+    fn exec_action(
         &self,
-        _: &'a mut NotificationData,
+        _: &mut NotificationData,
         _: &NotificationTemplateData,
     ) -> ControlFlow<ExecuteActionBreakReason> {
         ControlFlow::Break(ExecuteActionBreakReason::Stop)
@@ -82,9 +82,9 @@ impl ExecAction for StopAction {
 }
 
 pub trait ExecAction: Send + Sync {
-    fn exec_action<'a>(
+    fn exec_action(
         &self,
-        data: &'a mut NotificationData,
+        data: &mut NotificationData,
         template: &NotificationTemplateData,
     ) -> ControlFlow<ExecuteActionBreakReason>;
 }
@@ -123,14 +123,14 @@ where
     S: Debug,
     V: Debug,
 {
-    fn set_prop<'a>(&self, data: &'a mut NotificationData, template: &NotificationTemplateData) {
+    fn set_prop(&self, data: &mut NotificationData, template: &NotificationTemplateData) {
         let value = (self.calc_value_fn)(&self.value, template);
         (self.set_prop_fn)(data, value)
     }
 }
 
 pub trait SetProp: Debug {
-    fn set_prop<'a>(&self, data: &'a mut NotificationData, template: &NotificationTemplateData);
+    fn set_prop(&self, data: &mut NotificationData, template: &NotificationTemplateData);
 }
 
 pub struct Eq;

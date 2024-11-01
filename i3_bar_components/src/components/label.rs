@@ -1,8 +1,5 @@
 use super::{prelude::*, BaseComponent};
-use crate::{
-    component_manager::ManageComponents, property::Properties, protocol::ClickEvent,
-    string::ComponentString,
-};
+use crate::{property::Properties, string::ComponentString};
 
 pub struct Label<Text: ComponentString = Box<dyn ComponentString>> {
     base_component: BaseComponent,

@@ -19,15 +19,10 @@ use i3_bar_components::{
     string::AnimatedString,
 };
 use log::{debug, error};
-use notification_bar::{MinimalUrgency, NotificationEvent, NotificationManager, SharedConfig};
+use notification_bar::{NotificationEvent, NotificationManager, SharedConfig};
 use path_manager::PathManager;
 use rule::RuleExcutor;
-use std::{
-    io::BufReader,
-    path::Path,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::{io::BufReader, path::Path, time::Duration};
 
 #[macro_use]
 extern crate pest_derive;

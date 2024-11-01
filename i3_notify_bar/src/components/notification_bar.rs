@@ -11,10 +11,7 @@ use crate::notification_bar::{
     CloseAllNotifications as _, NotificationEvent, NotificationManagerCommands, SharedConfig,
 };
 use crate::SystemCommand;
-use crate::{
-    icons,
-    notification_bar::{MinimalUrgency, NotificationData},
-};
+use crate::{icons, notification_bar::NotificationData};
 
 use super::{min_urgency_selector, NotificationComponent, NotificationGroup};
 
@@ -26,7 +23,6 @@ pub struct NotificationBar {
     max_width: usize,
     animation_chars_per_second: usize,
     notification_event_channel: std::sync::mpsc::Receiver<NotificationEvent>,
-    system_command_tx: std::sync::mpsc::Sender<SystemCommand>,
 }
 
 impl NotificationBar {
@@ -43,7 +39,6 @@ impl NotificationBar {
 
         let menu_btn_instance = menu_btn.instance();
         let nm_cmd = notification_manager_cmd.clone();
-        let system_command_tx_menu_btn = system_command_tx.clone();
         menu_btn.set_on_click(move |_, mc, ce| {
             let Some(instance) = ce.get_instance() else {
                 return;
@@ -51,7 +46,7 @@ impl NotificationBar {
             if menu_btn_instance != instance {
                 return;
             }
-            system_command_tx_menu_btn.send(SystemCommand::ForceUpdate);
+            let _ = system_command_tx.send(SystemCommand::ForceUpdate);
             open_menu(mc, ce, shared_config.clone(), nm_cmd.clone());
         });
 
@@ -63,7 +58,6 @@ impl NotificationBar {
             notification_event_channel,
             max_width,
             animation_chars_per_second,
-            system_command_tx,
         }
     }
 }

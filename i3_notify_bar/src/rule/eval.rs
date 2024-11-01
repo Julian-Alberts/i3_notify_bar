@@ -127,7 +127,7 @@ impl MatchedRule for MatchedRules {
         unsafe {
             std::hint::assert_unchecked(rule.is_some());
         }
-        rule.unwrap()
+        rule.expect("Rule can't be None as it has just been pushed")
     }
 }
 
@@ -147,12 +147,12 @@ fn fmt_matched_rules(
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
     stack.push(matched_rules.rule_id);
-    let mut stack_iter = stack.into_iter();
+    let mut stack_iter = stack.iter_mut();
     let id = stack_iter.next();
     unsafe {
         std::hint::assert_unchecked(id.is_some());
     }
-    write!(f, "{}", id.unwrap())?;
+    write!(f, "{}", id.expect("At least one id has been pushed"))?;
     for id in stack_iter {
         write!(f, ".{id}")?;
     }
@@ -182,7 +182,7 @@ impl MatchedRule for MatchedRulesInner {
         unsafe {
             std::hint::assert_unchecked(rule.is_some());
         }
-        rule.unwrap()
+        rule.expect("At least one rule has been pushed")
     }
 }
 

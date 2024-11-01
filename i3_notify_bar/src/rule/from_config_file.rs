@@ -17,7 +17,7 @@ pub enum Error {
         value: String,
     },
     #[error("Unable to parse value \"{value}\" for property \"{property}\": {error}")]
-    ParseError {
+    Parse {
         property: Cow<'static, str>,
         value: String,
         error: Box<dyn std::error::Error>,
@@ -86,7 +86,7 @@ impl TryFrom<ConditionDef> for Box<dyn CheckCondition + Send + Sync> {
                 urgency_condition(value, op)
             }
             "expire_timeout" => {
-                let value = value.parse().map_err(|e| Error::ParseError {
+                let value = value.parse().map_err(|e| Error::Parse {
                     property: "expire_timeout".into(),
                     value,
                     error: Box::new(e),
@@ -139,7 +139,7 @@ fn str_cond(
     let cond: Box<dyn CheckCondition + Send + Sync> = match op {
         CompareOperation::Eq => Box::new(Condition::<_, _, Eq>::new(value, get)),
         CompareOperation::Match => {
-            let value = Regex::new(value.as_str()).map_err(|e| Error::ParseError {
+            let value = Regex::new(value.as_str()).map_err(|e| Error::Parse {
                 property: "body".into(),
                 value,
                 error: Box::new(e),
@@ -201,7 +201,7 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
     fn try_from(value: ActionSetDef) -> Result<Self, Self::Error> {
         let set: Box<dyn SetProp + Send + Sync> = match (value.property.0.as_str(), value.value.0) {
             ("expire_timeout", v) => {
-                let value = v.parse().map_err(|e| Error::ParseError {
+                let value = v.parse().map_err(|e| Error::Parse {
                     property: "expire_timeout".into(),
                     value: v,
                     error: Box::new(e),
@@ -227,14 +227,14 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
             )),
             ("text", v) => {
                 let template_id =
-                    crate::template::add_template(v.clone()).map_err(|e| Error::ParseError {
+                    crate::template::add_template(v.clone()).map_err(|e| Error::Parse {
                         property: "expire_timeout".into(),
                         value: v,
                         error: Box::new(e),
                     })?;
                 Box::new(SetProperty::new(
                     template_id,
-                    |v, t| crate::template::render_template(v, t),
+                    crate::template::render_template,
                     |d, v| d.text = v,
                 ))
             }
@@ -264,7 +264,7 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
             )),
             #[cfg(feature = "audio")]
             ("volume", v) => Box::new(SetProperty::new(
-                v.parse::<f32>().map_err(|e| Error::ParseError {
+                v.parse::<f32>().map_err(|e| Error::Parse {
                     property: "volume".into(),
                     value: v,
                     error: Box::new(e),

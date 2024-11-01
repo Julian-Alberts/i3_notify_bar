@@ -36,10 +36,16 @@ impl Default for SharedConfig {
 
 impl SharedConfig {
     pub fn set_minimum_urgency(&self, u: MinimalUrgency) {
-        *self.minimum_urgency.write().unwrap() = u
+        *self
+            .minimum_urgency
+            .write()
+            .expect("Unable to access minimum urgency") = u
     }
     pub fn minimum_urgency(&self) -> MinimalUrgency {
-        *self.minimum_urgency.read().unwrap()
+        *self
+            .minimum_urgency
+            .read()
+            .expect("Unable to access minimum urgency")
     }
     #[cfg(feature = "audio")]
     pub fn audio_enabled(&self, audio: bool) {
@@ -307,7 +313,10 @@ impl PlayAudio for AudioManager {
         }
         .with_adjustable_volume_of(volume);
         info!("Playing notification sound");
-        manager.lock().unwrap().play(Box::new(sound));
+        manager
+            .lock()
+            .expect("Unable to lock audio manager")
+            .play(Box::new(sound));
         info!("Queued notification sound");
         Ok(())
     }
@@ -316,7 +325,7 @@ impl PlayAudio for AudioManager {
 #[cfg(feature = "audio")]
 impl Default for AudioManager {
     fn default() -> Self {
-        let (manager, backend) = awedio::start().unwrap();
+        let (manager, backend) = awedio::start().expect("Error starting audio backend");
         Box::leak(Box::new(backend));
         AudioManager {
             manager: Arc::new(std::sync::Mutex::new(manager)),
@@ -598,7 +607,7 @@ mod tests {
         let notify_src = notify_server::MockNotificationSource::default();
         let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
 
-        let _ = nm.config.set_minimum_urgency(MinimalUrgency::Critical);
+        nm.config.set_minimum_urgency(MinimalUrgency::Critical);
 
         assert_eq!(nm.notifications.len(), 0);
         assert_eq!(nm.default_emoji_mode, emoji::EmojiMode::Ignore);

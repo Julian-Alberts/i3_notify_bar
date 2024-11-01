@@ -7,12 +7,12 @@ use emoji::EmojiMode;
 #[clap(version = include_str!("../../version.txt"), author = "Julian Alberts")]
 pub struct Args {
     /// "Allowed values: "ignore", "remove", "replace"
-    #[cfg(emoji_mode_replace)]
+    #[cfg(feature = "emoji_mode_replace")]
     #[clap(long, default_value = "ignore")]
     pub emoji_mode: EmojiMode,
 
     /// Allowed values: "ignore", "remove"
-    #[cfg(not(emoji_mode_replace))]
+    #[cfg(not(feature = "emoji_mode_replace"))]
     #[clap(long, default_value = "ignore")]
     pub emoji_mode: EmojiMode,
 

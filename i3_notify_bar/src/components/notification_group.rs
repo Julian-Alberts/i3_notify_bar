@@ -109,7 +109,7 @@ impl EventTarget for NotificationGroup {
     fn event(
         &mut self,
         cm: &mut dyn i3_bar_components::ManageComponents,
-        event: &i3_bar_components::protocol::ClickEvent,
+        _event: &i3_bar_components::protocol::ClickEvent,
     ) {
         cm.new_layer();
         self.notifications.iter().for_each(|n| {

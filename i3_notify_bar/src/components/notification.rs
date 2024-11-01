@@ -1,7 +1,4 @@
-use std::{
-    sync::{Arc, RwLock},
-    usize,
-};
+use std::sync::{Arc, RwLock};
 
 use i3_bar_components::{
     components::{prelude::*, Button, Label, ProgressBar},
