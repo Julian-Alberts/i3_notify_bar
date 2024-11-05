@@ -80,7 +80,9 @@ impl ComponentManager {
                 .iter()
                 .flat_map(|l| l.event_targets())
                 .find_map(|(id, handler)| {
+                    debug!("Event handler id {id:?}");
                     if id == Instance::from(element_id) {
+                        debug!("Event matched id {element_id} {handler:#?}");
                         Some(handler)
                     } else {
                         None
@@ -88,6 +90,8 @@ impl ComponentManager {
                 })
             {
                 unsafe { e.cast_mut().as_mut().unwrap().event(cmm, event) };
+            } else {
+                debug!("Event target {element_id} not found")
             }
         });
     }

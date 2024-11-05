@@ -118,9 +118,15 @@ impl Component for NotificationBar {
             > + 'a,
     > {
         Box::new(
-            std::iter::once(self.menu_btn.event_targets())
-                .chain(self.notifications.iter().map(Component::event_targets))
-                .flatten(),
+            self.menu_btn
+                .event_targets()
+                .chain(
+                    self.notifications
+                        .iter()
+                        .map(Component::event_targets)
+                        .flatten(),
+                )
+                .chain(self.groups.values().map(Component::event_targets).flatten()),
         )
     }
 }
