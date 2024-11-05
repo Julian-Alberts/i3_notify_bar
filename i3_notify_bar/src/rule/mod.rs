@@ -1,7 +1,7 @@
 mod eval;
 mod from_config_file;
 
-use std::{fmt::Debug, ops::ControlFlow};
+use std::{collections::HashMap, fmt::Debug, ops::ControlFlow};
 
 use eval::ExecuteActionBreakReason;
 use regex::Regex;
@@ -12,6 +12,13 @@ pub use eval::{EvalRules, MatchedRules, RuleExcutor};
 #[derive(Default)]
 pub struct Config {
     pub rules: Vec<Rule>,
+    pub groups: HashMap<String, GroupConfig>,
+    pub default_group: Option<GroupConfig>,
+}
+
+#[derive(Default)]
+pub struct GroupConfig {
+    style: Vec<Style>,
 }
 
 pub struct NotificationRuleData<'a> {

@@ -36,14 +36,19 @@ pub fn parse_config(config: &mut dyn BufRead) -> ParseResult<ConfigDef> {
         None => return Err(ParseError::UnexpectedEnd),
     };
 
-    let rules = config.into_inner().filter(|def| match def.as_rule() {
-        Rule::rule => true,
-        Rule::EOI => false,
-        other => unreachable!("Unexpected rule: {:#?}", other),
-    });
+    let mut rules = Vec::default();
+    let mut groups = Vec::default();
 
-    let rules = rules.map(parse_rule).collect::<Result<_, _>>()?;
-    Ok(ConfigDef { rules })
+    for def in config.into_inner() {
+        match def.as_rule() {
+            Rule::rule => rules.push(parse_rule(def)?),
+            Rule::group => groups.push(parse_group(def)?),
+            Rule::EOI => (),
+            other => unreachable!("Unexpected rule: {:#?}", other),
+        }
+    }
+
+    Ok(ConfigDef { rules, groups })
 }
 
 fn unwrap_line(result: Result<String, std::io::Error>) -> String {
@@ -73,6 +78,28 @@ fn parse_rule(definition: Pair<Rule>) -> ParseResult<RuleDef> {
         }
     }
     Ok(rule)
+}
+
+fn parse_group(group: Pair<Rule>) -> ParseResult<GroupDef> {
+    let mut group_def = GroupDef::default();
+    let group = group.into_inner();
+
+    let mut group = group.peekable();
+    if group.peek().map(|g| g.as_rule()) == Some(Rule::property) {
+        group_def.name = Some(PropertyName(group.next().unwrap().as_str().to_string()))
+    }
+
+    for section in group {
+        let section = section
+            .into_inner()
+            .next()
+            .ok_or(ParseError::UnexpectedEnd)?;
+        match section.as_rule() {
+            Rule::style_section => parse_style_section(section, &mut group_def.style)?,
+            _ => unreachable!(),
+        }
+    }
+    Ok(group_def)
 }
 
 fn parse_action_section(
@@ -419,7 +446,8 @@ mod tests {
                         value: Value("#ff00ff".to_owned()),
                     }],
                     sub_rules: vec![]
-                }]
+                }],
+                ..Default::default()
             }
         )
     }
@@ -447,7 +475,19 @@ rule
     style
         background #ff00ff
     end
-end"#;
+end
+group
+    style
+        text #FFF
+    end
+end
+group group_name
+    style
+        text #333
+    end
+end
+
+"#;
         let config = parse_config(&mut config.as_bytes()).unwrap();
         assert_eq!(
             config,
@@ -472,9 +512,139 @@ end"#;
                         }],
                         ..Default::default()
                     }
+                ],
+                groups: vec![
+                    GroupDef {
+                        name: None,
+                        style: vec![StyleDef {
+                            property: PropertyName("text".to_owned()),
+                            value: Value("#FFF".to_owned())
+                        }],
+                    },
+                    GroupDef {
+                        name: Some(PropertyName("group_name".to_string())),
+                        style: vec![StyleDef {
+                            property: PropertyName("text".to_owned()),
+                            value: Value("#333".to_owned())
+                        }],
+                    }
                 ]
             }
         );
+    }
+
+    #[test]
+    fn parse_empty_default_group() {
+        let group = ConfigParser::parse(
+            Rule::group,
+            r#"group
+            end"#,
+        );
+
+        assert!(group.is_ok(), "{:#?}", group);
+
+        let group = group.unwrap().next().unwrap();
+
+        let group = parse_group(group).unwrap();
+        assert_eq!(
+            group,
+            GroupDef {
+                name: None,
+                style: Vec::default()
+            }
+        )
+    }
+
+    #[test]
+    fn parse_default_group_with_style() {
+        let group = ConfigParser::parse(
+            Rule::group,
+            r#"group
+            style
+                text #FFFFFF
+                background #000000
+            end
+            end"#,
+        );
+
+        assert!(group.is_ok(), "{:#?}", group);
+
+        let group = group.unwrap().next().unwrap();
+
+        let group = parse_group(group).unwrap();
+        assert_eq!(
+            group,
+            GroupDef {
+                name: None,
+                style: vec![
+                    StyleDef {
+                        property: PropertyName("text".to_string()),
+                        value: Value("#FFFFFF".to_string())
+                    },
+                    StyleDef {
+                        property: PropertyName("background".to_string()),
+                        value: Value("#000000".to_string())
+                    },
+                ]
+            }
+        )
+    }
+
+    #[test]
+    fn parse_empty_named_group() {
+        let group = ConfigParser::parse(
+            Rule::group,
+            r#"group g1
+            end"#,
+        );
+
+        assert!(group.is_ok(), "{:#?}", group);
+
+        let group = group.unwrap().next().unwrap();
+
+        let group = parse_group(group).unwrap();
+        assert_eq!(
+            group,
+            GroupDef {
+                name: Some(PropertyName("g1".to_string())),
+                style: Vec::default()
+            }
+        )
+    }
+
+    #[test]
+    fn parse_named_group_with_style() {
+        let group = ConfigParser::parse(
+            Rule::group,
+            r#"group g2
+            style
+                text #FFFFFF
+                background #000000
+            end
+            end"#,
+        );
+
+        assert!(group.is_ok(), "{:#?}", group);
+
+        let group = group.unwrap().next().unwrap();
+
+        let group = parse_group(group).unwrap();
+        assert_eq!(
+            group,
+            GroupDef {
+                name: Some(PropertyName("g2".to_string())),
+                style: vec![
+                    StyleDef {
+                        property: PropertyName("text".to_string()),
+                        value: Value("#FFFFFF".to_string())
+                    },
+                    StyleDef {
+                        property: PropertyName("background".to_string()),
+                        value: Value("#000000".to_string())
+                    },
+                ]
+            }
+        )
     }
 }
 

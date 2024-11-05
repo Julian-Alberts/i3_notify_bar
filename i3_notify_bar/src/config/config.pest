@@ -1,12 +1,20 @@
 WHITESPACE = _{ " "|"\t" }
 
-config = {SOI ~ NEWLINE* ~ (rule ~ NEWLINE*)* ~ EOI}
+config = {SOI ~ NEWLINE* ~ ((rule | group) ~ NEWLINE*)* ~ EOI}
 
 rule = {
     "rule" ~ NEWLINE ~
         (section ~ NEWLINE )* ~
     "end"
 }
+
+group = {
+    "group" ~ property? ~ NEWLINE ~
+    	(group_section ~ NEWLINE )* ~
+    "end"
+}
+
+group_section = {style_section}
 
 section = {condition_section|action_section|style_section|rule}
 

@@ -1,6 +1,7 @@
 #[derive(Debug, Default, PartialEq)]
 pub struct ConfigDef {
     pub rules: Vec<RuleDef>,
+    pub groups: Vec<GroupDef>,
 }
 
 #[derive(Debug, Default, PartialEq)]
@@ -9,6 +10,12 @@ pub struct RuleDef {
     pub actions: Vec<ActionDef>,
     pub style: Vec<StyleDef>,
     pub sub_rules: Vec<RuleDef>,
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct GroupDef {
+    pub name: Option<PropertyName>,
+    pub style: Vec<StyleDef>,
 }
 
 #[derive(Debug, PartialEq)]

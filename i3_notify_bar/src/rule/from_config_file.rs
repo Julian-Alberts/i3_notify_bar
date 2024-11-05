@@ -37,10 +37,45 @@ where
 
 impl TryFrom<ConfigDef> for Config {
     type Error = Error;
-    fn try_from(value: ConfigDef) -> Result<Self, Self::Error> {
+    fn try_from(mut value: ConfigDef) -> Result<Self, Self::Error> {
+        let default_group = value
+            .groups
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(i, v)| if v.name.is_none() { Some(i) } else { None })
+            .map(|i| {
+                let g = value.groups.remove(i);
+                g.try_into()
+            })
+            .transpose()?
+            .map(|dg: (Option<String>, GroupConfig)| dg.1);
+        let groups = value
+            .groups
+            .into_iter()
+            .filter_map(|g| match g.try_into() {
+                Ok((Some(key), value)) => Some(Ok((key, value))),
+                Ok((None, _)) => None,
+                Err(e) => Some(Err(e)),
+            })
+            .collect::<Result<HashMap<_, _>, _>>()?;
         Ok(Self {
             rules: vec_try_into(value.rules)?,
+            default_group,
+            groups,
         })
+    }
+}
+
+impl TryFrom<GroupDef> for (Option<String>, GroupConfig) {
+    type Error = Error;
+    fn try_from(value: GroupDef) -> Result<Self, Self::Error> {
+        Ok((
+            value.name.map(|n| n.0),
+            GroupConfig {
+                style: vec_try_into(value.style)?,
+            },
+        ))
     }
 }
 
