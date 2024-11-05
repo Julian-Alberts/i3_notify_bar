@@ -2,7 +2,6 @@
 mod args;
 mod components;
 mod config;
-// Currently disabled
 mod debug_config;
 mod icons;
 mod notification_bar;
@@ -83,6 +82,7 @@ fn run(
     animation_chars_per_second: usize,
     refresh_rate: u64,
 ) {
+    let config = Box::leak(Box::new(config));
     let body = async {
         let (system_command_tx, system_command_rx) = std::sync::mpsc::channel();
         let shared_config = SharedConfig::default();
@@ -101,7 +101,7 @@ fn run(
             emoji_mode,
             shared_config.clone(),
             notify_server,
-            RuleExcutor::new(config.rules),
+            RuleExcutor::new(&config.rules),
         );
 
         component_manager.add_component(Box::new(NotificationBar::new(
@@ -111,6 +111,7 @@ fn run(
             max_text_length,
             animation_chars_per_second,
             system_command_tx,
+            config,
         )));
 
         let mut last_update = std::time::SystemTime::now();

@@ -15,7 +15,7 @@ use crate::{icons, notification_bar::NotificationData};
 
 use super::{min_urgency_selector, NotificationComponent, NotificationGroup};
 
-pub struct NotificationBar {
+pub struct NotificationBar<'a> {
     notifications: Vec<NotificationComponent>,
     groups: BTreeMap<String, NotificationGroup>,
     menu_btn: Button,
@@ -23,9 +23,10 @@ pub struct NotificationBar {
     max_width: usize,
     animation_chars_per_second: usize,
     notification_event_channel: std::sync::mpsc::Receiver<NotificationEvent>,
+    config: &'a crate::rule::Config,
 }
 
-impl NotificationBar {
+impl<'a> NotificationBar<'a> {
     pub fn new(
         shared_config: SharedConfig,
         notification_manager_cmd: NotificationManagerCommands,
@@ -33,6 +34,7 @@ impl NotificationBar {
         max_width: usize,
         animation_chars_per_second: usize,
         system_command_tx: std::sync::mpsc::Sender<SystemCommand>,
+        config: &'a crate::rule::Config,
     ) -> Self {
         let icon = icons::get_icon("menu").map_or(String::from(" menu "), |c| format!(" {} ", c));
         let mut menu_btn = Button::new(Box::new(icon));
@@ -58,14 +60,15 @@ impl NotificationBar {
             notification_event_channel,
             max_width,
             animation_chars_per_second,
+            config,
         }
     }
 }
 
-impl Component for NotificationBar {
-    fn all_properties<'a>(
-        &'a self,
-    ) -> Box<dyn Iterator<Item = &i3_bar_components::property::Properties> + 'a> {
+impl<'a> Component for NotificationBar<'a> {
+    fn all_properties<'b>(
+        &'b self,
+    ) -> Box<dyn Iterator<Item = &i3_bar_components::property::Properties> + 'b> {
         Box::new(
             self.notifications
                 .iter()
@@ -85,6 +88,7 @@ impl Component for NotificationBar {
                     Add(n) => add_notification(
                         n,
                         &mut self.groups,
+                        &self.config,
                         &mut self.notifications,
                         &self.notification_manager_cmd,
                         self.max_width,
@@ -107,15 +111,15 @@ impl Component for NotificationBar {
         self.menu_btn.update(dt);
     }
 
-    fn event_targets<'a>(
-        &'a self,
+    fn event_targets<'b>(
+        &'b self,
     ) -> Box<
         dyn Iterator<
                 Item = (
                     i3_bar_components::property::Instance,
                     *const dyn EventTarget,
                 ),
-            > + 'a,
+            > + 'b,
     > {
         Box::new(
             self.menu_btn
@@ -134,6 +138,7 @@ impl Component for NotificationBar {
 fn add_notification(
     n: Arc<RwLock<NotificationData>>,
     groups: &mut BTreeMap<String, NotificationGroup>,
+    config: &crate::rule::Config,
     notifications: &mut Vec<NotificationComponent>,
     notification_manager_cmd: &NotificationManagerCommands,
     max_width: usize,
@@ -145,13 +150,23 @@ fn add_notification(
         drop(n_l);
 
         let group = groups.entry(group_name.clone()).or_insert_with(|| {
-            NotificationGroup::new(
-                group_name,
+            let mut group = NotificationGroup::new(
+                group_name.clone(),
                 notification_manager_cmd.clone(),
                 max_width,
                 move_chars_per_sec,
                 vec![],
-            )
+            );
+            config
+                .default_group
+                .as_ref()
+                .map(|g| g.style.iter().for_each(|s| s.apply(&mut group)));
+            config
+                .groups
+                .get(&group_name)
+                .as_ref()
+                .map(|g| g.style.iter().for_each(|s| s.apply(&mut group)));
+            group
         });
         group.add(n);
     } else {

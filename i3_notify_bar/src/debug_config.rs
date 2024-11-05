@@ -33,7 +33,7 @@ pub fn debug_config(config: Config, emoji_mode: EmojiMode, debug_config: DebugCo
 
     let mut notification_template_data = NotificationTemplateData::from(&notification);
 
-    let rule_executor = RuleExcutor::new(config.rules);
+    let rule_executor = RuleExcutor::new(&config.rules);
 
     let matched_rules: crate::rule::MatchedRules = rule_executor.eval(
         &notification,

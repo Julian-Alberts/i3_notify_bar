@@ -7,17 +7,17 @@ use crate::{
 
 use super::Rule;
 
-pub struct RuleExcutor {
-    rules: Vec<Rule>,
+pub struct RuleExcutor<'a> {
+    rules: &'a [Rule],
 }
 
-impl RuleExcutor {
-    pub fn new(rules: Vec<Rule>) -> Self {
+impl<'a> RuleExcutor<'a> {
+    pub fn new(rules: &'a [Rule]) -> Self {
         Self { rules }
     }
 }
 
-impl<MatchedRules: Default + MatchedRule> EvalRules<MatchedRules> for RuleExcutor {
+impl<'a, MatchedRules: Default + MatchedRule> EvalRules<MatchedRules> for RuleExcutor<'a> {
     fn eval(
         &self,
         n: &notify_server::notification::Notification,

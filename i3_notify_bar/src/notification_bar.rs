@@ -59,7 +59,7 @@ impl SharedConfig {
     }
 }
 
-pub struct NotificationManager<Src = NotifyServer, RE = RuleExcutor>
+pub struct NotificationManager<'a, Src = NotifyServer, RE = RuleExcutor<'a>>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
     RE: EvalRules<()>,
@@ -75,6 +75,7 @@ where
     events_rx: Option<std::sync::mpsc::Receiver<NotificationEvent>>,
     #[cfg(feature = "audio")]
     audio_manager: Option<AudioManager>,
+    _p: std::marker::PhantomData<&'a ()>,
 }
 
 pub trait InvokeAction {
@@ -89,7 +90,7 @@ pub trait CloseAllNotifications {
     fn close_all_notifications(&self, reason: CloseReason);
 }
 
-impl<Src, RE> NotificationManager<Src, RE>
+impl<'a, Src, RE> NotificationManager<'a, Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
     RE: EvalRules<()> + Send + Sync + 'static,
@@ -114,6 +115,7 @@ where
             events_rx: Some(events_rx),
             #[cfg(feature = "audio")]
             audio_manager: Some(AudioManager::default()),
+            _p: Default::default(),
         }
     }
 
@@ -333,7 +335,7 @@ impl Default for AudioManager {
     }
 }
 
-impl<Src, RE> InvokeAction for NotificationManager<Src, RE>
+impl<'a, Src, RE> InvokeAction for NotificationManager<'a, Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
     RE: EvalRules<()> + Send + Sync + 'static,
@@ -348,7 +350,7 @@ where
     }
 }
 
-impl<Src, RE> CloseNotification for NotificationManager<Src, RE>
+impl<'a, Src, RE> CloseNotification for NotificationManager<'a, Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
     RE: EvalRules<()> + Send + Sync + 'static,
@@ -360,7 +362,7 @@ where
     }
 }
 
-impl<Src, RE> CloseAllNotifications for NotificationManager<Src, RE>
+impl<'a, Src, RE> CloseAllNotifications for NotificationManager<'a, Src, RE>
 where
     Src: notify_server::NotificationSource + Send + Sync + 'static,
     RE: EvalRules<()> + Send + Sync + 'static,
@@ -553,10 +555,10 @@ mod tests {
 
     use super::{MinimalUrgency, NotificationData, NotificationManager};
 
-    fn minimal_notification_manager<RE: EvalRules<()> + Send + Sync + 'static>(
+    fn minimal_notification_manager<'a, RE: EvalRules<()> + Send + Sync + 'static>(
         notify_src: notify_server::MockNotificationSource,
         rule_evaluator: RE,
-    ) -> NotificationManager<notify_server::MockNotificationSource, RE> {
+    ) -> NotificationManager<'a, notify_server::MockNotificationSource, RE> {
         NotificationManager::new(
             emoji::EmojiMode::Ignore,
             super::SharedConfig {
@@ -605,7 +607,7 @@ mod tests {
     #[test]
     fn new_notification_mamager() {
         let notify_src = notify_server::MockNotificationSource::default();
-        let nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
+        let nm = minimal_notification_manager(notify_src, RuleExcutor::new(&[]));
 
         nm.config.set_minimum_urgency(MinimalUrgency::Critical);
 
@@ -617,7 +619,7 @@ mod tests {
     #[test]
     fn notification_manager_notify() {
         let notify_src = notify_server::MockNotificationSource::default();
-        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
+        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(&[]));
         let mut notification = server_notification();
         assert_eq!(nm.notifications.len(), 0);
         nm.notify(&notification);
@@ -633,7 +635,7 @@ mod tests {
     #[test]
     fn notification_manager_notify_urgency_check() {
         let notify_src = notify_server::MockNotificationSource::default();
-        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
+        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(&[]));
 
         nm.config.set_minimum_urgency(MinimalUrgency::Critical);
 
@@ -659,7 +661,7 @@ mod tests {
             )
             .returning(|_, _| Ok(()));
         notify_src.expect_take_events().once().returning(|| None);
-        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
+        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(&[]));
         nm.action_invoked(10.into(), "default");
         nm.update(0.0).await;
     }
@@ -677,7 +679,7 @@ mod tests {
             )
             .returning(|_, _| Ok(()));
         notify_src.expect_take_events().once().returning(|| None);
-        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
+        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(&[]));
         nm.notification_closed(10.into(), CloseReason::Expired);
         nm.update(0.0).await;
     }
@@ -686,7 +688,7 @@ mod tests {
     async fn notification_manager_close_all_notifications() {
         use mockall::predicate::{eq, in_iter};
         let notify_src = notify_server::MockNotificationSource::default();
-        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(vec![]));
+        let mut nm = minimal_notification_manager(notify_src, RuleExcutor::new(&[]));
         nm.notifications.append(&mut vec![
             Arc::new(RwLock::new(notification(1))),
             Arc::new(RwLock::new(notification(12))),

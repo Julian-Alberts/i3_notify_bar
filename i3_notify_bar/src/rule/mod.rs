@@ -18,7 +18,7 @@ pub struct Config {
 
 #[derive(Default)]
 pub struct GroupConfig {
-    style: Vec<Style>,
+    pub style: Vec<Style>,
 }
 
 pub struct NotificationRuleData<'a> {
