@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Display};
+
 #[derive(Debug, PartialEq)]
 pub struct AnimatedString<S: AsRef<str>> {
     pub start_offset: f64,
@@ -122,6 +124,15 @@ where
     }
 }
 
+impl<S> Display for AnimatedString<S>
+where
+    S: AsRef<str>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.to_component_text(), f)
+    }
+}
+
 pub struct PartiallyAnimatedString<Sl, Sc, Sr>
 where
     Sl: AsRef<str>,
@@ -237,6 +248,17 @@ where
     }
 }
 
+impl<Sl, Sc, Sr> Display for PartiallyAnimatedString<Sl, Sc, Sr>
+where
+    Sl: AsRef<str>,
+    Sc: AsRef<str>,
+    Sr: AsRef<str>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.to_component_text(), f)
+    }
+}
+
 impl ComponentString for String {
     fn to_component_text(&self) -> String {
         self.clone()
@@ -245,7 +267,7 @@ impl ComponentString for String {
     fn update(&mut self, _: f64) {}
 }
 
-pub trait ComponentString {
+pub trait ComponentString: Display {
     fn to_component_text(&self) -> String;
     fn update(&mut self, dt: f64);
 }
