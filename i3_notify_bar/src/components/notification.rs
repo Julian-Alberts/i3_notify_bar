@@ -21,7 +21,7 @@ use super::action_bar::ActionBar;
 
 pub struct NotificationComponent {
     notification: Arc<RwLock<NotificationData>>,
-    label: Label<PartiallyAnimatedString>,
+    label: Label<PartiallyAnimatedStringLeft>,
     close_button: Button,
     close_timer: Option<ProgressBar>,
     name: String,
@@ -230,21 +230,19 @@ pub fn notification_id_to_notification_compnent_name(id: NotificationId) -> Stri
     format!("i3_notify_bar_notification_component:{}", id)
 }
 
+type PartiallyAnimatedStringLeft = PartiallyAnimatedString<String, String, &'static str>;
+
 pub fn notification_data_to_animated_text(
     nd: &NotificationData,
     max_width: usize,
     move_chars_per_sec: usize,
-) -> PartiallyAnimatedString {
+) -> PartiallyAnimatedStringLeft {
     let icon = if nd.icon != ' ' {
         Some(format!("{} ", nd.icon))
     } else {
         None
     };
-    PartiallyAnimatedString::new(
-        icon,
-        AnimatedString::new(nd.text.clone())
-            .with_max_width(max_width)
-            .with_move_chars_per_sec(move_chars_per_sec),
-        String::from(" ").into(),
-    )
+    PartiallyAnimatedString::new(icon, nd.text.clone(), None)
+        .with_max_width(max_width)
+        .with_move_chars_per_sec(move_chars_per_sec)
 }

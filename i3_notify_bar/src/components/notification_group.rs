@@ -2,7 +2,7 @@ use std::sync::{Arc, RwLock};
 
 use i3_bar_components::{
     components::{prelude::*, Button, Label},
-    string::{AnimatedString, PartiallyAnimatedString},
+    string::PartiallyAnimatedString,
 };
 
 use crate::{
@@ -10,8 +10,10 @@ use crate::{
     notification_bar::{NotificationData, NotificationManagerCommands},
 };
 
+type PartiallyAnimatedStringRight = PartiallyAnimatedString<&'static str, String, String>;
+
 pub struct NotificationGroup {
-    label: Label<PartiallyAnimatedString>,
+    label: Label<PartiallyAnimatedStringRight>,
     notifications: Vec<Arc<RwLock<NotificationData>>>,
     notification_manager_cmd: NotificationManagerCommands,
     max_width: usize,
@@ -33,7 +35,7 @@ impl NotificationGroup {
     ) -> Self {
         let string = PartiallyAnimatedString::new(
             None,
-            AnimatedString::new(group_name.clone()),
+            group_name.clone(),
             Some(format!(" {}", notifications.len())),
         );
         let mut label = Label::new(string);
