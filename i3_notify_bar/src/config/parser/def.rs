@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Display};
+
 #[derive(Debug, Default, PartialEq)]
 pub struct ConfigDef {
     pub rules: Vec<RuleDef>,
@@ -25,10 +27,29 @@ pub struct ConditionDef {
     pub value: Value,
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct PropertyName(pub String);
-#[derive(Debug, Default, PartialEq)]
-pub struct Value(pub String);
+#[derive(Debug, Default, PartialEq, Clone)]
+pub enum Value {
+    String(String),
+    Number(i32),
+    Urgency(String),
+    #[default]
+    Null,
+    Color(String),
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::String(s) => write!(f, "{s:?}"),
+            Self::Urgency(u) => Display::fmt(&u, f),
+            Self::Number(n) => Display::fmt(&n, f),
+            Self::Color(c) => Display::fmt(&c, f),
+            Self::Null => write!(f, "null"),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum CompareOperation {

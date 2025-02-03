@@ -7,6 +7,31 @@ use crate::config::parser::def::*;
 
 use super::*;
 
+macro_rules! unsupported_type {
+    ($prop:literal) => {
+        |error| Error::UnsupportedType {
+            property: $prop.into(),
+            error,
+        }
+    };
+}
+
+#[derive(Debug, thiserror::Error)]
+pub struct UnsupportedTypeError {
+    expected_type: &'static str,
+    found_type: &'static str,
+}
+
+impl std::fmt::Display for UnsupportedTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Expected value of type {}, found type {}",
+            self.expected_type, self.found_type
+        )
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Unknown property {0}")]
@@ -15,6 +40,11 @@ pub enum Error {
     UnsupportedValue {
         property: Cow<'static, str>,
         value: String,
+    },
+    #[error("{error} for property \"{property}\"")]
+    UnsupportedType {
+        property: Cow<'static, str>,
+        error: UnsupportedTypeError,
     },
     #[error("Unable to parse value \"{value}\" for property \"{property}\": {error}")]
     Parse {
@@ -97,35 +127,36 @@ impl TryFrom<ConditionDef> for Box<dyn CheckCondition + Send + Sync> {
         ConditionDef {
             property: PropertyName(property),
             op,
-            value: Value(value),
+            value,
         }: ConditionDef,
     ) -> Result<Self, Self::Error> {
         match property.as_str() {
-            "body" => body_cond(value, op),
-            "group" => group_cond(value, op),
-            "app_name" => app_name_cond(value, op),
-            "app_icon" => app_icon_cond(value, op),
-            "summary" => summary_cond(value, op),
+            "body" => body_cond(value.try_into().map_err(unsupported_type!("body"))?, op),
+            "group" => group_cond(value.try_into().map_err(unsupported_type!("group"))?, op),
+            "app_name" => app_name_cond(value.try_into().map_err(unsupported_type!("group"))?, op),
+            "app_icon" => app_icon_cond(value.try_into().map_err(unsupported_type!("group"))?, op),
+            "summary" => summary_cond(value.try_into().map_err(unsupported_type!("group"))?, op),
             "urgency" => {
-                let value = match value.as_str() {
+                let value = match String::try_from(value)
+                    .map_err(unsupported_type!("urgency"))?
+                    .as_str()
+                {
                     "low" => Urgency::Low,
                     "normal" => Urgency::Normal,
                     "critical" => Urgency::Critical,
-                    _ => {
+                    v => {
                         return Err(Error::UnsupportedValue {
                             property: "urgency".into(),
-                            value,
+                            value: v.to_string(),
                         })
                     }
                 };
                 urgency_condition(value, op)
             }
             "expire_timeout" => {
-                let value = value.parse().map_err(|e| Error::Parse {
-                    property: "expire_timeout".into(),
-                    value,
-                    error: Box::new(e),
-                })?;
+                let value = value
+                    .try_into()
+                    .map_err(unsupported_type!("expire_timeout"))?;
                 expire_timeout_cond(value, op)
             }
             _ => unreachable!(),
@@ -234,13 +265,9 @@ impl TryFrom<ActionDef> for Box<dyn ExecAction> {
 impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
     type Error = Error;
     fn try_from(value: ActionSetDef) -> Result<Self, Self::Error> {
-        let set: Box<dyn SetProp + Send + Sync> = match (value.property.0.as_str(), value.value.0) {
+        let set: Box<dyn SetProp + Send + Sync> = match (value.property.0.as_str(), value.value) {
             ("expire_timeout", v) => {
-                let value = v.parse().map_err(|e| Error::Parse {
-                    property: "expire_timeout".into(),
-                    value: v,
-                    error: Box::new(e),
-                })?;
+                let value = v.try_into().map_err(unsupported_type!("expire_timeout"))?;
                 Box::new(SetProperty::new(
                     value,
                     |v, _| *v,
@@ -251,22 +278,28 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
                 ))
             }
             ("group", v) => Box::new(SetProperty::new(
-                v,
+                String::try_from(v).map_err(unsupported_type!("group"))?,
                 |v, _| v.clone(),
                 |d, v| d.group = Some(v),
             )),
             ("icon", v) => Box::new(SetProperty::new(
-                v.chars().next().unwrap_or('\0'),
+                String::try_from(v)
+                    .map_err(unsupported_type!("group"))?
+                    .chars()
+                    .next()
+                    .unwrap_or('\0'),
                 |v, _| *v,
                 |d, v| d.icon = v,
             )),
             ("text", v) => {
-                let template_id =
-                    crate::template::add_template(v.clone()).map_err(|e| Error::Parse {
-                        property: "expire_timeout".into(),
-                        value: v,
-                        error: Box::new(e),
-                    })?;
+                let template_id = crate::template::add_template(
+                    v.clone().try_into().map_err(unsupported_type!("text"))?,
+                )
+                .map_err(|e| Error::Parse {
+                    property: "text".into(),
+                    value: v.to_string(),
+                    error: Box::new(e),
+                })?;
                 Box::new(SetProperty::new(
                     template_id,
                     crate::template::render_template,
@@ -274,14 +307,14 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
                 ))
             }
             ("emoji", v) => {
-                let mode = match v.as_str() {
-                    "ignore" => EmojiMode::Ignore,
-                    "remove" => EmojiMode::Remove,
-                    "replace" => EmojiMode::Replace,
+                let mode = match v {
+                    Value::String(v) if v == "ignore" => EmojiMode::Ignore,
+                    Value::String(v) if v == "remove" => EmojiMode::Remove,
+                    Value::String(v) if v == "replace" => EmojiMode::Replace,
                     _ => {
                         return Err(Error::UnsupportedValue {
                             property: "emoji".into(),
-                            value: v,
+                            value: v.to_string(),
                         })
                     }
                 };
@@ -321,12 +354,97 @@ impl TryFrom<ActionSetDef> for Box<dyn SetProp + Send + Sync> {
     }
 }
 
+impl Value {
+    fn type_name(&self) -> &'static str {
+        match self {
+            Self::Null => "any",
+            Self::String(_) => "string",
+            Self::Number(_) => "number",
+            Self::Urgency(_) => "urgency",
+            Self::Color(_) => "color",
+        }
+    }
+}
+
+impl TryFrom<Value> for i32 {
+    type Error = UnsupportedTypeError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Number(n) => Ok(n),
+            v => Err(UnsupportedTypeError {
+                expected_type: "number",
+                found_type: v.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<Value> for Color {
+    type Error = UnsupportedTypeError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Color(c) => Ok(Color(c)),
+            v => Err(UnsupportedTypeError {
+                expected_type: "color",
+                found_type: v.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<Value> for Option<i32> {
+    type Error = UnsupportedTypeError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Number(n) => Ok(Some(n)),
+            Value::Null => Ok(None),
+            v => Err(UnsupportedTypeError {
+                expected_type: "number?",
+                found_type: v.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<Value> for String {
+    type Error = UnsupportedTypeError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::String(n) => Ok(n),
+            v => Err(UnsupportedTypeError {
+                expected_type: "string",
+                found_type: v.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<Value> for Option<String> {
+    type Error = UnsupportedTypeError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::String(n) => Ok(Some(n)),
+            Value::Null => Ok(None),
+            v => Err(UnsupportedTypeError {
+                expected_type: "string?",
+                found_type: v.type_name(),
+            }),
+        }
+    }
+}
+
 impl TryFrom<StyleDef> for Style {
     type Error = Error;
     fn try_from(value: StyleDef) -> Result<Self, Self::Error> {
+        let v = value.value.try_into();
         let style = match value.property.0.as_str() {
-            "text" => Self::Text(value.value.0),
-            "background" => Self::Background(value.value.0),
+            "text" => Self::Text(v.map_err(unsupported_type!("text"))?),
+            "background" => Self::Background(v.map_err(unsupported_type!("background"))?),
             k => return Err(Error::UnknownStyleProperty(k.into())),
         };
         Ok(style)

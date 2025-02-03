@@ -23,7 +23,7 @@ condition_section = {
         (condition ~ NEWLINE)* ~
     "end"
 }
-condition = { property ~ compare_op ~ assign_value }
+condition = { property ~ compare_op ~ value }
 property = ${ ('a'..'z' | '0'..'9' | "_")+ }
 
 action_section = { 
@@ -34,7 +34,7 @@ action_section = {
 action = { stop_action|ignore_action|set_action }
 stop_action = { "stop" }
 ignore_action = { "ignore" }
-set_action = { "set" ~ property ~ assign_value}
+set_action = { "set" ~ property ~ value}
 
 style_section = {
     "style" ~ NEWLINE ~
@@ -42,9 +42,19 @@ style_section = {
     "end"
 }
 
-style = {property ~ assign_value}
+style = {property ~ value}
 
-assign_value = {(!NEWLINE ~ ANY)+}
+value = {value_string | value_number | value_color | value_urgency | value_null}
+value_string = ${ "\"" ~ value_string_inner ~ "\"" }
+value_string_inner = {(!"\"" ~ ( "\\\""| ANY))*}
+string_char = {
+    !("\"" | "\\") ~ ANY
+    | "\\\""
+}
+value_number = { "-"? ~ '0'..'9'+ }
+value_urgency = { "low" | "normal" | "critical" }
+value_null = { "null" }
+value_color = ${ "#" ~ (('0'..'9' | 'a'..'f' | 'A'..'F'){3}){1,2} }
 
 compare_eq = { "=" }
 compare_lt = { "<" } 

@@ -166,10 +166,21 @@ fn parse_condition(condition: Pair<Rule>) -> ParseResult<ConditionDef> {
 }
 
 fn parse_value(value: Pair<'_, Rule>) -> Value {
-    if value.as_rule() != Rule::assign_value {
+    if value.as_rule() != Rule::value {
         unreachable!()
     }
-    Value(value.as_str().to_string())
+    let value = value.into_inner().next().unwrap();
+    match value.as_rule() {
+        Rule::value_null => Value::Null,
+        Rule::value_string => {
+            let v = value.as_str();
+            Value::String(v[1..v.len() - 2].to_string())
+        }
+        Rule::value_number => Value::Number(value.as_str().parse().expect("Invalid number")),
+        Rule::value_urgency => Value::Urgency(value.as_str().to_string()),
+        Rule::value_color => Value::Color(value.as_str().to_string()),
+        _ => unreachable!(),
+    }
 }
 
 fn parse_compare_op(op: Pair<'_, Rule>) -> CompareOperation {
@@ -276,7 +287,7 @@ mod tests {
             styles,
             vec![StyleDef {
                 property: PropertyName("background".to_string()),
-                value: Value("#fff".to_owned())
+                value: Value::Color("#fff".to_owned())
             }]
         );
     }
@@ -317,7 +328,7 @@ mod tests {
                 end
                 rule
                     condition
-                        app_name = TestApp
+                        app_name = "TestApp"
                     end
                     action
                         ignore
@@ -339,7 +350,7 @@ mod tests {
                     conditions: vec![ConditionDef {
                         property: PropertyName("app_name".to_owned()),
                         op: CompareOperation::Eq,
-                        value: Value("TestApp".to_string())
+                        value: Value::String("TestApp".to_string())
                     }],
                     actions: vec![ActionDef::Ignore],
                     ..Default::default()
@@ -370,17 +381,17 @@ mod tests {
                 ConditionDef {
                     property: PropertyName(String::from("app_name")),
                     op: CompareOperation::Eq,
-                    value: Value("Thunderbird".to_owned())
+                    value: Value::String("Thunderbird".to_owned())
                 },
                 ConditionDef {
                     property: PropertyName(String::from("expire_timeout")),
                     op: CompareOperation::Eq,
-                    value: Value("10".to_owned())
+                    value: Value::Number(10)
                 },
                 ConditionDef {
                     property: PropertyName(String::from("body")),
                     op: CompareOperation::Match,
-                    value: Value("new".to_owned())
+                    value: Value::String("new".to_owned())
                 },
             ]
         );
@@ -407,7 +418,7 @@ mod tests {
             actions[0],
             ActionDef::Set(ActionSetDef {
                 property: PropertyName("text".to_owned()),
-                value: Value("Hello World".to_owned()),
+                value: Value::String("Hello World".to_owned()),
             })
         );
         assert_eq!(actions[1], ActionDef::Stop);
@@ -418,7 +429,7 @@ mod tests {
     fn parse_simple_config() {
         let config = r#"rule
             condition
-                app_name = Thunderbird
+                app_name = "Thunderbird"
             end
             action
                 set expire_timeout -1
@@ -435,15 +446,15 @@ mod tests {
                     conditions: vec![ConditionDef {
                         property: PropertyName("app_name".to_owned()),
                         op: CompareOperation::Eq,
-                        value: Value("Thunderbird".to_owned()),
+                        value: Value::String("Thunderbird".to_owned()),
                     }],
                     actions: vec![ActionDef::Set(ActionSetDef {
                         property: PropertyName("expire_timeout".to_string()),
-                        value: Value("-1".to_owned())
+                        value: Value::Number(-1)
                     })],
                     style: vec![StyleDef {
                         property: PropertyName("background".to_owned()),
-                        value: Value("#ff00ff".to_owned()),
+                        value: Value::String("#ff00ff".to_owned()),
                     }],
                     sub_rules: vec![]
                 }],
@@ -463,7 +474,7 @@ mod tests {
     fn parse_multi_entry_config() {
         let config = r#"rule
     condition
-        app_name = Thunderbird
+        app_name = "Thunderbird"
     end
 end
 rule
@@ -497,7 +508,7 @@ end
                         conditions: vec![ConditionDef {
                             property: PropertyName("app_name".to_owned()),
                             op: CompareOperation::Eq,
-                            value: Value("Thunderbird".to_owned())
+                            value: Value::String("Thunderbird".to_owned())
                         }],
                         ..Default::default()
                     },
@@ -508,7 +519,7 @@ end
                     RuleDef {
                         style: vec![StyleDef {
                             property: PropertyName("background".to_owned()),
-                            value: Value("#ff00ff".to_owned())
+                            value: Value::String("#ff00ff".to_owned())
                         }],
                         ..Default::default()
                     }
@@ -518,14 +529,14 @@ end
                         name: None,
                         style: vec![StyleDef {
                             property: PropertyName("text".to_owned()),
-                            value: Value("#FFF".to_owned())
+                            value: Value::String("#FFF".to_owned())
                         }],
                     },
                     GroupDef {
                         name: Some(PropertyName("group_name".to_string())),
                         style: vec![StyleDef {
                             property: PropertyName("text".to_owned()),
-                            value: Value("#333".to_owned())
+                            value: Value::String("#333".to_owned())
                         }],
                     }
                 ]
@@ -579,11 +590,11 @@ end
                 style: vec![
                     StyleDef {
                         property: PropertyName("text".to_string()),
-                        value: Value("#FFFFFF".to_string())
+                        value: Value::Color("#FFFFFF".to_string())
                     },
                     StyleDef {
                         property: PropertyName("background".to_string()),
-                        value: Value("#000000".to_string())
+                        value: Value::Color("#000000".to_string())
                     },
                 ]
             }
@@ -636,11 +647,11 @@ end
                 style: vec![
                     StyleDef {
                         property: PropertyName("text".to_string()),
-                        value: Value("#FFFFFF".to_string())
+                        value: Value::Color("#FFFFFF".to_string())
                     },
                     StyleDef {
                         property: PropertyName("background".to_string()),
-                        value: Value("#000000".to_string())
+                        value: Value::Color("#000000".to_string())
                     },
                 ]
             }
@@ -656,58 +667,23 @@ mod pest_tests {
     use super::*;
 
     #[test]
-    fn rule_section() {
-        let parsed = ConfigParser::parse(
-            Rule::condition_section,
-            r#"condition
-            app_name = aname
-            body match test value
-            expire_timeout = 10
-            end"#,
-        );
-
-        let mut parsed = parsed.unwrap();
-
-        let rule_section = parsed.next().unwrap();
-        let mut rules = rule_section.into_inner();
-        assert_eq!(rules.next().unwrap().as_str(), "app_name = aname");
-        assert_eq!(rules.next().unwrap().as_str(), "body match test value");
-        assert_eq!(rules.next().unwrap().as_str(), "expire_timeout = 10");
-    }
-
-    #[test]
     fn condition_section() {
         let parsed = ConfigParser::parse(
             Rule::condition_section,
             r#"condition
-            app_name = aname
-            body match test value
+            app_name = "aname"
+            body match "test value"
             expire_timeout = 10
             end"#,
         );
 
-        assert!(parsed.is_ok(), "{:#?}", parsed);
         let mut parsed = parsed.unwrap();
 
         let rule_section = parsed.next().unwrap();
         let mut rules = rule_section.into_inner();
-        assert_eq!(rules.next().unwrap().as_str(), "app_name = aname");
-        assert_eq!(rules.next().unwrap().as_str(), "body match test value");
+        assert_eq!(rules.next().unwrap().as_str(), "app_name = \"aname\"");
+        assert_eq!(rules.next().unwrap().as_str(), "body match \"test value\"");
         assert_eq!(rules.next().unwrap().as_str(), "expire_timeout = 10");
-    }
-
-    #[test]
-    fn rule_section_space_in_closing_tag() {
-        let parsed = ConfigParser::parse(
-            Rule::condition_section,
-            r#"rule
-            app_name = aname
-            body match test value
-            expire_timeout = 10
-            end rule"#,
-        );
-
-        assert!(parsed.is_err(), "{:#?}", parsed);
     }
 
     #[test]
@@ -715,13 +691,12 @@ mod pest_tests {
         let parsed = ConfigParser::parse(
             Rule::action_section,
             r#"action
-            set text test
+            set text "test"
             stop
             ignore
         endaction
         "#,
         );
-        assert!(parsed.is_ok());
         let mut parsed = parsed.unwrap();
 
         let action_section = parsed.next().unwrap();
@@ -777,12 +752,12 @@ mod pest_tests {
     fn config() {
         let parsed = ConfigParser::parse(
             Rule::config,
-            r#"rule
+            r##"rule
             style
                 background #ff00ff
                 text #234
             end
-            end"#,
+            end"##,
         );
 
         assert!(parsed.is_ok(), "{:#?}", parsed);

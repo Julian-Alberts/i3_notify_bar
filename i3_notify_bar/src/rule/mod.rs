@@ -242,16 +242,19 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Color(String);
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Style {
-    Background(String),
-    Text(String),
+    Background(Color),
+    Text(Color),
 }
 
 impl Style {
     pub fn apply(&self, base_component: &mut impl i3_bar_components::components::prelude::Color) {
         match self {
-            Style::Background(c) => base_component.set_color_background(Some(c.to_owned())),
-            Style::Text(c) => base_component.set_color_text(Some(c.to_owned())),
+            Style::Background(c) => base_component.set_color_background(Some(c.0.clone())),
+            Style::Text(c) => base_component.set_color_text(Some(c.0.clone())),
         }
     }
 }
@@ -327,10 +330,10 @@ mod tests {
             };
 
             macro_rules! action_set_def {
-                ($p: literal $value:expr) => {
+                ($t: ident: $p: literal $value:expr) => {
                     ActionSetDef {
                         property: PropertyName($p.into()),
-                        value: Value($value),
+                        value: Value::$t($value),
                     }
                 };
             }
@@ -374,7 +377,7 @@ mod tests {
             fn icon() {
                 let icon = '#';
                 let mut nd = new_nd();
-                let prop = action_set_def!("icon" icon.to_string());
+                let prop = action_set_def!(String: "icon" icon.to_string());
                 let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(icon, nd.icon);
@@ -386,7 +389,7 @@ mod tests {
             fn text() {
                 let text = "New Text";
                 let mut nd = new_nd();
-                let prop = action_set_def!("text" text.to_string());
+                let prop = action_set_def!(String: "text" text.to_string());
                 let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(text, nd.text);
@@ -398,7 +401,7 @@ mod tests {
             fn expire_timeout() {
                 let timeout = 100;
                 let mut nd = new_nd();
-                let prop = action_set_def!("expire_timeout" timeout.to_string());
+                let prop = action_set_def!(Number: "expire_timeout" timeout);
                 let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(timeout, nd.expire_timeout);
@@ -412,7 +415,7 @@ mod tests {
             fn emoji_mode() {
                 let emoji = EmojiMode::Remove;
                 let mut nd = new_nd();
-                let prop = action_set_def!("emoji" "remove".to_string());
+                let prop = action_set_def!(String: "emoji" "remove".to_string());
                 let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(emoji, nd.emoji_mode);
@@ -424,7 +427,7 @@ mod tests {
             fn group() {
                 let group = "TestGroup";
                 let mut nd = new_nd();
-                let prop = action_set_def!("group" group.to_string());
+                let prop = action_set_def!(String: "group" group.to_string());
                 let prop = BoxedActionSet::try_from(prop).unwrap();
                 let n = new_ntd();
                 assert_ne!(Some(group), nd.group.as_deref());
@@ -441,7 +444,7 @@ mod tests {
         #[test]
         fn set_background_color() {
             let color = "#FF00FF";
-            let style = Style::Background(color.to_owned());
+            let style = Style::Background(crate::rule::Color(color.to_owned()));
             let mut base = BaseComponent::new();
             assert_ne!(base.color_background(), Some(color));
             style.apply(&mut base);
@@ -451,7 +454,7 @@ mod tests {
         #[test]
         fn set_text_color() {
             let color = "#FF00FF";
-            let style = Style::Text(color.to_owned());
+            let style = Style::Text(crate::rule::Color(color.to_owned()));
             let mut base = BaseComponent::new();
             assert_ne!(base.color_text(), Some(color));
             style.apply(&mut base);
@@ -468,18 +471,18 @@ mod tests {
         type BoxedCond = Box<dyn CheckCondition + Send + Sync>;
 
         macro_rules! cond_def {
-            ($p: literal $op:ident $value:expr) => {
+            ($t: ident: $p: literal $op:ident $value:expr) => {
                 ConditionDef {
                     property: PropertyName($p.into()),
                     op: CompareOperation::$op,
-                    value: Value($value),
+                    value: Value::$t($value),
                 }
             };
         }
 
         #[test]
         fn app_icon() {
-            let condition = cond_def!("app_icon" Eq "#".to_string());
+            let condition = cond_def!(String: "app_icon" Eq "#".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.app_icon = "#";
@@ -490,7 +493,7 @@ mod tests {
 
         #[test]
         fn app_name() {
-            let condition = cond_def!("app_name" Eq "name".to_string());
+            let condition = cond_def!(String: "app_name" Eq "name".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.app_name = "name";
@@ -501,7 +504,7 @@ mod tests {
 
         #[test]
         fn summary_literal() {
-            let condition = cond_def!("summary" Eq "summary".to_string());
+            let condition = cond_def!(String: "summary" Eq "summary".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.summary = "summary";
@@ -512,7 +515,7 @@ mod tests {
 
         #[test]
         fn summary_regex() {
-            let condition = cond_def!("summary" Match "^[a-z]+$".to_string());
+            let condition = cond_def!(String: "summary" Match "^[a-z]+$".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.summary = "summary";
@@ -523,7 +526,7 @@ mod tests {
 
         #[test]
         fn body_literal() {
-            let condition = cond_def!("body" Eq "body".to_string());
+            let condition = cond_def!(String: "body" Eq "body".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.body = "body";
@@ -534,7 +537,7 @@ mod tests {
 
         #[test]
         fn body_regex() {
-            let condition = cond_def!("body" Match "^[a-z]+$".to_string());
+            let condition = cond_def!(String: "body" Match "^[a-z]+$".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.body = "body";
@@ -545,7 +548,7 @@ mod tests {
 
         #[test]
         fn urgency_low() {
-            let condition = cond_def!("urgency" Eq "low".to_string());
+            let condition = cond_def!(String: "urgency" Eq "low".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.urgency = &notify_server::notification::Urgency::Low;
@@ -558,7 +561,7 @@ mod tests {
 
         #[test]
         fn urgency_normal() {
-            let condition = cond_def!("urgency" Eq "normal".to_string());
+            let condition = cond_def!(String: "urgency" Eq "normal".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.urgency = &notify_server::notification::Urgency::Low;
@@ -571,7 +574,7 @@ mod tests {
 
         #[test]
         fn urgency_critical() {
-            let condition = cond_def!("urgency" Eq "critical".to_string());
+            let condition = cond_def!(String: "urgency" Eq "critical".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.urgency = &notify_server::notification::Urgency::Low;
@@ -584,7 +587,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_eq() {
-            let condition = cond_def!("expire_timeout" Eq "42".to_string());
+            let condition = cond_def!(Number: "expire_timeout" Eq 42);
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.expire_timeout = 42;
@@ -595,7 +598,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_lt() {
-            let condition = cond_def!("expire_timeout" Lt "10".to_string());
+            let condition = cond_def!(Number: "expire_timeout" Lt 10);
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.expire_timeout = 9;
@@ -606,7 +609,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_le() {
-            let condition = cond_def!("expire_timeout" Le "10".to_string());
+            let condition = cond_def!(Number: "expire_timeout" Le 10);
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.expire_timeout = 9;
@@ -619,7 +622,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_gt() {
-            let condition = cond_def!("expire_timeout" Gt "10".to_string());
+            let condition = cond_def!(Number: "expire_timeout" Gt 10);
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.expire_timeout = 11;
@@ -630,7 +633,7 @@ mod tests {
 
         #[test]
         fn expire_timeout_ge() {
-            let condition = cond_def!("expire_timeout" Ge "10".to_string());
+            let condition = cond_def!(Number: "expire_timeout" Ge 10);
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             n.expire_timeout = 9;
@@ -643,19 +646,19 @@ mod tests {
 
         #[test]
         fn group() {
-            let condition = cond_def!("group" Eq "".to_string());
+            let condition = cond_def!(String: "group" Eq "".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let mut n = new_notification();
             assert!(n.group.is_none());
             assert!(condition.is_true(&n));
 
-            let condition = cond_def!("group" Eq "test".to_string());
+            let condition = cond_def!(String: "group" Eq "test".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let group = Some("test".to_string());
             n.group = &group;
             assert!(condition.is_true(&n));
 
-            let condition = cond_def!("group" Match "test".to_string());
+            let condition = cond_def!(String: "group" Match "test".to_string());
             let condition = BoxedCond::try_from(condition).unwrap();
             let group = Some("test".to_string());
             n.group = &group;
